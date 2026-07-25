@@ -69,10 +69,17 @@ mkdir -p logs results/per_dataset
 # Velikost polja mora ustrezati številu ID-jev, sicer bi zadnji dataseti tiho izpadli.
 # tail -n1: micromamba run lahko na stdout doda uvodne vrstice, zanima nas le število.
 N_IDS=$($MAMBA python -c "import json; print(len(json.load(open('$IDS_FILE'))))" | tail -n1)
-if [ "$SLURM_ARRAY_TASK_MAX" -ne "$((N_IDS - 1))" ]; then
+if [ "${ALLOW_SPARSE_ARRAY:-0}" -ne 1 ] && [ "$SLURM_ARRAY_TASK_MAX" -ne "$((N_IDS - 1))" ]; then
     echo "NAPAKA: --array=0-$SLURM_ARRAY_TASK_MAX ne ustreza $N_IDS ID-jem v $IDS_FILE." >&2
     echo "Popravi direktivo #SBATCH --array na 0-$((N_IDS - 1)) in oddaj znova." >&2
+    echo "Za ponovni zagon posameznih datasetov nastavi ALLOW_SPARSE_ARRAY=1." >&2
     exit 1
 fi
 
-$MAMBA python -m src.run_one_dataset --index $SLURM_ARRAY_TASK_ID --ids-file $IDS_FILE
+# Vedno preveri posamezen indeks - velja tudi za redek array.
+if [ "$SLURM_ARRAY_TASK_ID" -ge "$N_IDS" ]; then
+    echo "NAPAKA: index $SLURM_ARRAY_TASK_ID je izven obsega (0..$((N_IDS - 1)))." >&2
+    exit 1
+fi
+
+$MAMBA python -m src.run_one_dataset --index $SLURM_ARRAY_TASK_ID --ids-file "$IDS_FILE"
