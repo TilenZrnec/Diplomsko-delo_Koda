@@ -28,7 +28,10 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   `results/preprocessing_log.md`. Run via `python -m src.run_benchmark`.
 - `src/summary.py` — prints mean ROC-AUC ± std per (dataset, algorithm) and
   mean ROC-AUC ± std / mean rank per algorithm across datasets. Run via
-  `python -m src.summary`.
+  `python -m src.summary [results_csv]`; the optional path defaults to
+  `results/results.csv` (the local 3-dataset pilot), so pass
+  `results/results_arnes_cc18.csv` for the full sweep. It echoes `Vir: <path>`
+  first so the summarised file is never ambiguous.
 - `results/` — `results.csv` (columns: dataset, algorithm, fold, roc_auc,
   train_time_s, inference_time_s) and `preprocessing_log.md` (what
   preprocessing each algorithm × dataset combo required, and any raw-input
@@ -152,7 +155,32 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   input for sizing `--time`/`--mem`. Default reads OpenML metadata (needs
   internet, no full download); `--from-cache` loads the cached datasets.
 
-### Full CC18 sweep (72 datasets) — runbook
+### Full CC18 sweep (72 datasets) — **DONE**, do not re-run
+**Status: complete.** The thesis result set is `results/results_arnes_cc18.csv`
+— 2160 rows = 72 datasets × 6 algorithms × 5 folds, verified 2026-08-10.
+Ten fits failed, all of them CIFAR_10 (OpenML 40927) × {TabPFN, TabICL} × 5
+folds: TabICL asked for ~378 GB against 256 GB/node. Those rows exist with the
+reason in `error` and an empty `roc_auc` — no subsampling and no
+`disk_offload_dir` were used, so the default-hyperparameter protocol is intact.
+Full provenance (4 SLURM job IDs, the mid-run script fixes, the caveat that
+`train_time_s`/`inference_time_s` for datasets 554/40923/40927/40996 come from
+re-runs on different nodes and are therefore *not* cross-dataset comparable) is
+in `results/arnes_cc18/PROVENANCE.md`.
+
+Headline numbers (mean ROC-AUC / mean rank across all 72): tabicl 0.9396/1.75,
+tabpfn 0.9384/2.05, catboost 0.9280/3.43, lightgbm 0.9218/4.37, xgboost
+0.9208/4.42, random_forest 0.9180/4.88. Reproduce with
+`python -m src.summary results/results_arnes_cc18.csv` — **the path argument is
+required**; bare `python -m src.summary` summarises the 3-dataset local pilot
+instead, which is the wrong table for the thesis.
+
+The sizing TODOs still written in `scripts/run_cc18.sh` are answered by the run
+itself: `--mem=64G` was too small for indices 27/60/61/70 (mnist_784,
+Devnagari-Script, CIFAR_10, Fashion-MNIST) and those needed 120–240G;
+`--time=12:00:00` sufficed everywhere.
+
+The procedure below is retained for reproducibility and for any future
+re-run — **it is a record of what was done, not pending work.**
 1. **Pin the ID set** (once, already done and committed):
    `python scripts/gen_cc18_ids.py` → `scripts/cc18_ids.json`, 72 IDs from
    `openml.study.get_suite(99)`, deduped and sorted; hard-fails if OpenML
@@ -164,18 +192,14 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
 3. **Clear scratch, then submit**: `rm -rf results/per_dataset/*` (**all** of
    it — `.csv`, `.partial` and `.partial.tmp`; a stale partial from an older
    code version would otherwise poison a resume) and
-   `sbatch scripts/run_cc18.sh` (array `0-71%4`, `--time=08:00:00`,
-   `--mem=64G`, otherwise identical plumbing to `run_subset.sh`).
-   Values still to confirm **on the cluster**: the `%4` throttle against the
-   per-user GPU cap (`sacctmgr show qos normal
-   format=Name,MaxTRESPU%40,MaxJobsPU`), and `--time` against the partition/QOS
-   ceiling (`scontrol show partition gpu | grep -i maxtime`, `sacctmgr show qos
-   normal format=Name,MaxWall`) — raise it toward that ceiling to cut the
-   number of resubmissions. All marked in the script and in
-   `results/arnes_cc18/PROVENANCE.md`.
+   `sbatch scripts/run_cc18.sh` (array `0-71%4`, now `--time=12:00:00`,
+   `--mem=64G`, otherwise identical plumbing to `run_subset.sh`). Re-submit the
+   four big indices separately with more memory:
+   `ALLOW_SPARSE_ARRAY=1 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh`.
 4. **Merge and summarise**:
    `python scripts/merge_results.py results/results_arnes_cc18.csv` then
-   `python -m src.summary`. Never merge into `results/results.csv`.
+   `python -m src.summary results/results_arnes_cc18.csv` — pass the path, or
+   you silently get the pilot. Never merge into `results/results.csv`.
 5. **Completeness check**: expect **72 × 6 × 5 = 2160** rows. Fewer rows, or
    any `*.partial` left in `results/per_dataset/` (the merge lists them), means
    those datasets hit the wall — raise `--time` and re-submit; they resume
@@ -196,11 +220,11 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   version and one environment. **(b) is the recommendation for the thesis
   run** — single-version provenance; the pilot results stay archived in
   `results/arnes_subset/`.
-- Expect TabPFN/TabICL to fail-soft on the largest CC18 datasets
+- TabPFN/TabICL were expected to fail-soft on the four largest CC18 datasets
   (CIFAR_10 60000×3072, Devnagari-Script 92000×1024, mnist_784 and
-  Fashion-MNIST 70000×784). That is logged in the row's `error` column by
-  design; no subsampling is implemented — revisit only after seeing which
-  datasets actually break.
+  Fashion-MNIST 70000×784). **Outcome: only CIFAR_10 actually broke** — the
+  other three completed once given 120–240G. No subsampling is implemented and
+  none was added; the 10 CIFAR_10 rows carry their reason in `error`.
 
 ### Operational lessons (learned 2026-07-22, validation run)
 - **The cluster remote uses SSH**, not HTTPS: `git@github.com:...`. The

@@ -1,9 +1,14 @@
 """Izpiše povprečni ROC-AUC ± std po (dataset, algoritem) in povprečen
 rang po algoritmu čez vse datasete.
 
-Zagon: python -m src.summary
+Zagon: python -m src.summary [results_csv]
+
+Brez argumenta povzame results/results.csv (lokalna pilotna izhodiščna
+meritev, 3 dataseti). Za zagon na gruči je pot treba podati eksplicitno:
+    python -m src.summary results/results_arnes_cc18.csv
 """
 
+import argparse
 import os
 
 import pandas as pd
@@ -14,6 +19,10 @@ RESULTS_CSV = os.path.join(REPO_ROOT, "results", "results.csv")
 
 
 def summarize(results_csv=RESULTS_CSV):
+    # Katera datoteka je povzeta, je izpisano izrecno: privzetek je pilot na
+    # 3 datasetih, zato bi tiho povzemanje napačne datoteke pomenilo napačne
+    # številke v diplomi brez vsakega opozorila.
+    print(f"Vir: {os.path.relpath(results_csv, REPO_ROOT)}\n")
     df = pd.read_csv(results_csv)
     ok = df.dropna(subset=["roc_auc"])
     failed = df[df["roc_auc"].isna()]
@@ -50,4 +59,12 @@ def summarize(results_csv=RESULTS_CSV):
 
 
 if __name__ == "__main__":
-    summarize()
+    parser = argparse.ArgumentParser(description="Povzetek rezultatov benchmarka.")
+    parser.add_argument(
+        "results_csv",
+        nargs="?",
+        default=RESULTS_CSV,
+        help="Pot do CSV-ja z rezultati (privzeto results/results.csv)",
+    )
+    args = parser.parse_args()
+    summarize(args.results_csv)
