@@ -1,4 +1,4 @@
-# PRVO TESTIRANJE — Diploma Project (FRI)
+# Diplomsko-delo_Koda — Diploma Project (FRI)
 #  Style
 Explain things to me as if i am a compleete beginner.
 
@@ -66,8 +66,22 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   recorded in `results/preprocessing_log.md`.
 
 ## Environment
-- Runs under WSL2 (Ubuntu) on Windows 11; working directory is on the
-  Windows filesystem at `/mnt/d/fri/Diplomska/prvo_testiranje`.
+- Runs under WSL2 (Ubuntu) on Windows 11; the repo lives on the WSL **Linux**
+  filesystem at `/home/tilen/fri/diplomska/Diplomsko-delo_Koda` (moved off the
+  Windows mount `/mnt/d/fri/Diplomska/prvo_testiranje` on 2026-08-10, and
+  renamed from `prvo_testiranje`). Any older reference to `/mnt/d/...` or to
+  "prvo_testiranje" is stale.
+- **Two machines** (desktop PC and laptop) use the *same* path
+  `/home/tilen/fri/diplomska/Diplomsko-delo_Koda`, kept in sync through GitHub:
+  `origin = https://github.com/TilenZrnec/Diplomsko-delo_Koda.git`, branch
+  `main`. The parent `~/fri/diplomska/` also holds the thesis text
+  (`Diplomsko_delo_Tabelarični_temeljni_modeli/`) and the CRISP-DM documents,
+  which are *not* part of this repo. Sync discipline: commit + push before
+  switching machines, pull on arrival — nothing here is shared live.
+- Not carried by git, therefore per-machine and to be set up on each:
+  the conda env `tabular`, the TabPFN credential (`~/.cache/tabpfn/`), the
+  OpenML cache (`~/.cache/openml/`, see the caveat below), and
+  `.claude/settings.local.json` (globally gitignored).
 - Conda env: `tabular` (Python 3.10). GPU: NVIDIA RTX 3060, `torch` 2.13.0+cu130,
   `torch.cuda.is_available()` is `True`. Run project scripts with
   `conda run -n tabular python -m src.<module>` (or activate the env first).
