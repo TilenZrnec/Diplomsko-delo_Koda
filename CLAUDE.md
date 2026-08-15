@@ -250,6 +250,32 @@ re-run — **it is a record of what was done, not pending work.**
   for RF/XGBoost/LightGBM/CatBoost and ~1e-4 for TabPFN/TabICL (GPU
   nondeterminism, SM86 vs SM90). See `results/arnes_subset/PROVENANCE.md`.
 
+## FRI methodology requirements (official diploma guidelines)
+These are the faculty's rules for the experimental part; the writing/citation
+rules live in the thesis repo's `CLAUDE.md`
+(`../Diplomsko-delo_Tabelaricni-temeljni-modeli/CLAUDE.md`).
+- **Baseline required.** Results must be compared against the simplest, naive
+  method as a lower bound, to show the compared models actually improve on it.
+  *Currently not implemented* — the six algorithms are all non-trivial, there is
+  no `DummyClassifier`-style reference in `REGISTRY`. Raise this before the
+  results chapter is written; do not add it silently.
+- **Reproducibility.** Fixed random seeds (`random_state=42` throughout),
+  every input parameter recorded in `config.yaml`, library versions pinned in
+  `requirements.txt`, environment isolated (conda env `tabular` / micromamba on
+  Arnes). "Works on my machine" is not acceptable.
+- **Systematic experiment logging**, never hand-named result folders. Each run
+  records its configuration (hyperparameters, dataset size), its output metrics
+  (ROC-AUC, error, train/inference time) and its timestamp into structured
+  CSV/JSON — here `results/*.csv` plus the run's `PROVENANCE.md`.
+- **Link results to code:** each experiment run should record the current **git
+  commit hash** alongside its results, so it is always known which version of
+  the source produced a given table or figure. Currently done by hand in
+  `PROVENANCE.md`; automating it in the run scripts is the better practice.
+- **Version control and data versioning.** Code is committed and pushed to the
+  remote (never only local), open source where possible; if the input dataset
+  set changes, filters or grows, record which version of the data each
+  experiment used (here: the pinned `scripts/cc18_ids.json`).
+
 ## Conventions
 - Each model module fails soft: exceptions are caught and stored in
   `result["error"]` rather than raised, so one failing (dataset, algorithm,
