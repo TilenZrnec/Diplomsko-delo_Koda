@@ -6,6 +6,10 @@ venv/
 .ipynb_checkpoints/
 
 data/openml_cache/
+# Medic3 so zaupni medicinski podatki (anonimizirani in zamegljeni) in so
+# hkrati veliki 142 MB - cez 100 MB omejitev GitHuba. V repozitorij NE gredo;
+# izvor in kontrolna vsota sta zabelezena v results/medic3/PROVENANCE.md.
+data/medic3/
 catboost_info/
 logs/
 .cache/
