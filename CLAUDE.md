@@ -254,11 +254,13 @@ re-run — **it is a record of what was done, not pending work.**
 These are the faculty's rules for the experimental part; the writing/citation
 rules live in the thesis repo's `CLAUDE.md`
 (`../Diplomsko-delo_Tabelaricni-temeljni-modeli/CLAUDE.md`).
-- **Baseline required.** Results must be compared against the simplest, naive
-  method as a lower bound, to show the compared models actually improve on it.
-  *Currently not implemented* — the six algorithms are all non-trivial, there is
-  no `DummyClassifier`-style reference in `REGISTRY`. Raise this before the
-  results chapter is written; do not add it silently.
+- **Baseline — deliberately not used. Decided 2026-08-16, do not re-raise.**
+  The guidelines mention comparing against a naive lower bound, but this thesis
+  does not need one: the research question is how tabular foundation models
+  compare *against the established tree ensembles*, and the four ensembles
+  already serve as the reference point. A `DummyClassifier` sits at ROC-AUC 0.5
+  by construction and would add no information. There is therefore no
+  `DummyClassifier`-style entry in `REGISTRY` and none is to be added.
 - **Reproducibility.** Fixed random seeds (`random_state=42` throughout),
   every input parameter recorded in `config.yaml`, library versions pinned in
   `requirements.txt`, environment isolated (conda env `tabular` / micromamba on
