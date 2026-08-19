@@ -253,7 +253,9 @@ re-run — **it is a record of what was done, not pending work.**
 ## FRI methodology requirements (official diploma guidelines)
 These are the faculty's rules for the experimental part; the writing/citation
 rules live in the thesis repo's `CLAUDE.md`
-(`../Diplomsko-delo_Tabelaricni-temeljni-modeli/CLAUDE.md`).
+(`../Diplomsko_delo_Tabelarični_temeljni_modeli/CLAUDE.md` — note the local
+directory uses underscores and diacritics; the *remote* is named
+`Diplomsko-delo_Tabelaricni-temeljni-modeli`, which is not a path on disk).
 - **Baseline — deliberately not used. Decided 2026-08-16, do not re-raise.**
   The guidelines mention comparing against a naive lower bound, but this thesis
   does not need one: the research question is how tabular foundation models
