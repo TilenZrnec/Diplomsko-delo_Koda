@@ -25,9 +25,12 @@ def load_dataset(openml_id, n_splits=5, random_state=42, cache_dir=None):
     (train_idx, test_idx) parov pozicijskih indeksov).
     """
     # Nastavi mapo, kamor OpenML shrani prenesene datasete (predpomnilnik).
+    # Nastavitev je "root": openml pod njo sam doda org/openml/www, zato
+    # datoteke končajo v <cache_dir>/org/openml/www. Pripis
+    # openml.config.cache_directory je v openml 0.14 brez učinka (glej CLAUDE.md).
     if cache_dir is None:
         cache_dir = os.path.join(REPO_ROOT, "data", "openml_cache")
-    openml.config.cache_directory = cache_dir
+    openml.config.set_root_cache_directory(cache_dir)
 
     # Prenese dataset z OpenML (ali ga prebere iz predpomnilnika).
     dataset = openml.datasets.get_dataset(openml_id)

@@ -29,7 +29,7 @@ OUT_PATH = os.path.join(REPO_ROOT, "scripts", "cc18_ids.json")
 
 def main():
     # Isti predpomnilnik kot src/data.py, da metapodatki zbirke pristanejo v repu.
-    openml.config.cache_directory = os.path.join(REPO_ROOT, "data", "openml_cache")
+    openml.config.set_root_cache_directory(os.path.join(REPO_ROOT, "data", "openml_cache"))
 
     suite = openml.study.get_suite(SUITE_ID)
     ids = sorted({int(data_id) for data_id in suite.data})

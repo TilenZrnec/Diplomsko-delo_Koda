@@ -36,7 +36,9 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   train_time_s, inference_time_s) and `preprocessing_log.md` (what
   preprocessing each algorithm × dataset combo required, and any raw-input
   errors). Both are generated, not hand-edited.
-- `data/openml_cache/` — OpenML's local dataset cache (gitignored).
+- `data/openml_cache/` — OpenML's local dataset cache (gitignored). The
+  library appends `org/openml/www`, so files land in
+  `data/openml_cache/org/openml/www/`.
 
 ## Preprocessing policy (per algorithm — this is a deliberate experimental variable)
 - **RandomForest**: no native NaN/categorical support → median imputation
@@ -83,7 +85,7 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   switching machines, pull on arrival — nothing here is shared live.
 - Not carried by git, therefore per-machine and to be set up on each:
   the conda env `tabular`, the TabPFN credential (`~/.cache/tabpfn/`), the
-  OpenML cache (`~/.cache/openml/`, see the caveat below), and
+  OpenML cache (`data/openml_cache/`, gitignored — re-downloaded on demand), and
   `.claude/settings.local.json` (globally gitignored).
 - Conda env: `tabular` (Python 3.10). GPU: NVIDIA RTX 3060, `torch` 2.13.0+cu130,
   `torch.cuda.is_available()` is `True`. Run project scripts with
@@ -94,16 +96,26 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   real TTY — `conda activate`, not `conda run`), or set `TABPFN_TOKEN` from
   https://ux.priorlabs.ai/account for headless use.
 - `src/data.py` resolves the OpenML cache path relative to the repo root
-  (`data/openml_cache`), not hardcoded — safe if the repo is moved.
-  **Caveat (verified 2026-07-22):** under `openml` 0.14.2 the assignment
-  `openml.config.cache_directory = ...` is a no-op — the library reads
-  `_root_cache_directory` (settable only via
-  `openml.config.set_root_cache_directory()`), so the cache actually lands in
-  `~/.cache/openml/org/openml/www` and `data/openml_cache` stays empty. Left
-  as-is deliberately (changing it would move the cache mid-project); it only
-  matters for **disk-quota accounting on Arnes**, where the cache counts
-  against the 100 GB home quota. `scripts/prestage.py` therefore measures the
-  *effective* directory via `openml.config.get_cache_directory()`.
+  (`data/openml_cache`), not hardcoded — safe if the repo is moved. It sets it
+  with `openml.config.set_root_cache_directory()`; `openml` then appends
+  `org/openml/www` underneath.
+  **Do not use `openml.config.cache_directory = ...`** — that name was removed
+  after `openml` 0.10 and, because `openml.config` is a plain module, the
+  assignment silently creates an unread attribute instead of raising. The repo
+  carried exactly this bug until 2026-08-31, so the cache landed in
+  `~/.cache/openml/org/openml/www` while `data/openml_cache` stayed empty
+  (no effect on any result — only on where files sat). Verified on the laptop
+  under `openml` 0.14.2: after the assignment `get_cache_directory()` is
+  unchanged; after `set_root_cache_directory()` it follows.
+  `scripts/prestage.py` still reports the *effective* directory via
+  `openml.config.get_cache_directory()` — that stays the reliable source for
+  the **100 GB home-quota check on Arnes**.
+  **Migration:** an old `~/.cache/openml` is now orphaned. Either
+  `mkdir -p data/openml_cache && mv ~/.cache/openml/org data/openml_cache/`,
+  or let it re-download. On Arnes this is not optional: compute nodes are
+  offline (`HF_HUB_OFFLINE=1`), so `scripts/prestage.py` must be re-run on the
+  login node before the next submission, or every array task fails on an empty
+  cache.
 
 ## Datasets (OpenML IDs, set in `config.yaml`)
 - 31 — credit-g (1000 rows, 20 attrs, 13 categorical, no missing values)
