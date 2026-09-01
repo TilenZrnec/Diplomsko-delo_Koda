@@ -9,6 +9,11 @@ Zagon (samo na prijavnem vozlišču, potrebuje internet):
 
     python scripts/prestage.py                                   # pilotna podmnožica
     python scripts/prestage.py --ids-file scripts/cc18_ids.json  # cel CC18
+    python scripts/prestage.py --ids 31 37 38                    # izbrani ID-ji
+    python scripts/prestage.py --ids 37 --skip-weights           # samo dataset, brez utež
+
+--skip-weights preskoči TabPFN/TabICL - uporabno za preverjanje samega
+predpomnilnika datasetov na računalniku brez poverilnice TabPFN.
 
 Prenos posameznega dataseta ne prekine celotne predpriprave - napake se
 zberejo in izpišejo na koncu, izhodna koda pa je 1, če kateri dataset
@@ -35,9 +40,9 @@ CACHE_DIR = os.path.join(REPO_ROOT, "data", "openml_cache")
 def effective_cache_dir():
     """Vrne mapo, v katero openml dejansko piše predpomnilnik.
 
-    Pozor: openml 0.14 ignorira pripis openml.config.cache_directory (ki ga
-    dela src/data.py) in uporablja svojo privzeto pot (~/.cache/openml/...).
-    Za preverjanje kvote domačega imenika šteje ta, dejanska pot.
+    src/data.py nastavi koren predpomnilnika s set_root_cache_directory(),
+    openml pa pod njim sam doda org/openml/www. Za preverjanje kvote
+    domačega imenika šteje ta, dejanska pot - zato jo vprašamo knjižnico.
     """
     return openml.config.get_cache_directory()
 
@@ -108,15 +113,34 @@ def main():
         default=os.path.join(REPO_ROOT, "scripts", "subset_ids.json"),
         help="JSON datoteka s seznamom OpenML ID-jev (privzeto scripts/subset_ids.json)",
     )
+    parser.add_argument(
+        "--ids",
+        nargs="+",
+        type=int,
+        help="Neposreden seznam OpenML ID-jev (npr. --ids 31 37); prevlada nad --ids-file.",
+    )
+    parser.add_argument(
+        "--skip-weights",
+        action="store_true",
+        help="Preskoči prenos utež TabPFN/TabICL - predpripravi samo datasete.",
+    )
     args = parser.parse_args()
 
-    with open(args.ids_file) as f:
-        ids = [int(i) for i in json.load(f)]
-    print(f"Predpriprava {len(ids)} datasetov iz {args.ids_file}\n")
+    if args.ids:
+        ids = args.ids
+        source = "--ids"
+    else:
+        with open(args.ids_file) as f:
+            ids = [int(i) for i in json.load(f)]
+        source = args.ids_file
+    print(f"Predpriprava {len(ids)} datasetov iz {source}\n")
 
     failures = prestage_datasets(ids)
-    print()
-    prestage_weights()
+    if args.skip_weights:
+        print("\nUteži TabPFN/TabICL preskočene (--skip-weights).")
+    else:
+        print()
+        prestage_weights()
 
     cache_dir = effective_cache_dir()
     print(f"\nVelikost predpomnilnika OpenML ({cache_dir}): {human_size(dir_size_bytes(cache_dir))}")
