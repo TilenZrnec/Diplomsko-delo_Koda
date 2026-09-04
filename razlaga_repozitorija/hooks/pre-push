@@ -1,0 +1,15 @@
+#!/bin/sh
+# Kljuka (hook) pred 'git push': ustavi potisk, če diagram zaporedja
+# razlaga_repozitorija/zaporedje.puml ni več usklajen z izvorno kodo.
+#
+# Namestitev (enkrat na vsakem računalniku - kljuke se prek GitHuba NE prenašajo):
+#     git config core.hooksPath razlaga_repozitorija/hooks
+# Preveri z:
+#     git config --get core.hooksPath
+# Odstranitev:
+#     git config --unset core.hooksPath
+#
+# Obvod za en sam potisk:  git push --no-verify
+
+# Kljuke git požene iz korena delovnega drevesa, zato je ta pot vedno prava.
+python3 razlaga_repozitorija/preveri_diagram.py || exit 1

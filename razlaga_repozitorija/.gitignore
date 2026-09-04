@@ -1,0 +1,7 @@
+# Izrisani diagrami so IZPELJANI iz zaporedje.puml. V git ne gredo: slika,
+# ki je ne bi nihče osvezil, bi tiho kazala staro stanje - ravno to, kar
+# preveri_diagram.py preprecuje. Izrisi jih po potrebi (glej README.md).
+*.png
+*.svg
+*.eps
+*.pdf

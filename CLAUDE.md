@@ -39,6 +39,47 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
 - `data/openml_cache/` — OpenML's local dataset cache (gitignored). The
   library appends `org/openml/www`, so files land in
   `data/openml_cache/org/openml/www/`.
+- `razlaga_repozitorija/` — explanatory material, **not** part of the
+  experiment: `zaporedje.puml` (PlantUML sequence diagrams of the call flow),
+  `preveri_diagram.py` (consistency checker) and `hooks/pre-push`. See the
+  "Sequence diagram" section below — the diagram is a maintained artefact, not
+  a one-off drawing.
+
+## Sequence diagram — keep it in sync (mandatory)
+`razlaga_repozitorija/zaporedje.puml` holds four PlantUML sequence diagrams
+(`01_priprava`, `02_lokalni_pilot`, `03_arnes`, `04_analiza`) showing which file
+calls which. It is the map the author reads to understand the codebase, so a
+stale diagram is worse than none.
+
+**Rule: any change to the set of source files updates the diagram in the same
+commit.** That means adding a file (a new algorithm in `src/models/`, a new
+script in `scripts/`), renaming one, deleting one, or changing what a file does
+in a way the diagram states (its CLI flags, its outputs, the order of calls).
+Every file in `src/` and `scripts/` must appear with its **full path**
+(`src/models/tabpfn_model.py`, not `tabpfn_model.py`) — that is what makes the
+check below possible.
+
+Enforcement is automatic at `git push`:
+- `razlaga_repozitorija/preveri_diagram.py` checks both directions — a source
+  file missing from the diagram, and a path in the diagram that no longer
+  exists on disk. Covers `src/**/*.py`, `scripts/**/*.py`, `scripts/**/*.sh`
+  and `config.yaml`. Standard library only, so it runs under any system
+  `python3`; the `tabular` env is not needed.
+- `razlaga_repozitorija/hooks/pre-push` runs it and **blocks the push** if the
+  diagram is stale. Escape hatch for one push: `git push --no-verify`.
+- **Per-machine setup**: hooks are not carried by git, so run
+  `git config core.hooksPath razlaga_repozitorija/hooks` once on each machine
+  (done on the PC; do it on the laptop after the next pull). Verify with
+  `git config --get core.hooksPath`.
+
+PlantUML creole eats some characters, so the diagram escapes them with `~`:
+`~__init~__.py` (else `__init__.py` renders as underlined "init"), `~--mem`
+(else `--mem=64G` renders struck through) and a leading `~#SBATCH` (else it
+becomes a numbered list). The checker strips `~` before comparing, so escaping
+never breaks the check. Verify a render with
+`java -jar plantuml.jar -tpng razlaga_repozitorija/zaporedje.puml` (or the VS
+Code PlantUML extension, `Alt+D`) — `-checkonly` catches syntax errors but not
+these creole artefacts, which only show up in the rendered image.
 
 ## Preprocessing policy (per algorithm — this is a deliberate experimental variable)
 - **RandomForest**: no native NaN/categorical support → median imputation
