@@ -69,7 +69,8 @@ Enforcement is automatic at `git push`:
   diagram is stale. Escape hatch for one push: `git push --no-verify`.
 - **Per-machine setup**: hooks are not carried by git, so run
   `git config core.hooksPath razlaga_repozitorija/hooks` once on each machine
-  (done on the PC; do it on the laptop after the next pull). Verify with
+  (done 2026-09-04 on the **laptop**, hostname `DESKTOP-0EPDCR8`; still to do
+  on the **desktop PC** after the next pull). Verify with
   `git config --get core.hooksPath`.
 
 PlantUML creole eats some characters, so the diagram escapes them with `~`:
