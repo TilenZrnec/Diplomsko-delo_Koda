@@ -3,7 +3,7 @@
 Zagon: python scripts/merge_results.py <izhodni.csv> [--input-dir MAPA]
 
 Privzeta vhodna mapa je results/per_dataset/ (scratch izhod SLURM polja);
-z --input-dir se združi kurirana mapa, npr. results/arnes_subset/.
+z --input-dir se združi kurirana mapa, npr. results/arnes/subset/per_dataset/.
 Izpiše število vrstic in datasetov ter koliko vrstic ima neprazno napako.
 """
 

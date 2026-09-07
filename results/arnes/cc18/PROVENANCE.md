@@ -1,7 +1,7 @@
 # Polni zagon OpenML-CC18 (72 naborov) na gruči Arnes
 
 ## Rezultat
-- Izhodna datoteka: results/results_arnes_cc18.csv
+- Izhodna datoteka: results/arnes/cc18/results_arnes_cc18.csv
 - 2160 vrstic = 72 naborov x 6 algoritmov x 5 delitev
 - 10 neuspelih učenj: CIFAR_10 (OpenML 40927) x {tabpfn, tabicl}, vseh 5 delitev.
   TabICL je za eno delitev zahteval ~378 GB pomnilnika, kar presega 256 GB na vozlišče.

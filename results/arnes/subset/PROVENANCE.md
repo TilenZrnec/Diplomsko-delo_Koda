@@ -13,7 +13,7 @@ na gruči Arnes in njegovo primerjavo z lokalno referenco.
 | GPU | NVIDIA H100 (`-C h100`, particija `gpu`) |
 | Datum | 2026-07-22 |
 | Status taskov | vsi `COMPLETED` |
-| Lokalna referenca | `results/results.csv` — zagon na NVIDIA RTX 3060 (WSL2), nespremenjen |
+| Lokalna referenca | `results/local/results_local_subset.csv` — zagon na NVIDIA RTX 3060 (WSL2), nespremenjen |
 
 ### Per-task viri (sacct)
 
@@ -29,22 +29,24 @@ na gruči Arnes in njegovo primerjavo z lokalno referenco.
 >
 > Ta števila so vhod za dimenzioniranje `--time`/`--mem` celotnega CC18 polja,
 > a **le kot spodnja meja** — pilotni dataseti so drobni (največ 3772 × 29),
-> CC18 pa vsebuje tudi 60000 × 3072. Glej `results/arnes_cc18/PROVENANCE.md`.
+> CC18 pa vsebuje tudi 60000 × 3072. Glej `results/arnes/cc18/PROVENANCE.md`.
 
 ## Datoteke
 
 | Datoteka | Opis |
 |---|---|
-| `31.csv`, `37.csv`, `38.csv` | surovi per-dataset izhodi z gruče (H100), kurirani |
+| `per_dataset/31.csv`, `37.csv`, `38.csv` | surovi per-dataset izhodi z gruče (H100), kurirani |
 | `arnes_pip_freeze.txt` | `pip freeze` okolja na gruči (micromamba `~/envs/tabular`) |
 | `local_pip_freeze.txt` | `pip freeze` lokalnega okolja (conda `tabular`, RTX 3060) |
-| `../results_arnes_subset.csv` | združeni CSV (90 vrstic, 3 dataseti, 0 napak) |
+| `results_arnes_subset.csv` | združeni CSV (90 vrstic, 3 dataseti, 0 napak) |
 
 Združeno z:
 
 ```bash
-python scripts/merge_results.py results/results_arnes_subset.csv --input-dir results/arnes_subset
-python scripts/compare_results.py results/results.csv results/results_arnes_subset.csv
+python scripts/merge_results.py results/arnes/subset/results_arnes_subset.csv \
+    --input-dir results/arnes/subset/per_dataset
+python scripts/compare_results.py results/local/results_local_subset.csv \
+    results/arnes/subset/results_arnes_subset.csv
 ```
 
 ## Sodba (predregistrirane tolerance)

@@ -3,9 +3,10 @@ rang po algoritmu čez vse datasete.
 
 Zagon: python -m src.summary [results_csv]
 
-Brez argumenta povzame results/results.csv (lokalna pilotna izhodiščna
-meritev, 3 dataseti). Za zagon na gruči je pot treba podati eksplicitno:
-    python -m src.summary results/results_arnes_cc18.csv
+Brez argumenta povzame results/local/results_local_subset.csv (lokalna
+pilotna izhodiščna meritev, 3 dataseti). Za zagon na gruči je pot treba
+podati eksplicitno:
+    python -m src.summary results/arnes/cc18/results_arnes_cc18.csv
 """
 
 import argparse
@@ -15,7 +16,7 @@ import pandas as pd
 from tabulate import tabulate
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RESULTS_CSV = os.path.join(REPO_ROOT, "results", "results.csv")
+RESULTS_CSV = os.path.join(REPO_ROOT, "results", "local", "results_local_subset.csv")
 
 
 def summarize(results_csv=RESULTS_CSV):
@@ -64,7 +65,7 @@ if __name__ == "__main__":
         "results_csv",
         nargs="?",
         default=RESULTS_CSV,
-        help="Pot do CSV-ja z rezultati (privzeto results/results.csv)",
+        help="Pot do CSV-ja z rezultati (privzeto results/local/results_local_subset.csv)",
     )
     args = parser.parse_args()
     summarize(args.results_csv)

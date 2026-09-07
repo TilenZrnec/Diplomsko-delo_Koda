@@ -24,18 +24,31 @@ Comments and docstrings in the codebase are written in Slovenian. Currently
   Implemented: `random_forest.py`, `xgboost_model.py`, `lightgbm_model.py`,
   `catboost_model.py`, `tabpfn_model.py`, `tabicl_model.py`.
 - `src/run_benchmark.py` — orchestrates: load each dataset, run every
-  algorithm on every fold, write `results/results.csv` and
-  `results/preprocessing_log.md`. Run via `python -m src.run_benchmark`.
+  algorithm on every fold, write `results/local/results_local_subset.csv` and
+  `results/local/preprocessing_log.md`. Run via `python -m src.run_benchmark`.
 - `src/summary.py` — prints mean ROC-AUC ± std per (dataset, algorithm) and
   mean ROC-AUC ± std / mean rank per algorithm across datasets. Run via
   `python -m src.summary [results_csv]`; the optional path defaults to
-  `results/results.csv` (the local 3-dataset pilot), so pass
-  `results/results_arnes_cc18.csv` for the full sweep. It echoes `Vir: <path>`
+  `results/local/results_local_subset.csv` (the local 3-dataset pilot), so pass
+  `results/arnes/cc18/results_arnes_cc18.csv` for the full sweep. It echoes `Vir: <path>`
   first so the summarised file is never ambiguous.
-- `results/` — `results.csv` (columns: dataset, algorithm, fold, roc_auc,
-  train_time_s, inference_time_s) and `preprocessing_log.md` (what
-  preprocessing each algorithm × dataset combo required, and any raw-input
-  errors). Both are generated, not hand-edited.
+- `results/` — one directory per run, split by where it ran. All CSVs share
+  the columns dataset, algorithm, fold, roc_auc, train_time_s,
+  inference_time_s; everything here is generated, not hand-edited.
+  - `results/local/` — the local RTX 3060 pilot:
+    `results_local_subset.csv` (3 datasets) and `preprocessing_log.md` (what
+    preprocessing each algorithm × dataset combo required, and any raw-input
+    errors). Only `run_benchmark.py` writes these two, and it overwrites them
+    on every run, so they always describe the *last* local run.
+  - `results/arnes/subset/` — the cluster validation run on the same 3
+    datasets: `results_arnes_subset.csv`, its `per_dataset/` inputs, the two
+    `pip freeze` files and `PROVENANCE.md`.
+  - `results/arnes/cc18/` — the thesis result set:
+    `results_arnes_cc18.csv` and `PROVENANCE.md`.
+  - `results/per_dataset/` — **scratch**, gitignored, deliberately *not*
+    under `arnes/`: the raw SLURM array output that `merge_results.py`
+    consumes. Curated runs get copied out of it, never left in it.
+  - `results/README.md` — one-paragraph map of the three runs above.
 - `data/openml_cache/` — OpenML's local dataset cache (gitignored). The
   library appends `org/openml/www`, so files land in
   `data/openml_cache/org/openml/www/`.
@@ -110,7 +123,7 @@ these creole artefacts, which only show up in the rendered image.
     explicit `device='cuda:0'` was needed; fixed by the torch 2.13 upgrade,
     fallback kept as a safety net.
   Never silently preprocess — every raw failure + the fix applied is
-  recorded in `results/preprocessing_log.md`.
+  recorded in `results/local/preprocessing_log.md`.
 
 ## Environment
 - Runs under WSL2 (Ubuntu) on Windows 11; the repo lives on the WSL **Linux**
@@ -210,7 +223,8 @@ these creole artefacts, which only show up in the rendered image.
   internet, no full download); `--from-cache` loads the cached datasets.
 
 ### Full CC18 sweep (72 datasets) — **DONE**, do not re-run
-**Status: complete.** The thesis result set is `results/results_arnes_cc18.csv`
+**Status: complete.** The thesis result set is
+`results/arnes/cc18/results_arnes_cc18.csv`
 — 2160 rows = 72 datasets × 6 algorithms × 5 folds, verified 2026-08-10.
 Ten fits failed, all of them CIFAR_10 (OpenML 40927) × {TabPFN, TabICL} × 5
 folds: TabICL asked for ~378 GB against 256 GB/node. Those rows exist with the
@@ -219,12 +233,12 @@ reason in `error` and an empty `roc_auc` — no subsampling and no
 Full provenance (4 SLURM job IDs, the mid-run script fixes, the caveat that
 `train_time_s`/`inference_time_s` for datasets 554/40923/40927/40996 come from
 re-runs on different nodes and are therefore *not* cross-dataset comparable) is
-in `results/arnes_cc18/PROVENANCE.md`.
+in `results/arnes/cc18/PROVENANCE.md`.
 
 Headline numbers (mean ROC-AUC / mean rank across all 72): tabicl 0.9396/1.75,
 tabpfn 0.9384/2.05, catboost 0.9280/3.43, lightgbm 0.9218/4.37, xgboost
 0.9208/4.42, random_forest 0.9180/4.88. Reproduce with
-`python -m src.summary results/results_arnes_cc18.csv` — **the path argument is
+`python -m src.summary results/arnes/cc18/results_arnes_cc18.csv` — **the path argument is
 required**; bare `python -m src.summary` summarises the 3-dataset local pilot
 instead, which is the wrong table for the thesis.
 
@@ -251,9 +265,10 @@ re-run — **it is a record of what was done, not pending work.**
    four big indices separately with more memory:
    `ALLOW_SPARSE_ARRAY=1 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh`.
 4. **Merge and summarise**:
-   `python scripts/merge_results.py results/results_arnes_cc18.csv` then
-   `python -m src.summary results/results_arnes_cc18.csv` — pass the path, or
-   you silently get the pilot. Never merge into `results/results.csv`.
+   `python scripts/merge_results.py results/arnes/cc18/results_arnes_cc18.csv`
+   then `python -m src.summary results/arnes/cc18/results_arnes_cc18.csv` —
+   pass the path, or you silently get the pilot. Never merge into
+   `results/local/results_local_subset.csv`.
 5. **Completeness check**: expect **72 × 6 × 5 = 2160** rows. Fewer rows, or
    any `*.partial` left in `results/per_dataset/` (the merge lists them), means
    those datasets hit the wall — raise `--time` and re-submit; they resume
@@ -273,7 +288,7 @@ re-run — **it is a record of what was done, not pending work.**
   results/per_dataset/*` first, so all 72 datasets come from one code
   version and one environment. **(b) is the recommendation for the thesis
   run** — single-version provenance; the pilot results stay archived in
-  `results/arnes_subset/`.
+  `results/arnes/subset/`.
 - TabPFN/TabICL were expected to fail-soft on the four largest CC18 datasets
   (CIFAR_10 60000×3072, Devnagari-Script 92000×1024, mnist_784 and
   Fashion-MNIST 70000×784). **Outcome: only CIFAR_10 actually broke** — the
@@ -292,17 +307,18 @@ re-run — **it is a record of what was done, not pending work.**
   git-committed local CSV made array task 0 skip, contaminating the first
   attempt with local numbers presented as cluster numbers. Curated,
   publishable results are committed under their own directory (e.g.
-  `results/arnes_subset/`) with a `PROVENANCE.md`.
+  `results/arnes/subset/`) with a `PROVENANCE.md`.
 - **Merges always write to a new file.** Never merge into or overwrite
-  `results/results.csv` — it is the immutable local RTX 3060 baseline.
-  Cluster merges go to `results/results_arnes_subset.csv` and similar.
+  `results/local/results_local_subset.csv` — it is the immutable local
+  RTX 3060 baseline. Cluster merges go to
+  `results/arnes/subset/results_arnes_subset.csv` and similar.
 - **Job receipts via `sacct`.** After every cluster run, record the receipt:
   `sacct -j <jobid> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`.
   Elapsed/MaxRSS per task go into the run's `PROVENANCE.md` — they are the
   input for sizing `--time` and `--mem` on the larger CC18 array.
 - Validation outcome: cluster vs. local agreement is exact (bit-identical)
   for RF/XGBoost/LightGBM/CatBoost and ~1e-4 for TabPFN/TabICL (GPU
-  nondeterminism, SM86 vs SM90). See `results/arnes_subset/PROVENANCE.md`.
+  nondeterminism, SM86 vs SM90). See `results/arnes/subset/PROVENANCE.md`.
 
 ## FRI methodology requirements (official diploma guidelines)
 These are the faculty's rules for the experimental part; the writing/citation
@@ -346,7 +362,8 @@ keep it that way so the relative path resolves everywhere.
   a compute setting, not a hyperparameter — trees are independent, so it
   changes only wall-clock, never the fitted model. Verified 2026-07-22:
   `predict_proba` bit-identical serial vs. parallel on synthetic 20000×300 and
-  20000×800, and all 30 `sick` rows reproduce `results/results.csv` exactly
+  20000×800, and all 30 `sick` rows reproduce
+  `results/local/results_local_subset.csv` exactly
   (max Δ 0.0 across all six algorithms) with the flag in place — so the pilot's
   ALL PASS verdict is unaffected. Without it RF was the only one of the four
   ensembles running single-core: XGBoost, LightGBM and CatBoost all default to

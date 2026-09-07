@@ -20,5 +20,5 @@ algorithms:
 cache_dir: data/openml_cache
 
 output:
-  results_csv: results/results.csv
-  preprocessing_log: results/preprocessing_log.md
+  results_csv: results/local/results_local_subset.csv
+  preprocessing_log: results/local/preprocessing_log.md

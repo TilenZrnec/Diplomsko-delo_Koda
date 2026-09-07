@@ -98,7 +98,7 @@ database "OpenML\n(predpomnilnik)" as OML
 participant "src/models/~__init~__.py\n(REGISTRY)" as REG
 participant "src/models/<algoritem>.py" as MODEL
 participant "src/utils.py" as UTILS
-collections "results/results.csv\nresults/preprocessing_log.md" as OUT
+collections "results/local/results_local_subset.csv\nresults/local/preprocessing_log.md" as OUT
 
 U -> BENCH : python -m src.run_benchmark
 activate BENCH
@@ -138,7 +138,7 @@ loop za vsak nabor iz config.yaml (3)
     end
 end
 
-BENCH -> OUT : results.csv (3 x 6 x 5 = 90 vrstic)\n+ preprocessing_log.md
+BENCH -> OUT : results_local_subset.csv (3 x 6 x 5 = 90 vrstic)\n+ preprocessing_log.md
 deactivate BENCH
 
 note over MODEL
@@ -183,7 +183,7 @@ box "Računsko vozlišče (H100, BREZ interneta)" #EEF6FD
 end box
 collections "results/per_dataset/\n<id>.csv, <id>.csv.partial" as PD
 participant "scripts/merge_results.py" as MERGE
-collections "results/results_arnes_cc18.csv" as FINAL
+collections "results/arnes/cc18/results_arnes_cc18.csv" as FINAL
 
 == Korak 1: predpriprava (samo prijavno vozlišče) ==
 
@@ -273,7 +273,7 @@ end note
 
 == Korak 3: združevanje ==
 
-U -> MERGE : python scripts/merge_results.py results/results_arnes_cc18.csv
+U -> MERGE : python scripts/merge_results.py results/arnes/cc18/results_arnes_cc18.csv
 activate MERGE
 MERGE -> PD : glob("*.csv") - *.partial po definiciji ne ustreza
 PD --> MERGE : 72 dokončanih datotek
@@ -291,7 +291,7 @@ note over FINAL
   s praznim roc_auc in razlogom v stolpcu error.
   (10 takih vrstic: CIFAR_10 x {TabPFN, TabICL}.)
 
-  Merge NIKOLI ne piše v results/results.csv -
+  Merge NIKOLI ne piše v results/local/results_local_subset.csv -
   ta je nedotakljiva lokalna izhodiščna meritev.
 end note
 
@@ -311,13 +311,13 @@ actor "Uporabnik" as U
 participant "src/summary.py" as SUM
 participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
-collections "results/results.csv\n(lokalni pilot)" as LOCAL
-collections "results/results_arnes_cc18.csv\nresults/results_arnes_subset.csv" as ARNES
+collections "results/local/results_local_subset.csv\n(lokalni pilot)" as LOCAL
+collections "results/arnes/cc18/results_arnes_cc18.csv\nresults/arnes/subset/results_arnes_subset.csv" as ARNES
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
 
 == Povzetek za diplomo ==
 
-U -> SUM : python -m src.summary results/results_arnes_cc18.csv
+U -> SUM : python -m src.summary results/arnes/cc18/results_arnes_cc18.csv
 activate SUM
 SUM --> U : izpiše "Vir: <pot>" - da tabela nikoli ni dvoumna
 SUM -> ARNES : pd.read_csv
@@ -330,14 +330,14 @@ deactivate SUM
 
 note right of SUM
   **Past**: brez argumenta povzame
-  results/results.csv, kar je lokalni pilot
+  results/local/results_local_subset.csv, kar je lokalni pilot
   na 3 naborih - napačna tabela za diplomo.
   Pot je zato treba podati eksplicitno.
 end note
 
 == Preverjanje prenosa na gručo (enkratno, na pilotu) ==
 
-U -> CMP : python scripts/compare_results.py results/results.csv results/results_arnes_subset.csv
+U -> CMP : python scripts/compare_results.py\n  results/local/results_local_subset.csv\n  results/arnes/subset/results_arnes_subset.csv
 activate CMP
 CMP -> LOCAL : pd.read_csv
 CMP -> ARNES : pd.read_csv

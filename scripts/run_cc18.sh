@@ -50,7 +50,7 @@
 #   --mem=64G: CIFAR_10 kot float64 zasede ~1,4 GiB na kopijo; predobdelava,
 #   train/test razrez in CatBoostova kvantizacija držijo več kopij hkrati -
 #   64G da ~40x rezerve nad surovo matriko. (Pilotni MaxRSS iz sacct je le
-#   spodnja meja, glej results/arnes_cc18/PROVENANCE.md.)
+#   spodnja meja, glej results/arnes/cc18/PROVENANCE.md.)
 
 set -euo pipefail
 
