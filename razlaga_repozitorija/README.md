@@ -69,6 +69,19 @@ Pokrite so `src/**/*.py`, `scripts/**/*.py`, `scripts/**/*.sh` in `config.yaml`.
 Skripta uporablja samo standardno knjižnico, zato deluje s katerimkoli
 sistemskim pythonom — okolje `tabular` ni potrebno.
 
+**Česa preverjanje NE zajame:** poti do podatkov in rezultatov
+(`results/...`, `data/...`). Diagram jih omenja veliko, a jih kljuka ignorira,
+zato preimenovanje datoteke z rezultati skozi `git push` steče brez opozorila
+in diagram tiho zastara. Ob vsakem posegu v `results/` je treba `.puml`
+pregledati ročno; kot pomoč:
+
+```bash
+grep -n "results/\|data/" razlaga_repozitorija/zaporedje.puml
+```
+
+(Zavestna odločitev: te poti nastopajo v `.puml` tudi v prosti obliki znotraj
+opomb, zato bi jih strogo preverjanje javljalo lažno pozitivno.)
+
 ## Namestitev kljuke pred potiskom
 
 Kljuke (hooks) živijo v `.git/hooks/`, ki se prek GitHuba **ne prenaša**, zato
