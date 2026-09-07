@@ -4,6 +4,11 @@ Nativno obravnava manjkajoče vrednosti (numerične) in kategorične
 spremenljivke (podane preko cat_features). CatBoost ne dovoli float NaN v
 kategoričnih stolpcih, zato jih pretvorimo v string ('nan' postane lastna
 kategorija) - to ni imputacija, samo tipska pretvorba.
+
+CatBoost privzeto piše dnevnik učenja v mapo catboost_info/ v trenutni
+delovni mapi (verbose=False utiša samo stdout, ne pisanja datotek), zato
+to izklopimo z allow_writing_files=False - drugače vsak zagon, tudi vsak
+SLURM array task na Arnesu, pusti za sabo mapo s smetmi.
 """
 
 import time
@@ -36,7 +41,7 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
             X_train[c] = X_train[c].astype(str)
             X_test[c] = X_test[c].astype(str)
 
-        clf = CatBoostClassifier(random_state=42, verbose=False)
+        clf = CatBoostClassifier(random_state=42, verbose=False, allow_writing_files=False)
 
         t0 = time.perf_counter()
         clf.fit(X_train, y_train, cat_features=categorical_cols)

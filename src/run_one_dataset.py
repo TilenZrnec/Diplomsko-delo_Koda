@@ -57,7 +57,9 @@ def main():
     parser = argparse.ArgumentParser(description="Zagon vseh algoritmov na enem OpenML datasetu.")
     parser.add_argument("--index", type=int, required=True, help="Indeks ID-ja v datoteki z ID-ji")
     parser.add_argument(
-        "--ids-file", default="cc18_ids.json", help="JSON datoteka s seznamom OpenML ID-jev"
+        "--ids-file",
+        default="scripts/cc18_ids.json",
+        help="JSON datoteka s seznamom OpenML ID-jev (privzeto scripts/cc18_ids.json)",
     )
     args = parser.parse_args()
 
