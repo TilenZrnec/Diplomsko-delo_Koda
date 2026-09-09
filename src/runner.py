@@ -77,14 +77,18 @@ def run_dir_for(config, run_id):
 
 
 def git_info():
-    """(kratek commit hash, ali je delovno drevo umazano) - ali ('unknown', None) brez gita."""
+    """(kratek commit hash, ali so spremljane datoteke spremenjene) - ali ("unknown", None) brez gita.
+
+    Nespremljane datoteke (npr. rezultati prejšnjega zagona v results/runs/)
+    ne štejejo za "umazano" - pomembno je le, ali je koda drugačna od commita.
+    """
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"], cwd=REPO_ROOT, text=True,
             stderr=subprocess.DEVNULL,
         ).strip()
         status = subprocess.check_output(
-            ["git", "status", "--porcelain"], cwd=REPO_ROOT, text=True,
+            ["git", "status", "--porcelain", "--untracked-files=no"], cwd=REPO_ROOT, text=True,
             stderr=subprocess.DEVNULL,
         )
         return commit, bool(status.strip())
