@@ -29,13 +29,15 @@ autonumber
 actor "Uporabnik" as U
 participant "scripts/gen_cc18_ids.py" as GEN
 participant "scripts/profile_datasets.py" as PROF
+participant "src/config.py" as CFGPY
 participant "src/data.py" as DATA
 database "OpenML\n(splet)" as OML
-collections "scripts/cc18_ids.json\nscripts/subset_ids.json" as IDS
+collections "scripts/cc18_ids.json\nscripts/subset_ids.json\nscripts/medic3.json" as IDS
 collections "config.yaml" as CFG
 
 U -> GEN : python scripts/gen_cc18_ids.py
 activate GEN
+GEN -> CFGPY : load_config() - cache_dir
 GEN -> OML : openml.study.get_suite(99)
 OML --> GEN : zbirka OpenML-CC18
 GEN -> GEN : dedup + sort ID-jev
@@ -46,25 +48,29 @@ else 72 ID-jev
 end
 deactivate GEN
 
-note over IDS
-  cc18_ids.json se **commita v git**.
-  Ob oddaji na Arnes se seznam ne
-  pridobiva znova - obseg eksperimenta
-  je s tem zamrznjen (verzioniranje podatkov).
+note over IDS, CFG
+  config.yaml je **edini vir parametrov**: random_state, n_splits,
+  n_repeats, algorithms, cache_dir, results_dir, save_predictions,
+  saturation_threshold, alpha - in slovar dataset_sets, ki imenu
+  nabora (subset, cc18, medic3) priredi JSON datoteko z opisi naborov.
+  Vsi skripti ga berejo prek src/config.py (load_config, dataset_specs).
 
+  cc18_ids.json se **commita v git**: obseg eksperimenta je zamrznjen.
   subset_ids.json = [31, 37, 38], pilotna trojica.
-  config.yaml pa vodi samo lokalni zagon
-  (nabori, algoritmi, n_splits, random_state).
+  medic3.json = {"source": "csv", "path": "../Medic3.csv.zip", ...} -
+  opis lokalnega nabora, ki ga src/data.py naloži enako kot OpenML.
 end note
 
-U -> PROF : python scripts/profile_datasets.py ~--ids-file scripts/cc18_ids.json
+U -> PROF : python scripts/profile_datasets.py ~--dataset-set cc18
 activate PROF
-PROF -> IDS : prebere seznam ID-jev
+PROF -> CFGPY : load_config(), dataset_specs(config, "cc18")
+CFGPY -> IDS : prebere JSON seznam
+CFGPY --> PROF : opisi naborov
 alt privzeto (hitro, brez prenosa)
     PROF -> OML : list_datasets(data_id=ids) - samo metapodatki
     OML --> PROF : vrstice x atributi x razredi
-else ~--from-cache
-    PROF -> DATA : load_dataset(id, ...) za vsak nabor
+else ~--from-cache (edina pot za CSV nabore)
+    PROF -> DATA : load_dataset(spec, ...) za vsak nabor
     DATA --> PROF : dejanske oblike DataFrameov
 end
 PROF --> U : tabela naborov, urejena padajoče po št. celic
@@ -83,76 +89,103 @@ end note
 
 ' ---------------------------------------------------------------------------
 ' 2. LOKALNI PILOT - 3 nabori na RTX 3060. Tu se koda razvija in preverja.
+'    Zanka učenja je v src/runner.py in je ISTA kot na Arnesu.
 ' ---------------------------------------------------------------------------
 @startuml 02_lokalni_pilot
-title 2. Lokalni pilot: python -m src.run_benchmark (3 nabori)
+title 2. Lokalni pilot: python -m src.run_benchmark ~--dataset-set subset
 
 skinparam sequenceMessageAlign center
 autonumber
 
 actor "Uporabnik" as U
 participant "src/run_benchmark.py" as BENCH
-participant "config.yaml" as CFG
+participant "src/config.py" as CFGPY
+participant "src/runner.py" as RUN
 participant "src/data.py" as DATA
 database "OpenML\n(predpomnilnik)" as OML
 participant "src/models/~__init~__.py\n(REGISTRY)" as REG
 participant "src/models/<algoritem>.py" as MODEL
 participant "src/utils.py" as UTILS
-collections "results/local/results_local_subset.csv\nresults/local/preprocessing_log.md" as OUT
+collections "results/runs/<run_id>/\nmanifest.json, per_dataset/,\npredictions/, results.csv" as OUT
 
-U -> BENCH : python -m src.run_benchmark
+U -> BENCH : python -m src.run_benchmark [~--dataset-set subset] [~--run-id X]
 activate BENCH
 
-BENCH -> CFG : load_config() - yaml.safe_load
-CFG --> BENCH : nabori, algoritmi, n_splits=5, random_state=42
+BENCH -> CFGPY : load_config(), dataset_specs(config, set)
+CFGPY --> BENCH : config (seme, foldi, algoritmi, poti), opisi naborov
+BENCH -> RUN : make_run_id() -> <datum-čas>_<nabor>_<stroj>, run_dir_for()
+BENCH -> RUN : write_manifest(run_dir, config, ...)
+RUN -> OUT : manifest.json - git commit, stroj, GPU, konfiguracija, pip freeze
 
-loop za vsak nabor iz config.yaml (3)
-    BENCH -> DATA : load_dataset(openml_id, n_splits, random_state, cache_dir)
-    activate DATA
-    DATA -> OML : openml.datasets.get_dataset(id)
-    OML --> DATA : surovi nabor
-    DATA -> DATA : get_data(target=...) -> X, y, categorical_indicator
-    DATA -> DATA : X.reset_index(drop=True)
-    DATA -> DATA : LabelEncoder na y ("good"/"bad" -> 0/1)
-    DATA -> DATA : StratifiedKFold(5, shuffle, seed=42)\n**list(skf.split())** - folde izračuna ENKRAT
-    DATA --> BENCH : {name, X, y, categorical_cols, folds}
-    deactivate DATA
-
-    loop za vsak algoritem iz config.yaml (6)
-        BENCH -> REG : REGISTRY[ime_algoritma]
-        REG --> BENCH : run() funkcija ustreznega modula
-
-        loop za vsak fold (5)
-            BENCH -> BENCH : X.iloc[train_idx], X.iloc[test_idx]
-            BENCH -> MODEL : run(X_train, y_train, X_test, y_test, categorical_cols)
-            activate MODEL
-            MODEL -> MODEL : predobdelava po pravilu tega algoritma
-            MODEL -> MODEL : t0 = perf_counter(); clf.fit(...)
-            MODEL -> MODEL : t0 = perf_counter(); clf.predict_proba(...)
-            MODEL -> UTILS : compute_roc_auc(y_test, proba)
-            UTILS --> MODEL : ROC-AUC (binarno ali OvR macro)
-            MODEL --> BENCH : {model, roc_auc, train_time_s,\ninference_time_s, error,\npreprocessing, raw_error}
-            deactivate MODEL
-            BENCH -> BENCH : doda vrstico rezultata
+loop za vsak nabor iz izbranega nabora (3)
+    BENCH -> RUN : run_dataset(spec, config, run_dir, run_id)
+    activate RUN
+    alt per_dataset/<id>.csv že obstaja
+        RUN --> BENCH : "already done"
+    else
+        opt obstaja <id>.csv.partial
+            RUN -> OUT : prebere partial -> množica done (algoritem, fold)
         end
+        RUN -> DATA : load_dataset(spec, n_splits, random_state, cache_dir, n_repeats)
+        activate DATA
+        alt OpenML
+            DATA -> OML : openml.datasets.get_dataset(id)
+            OML --> DATA : surovi nabor + categorical_indicator
+        else CSV (npr. medic3)
+            DATA -> DATA : pd.read_csv(path), target, drop_cols
+        end
+        DATA -> DATA : X.reset_index(drop=True)
+        DATA -> DATA : LabelEncoder na y ("good"/"bad" -> 0/1)
+        DATA -> DATA : (Repeated)StratifiedKFold(seed) - **list(split())**\nfolde izračuna ENKRAT za vse algoritme
+        DATA --> RUN : {name, source, X, y, classes, categorical_cols, folds}
+        deactivate DATA
+
+        loop za vsak algoritem iz config.yaml (6)
+            RUN -> REG : REGISTRY[ime] -> modul
+            opt modul.USES_GPU in še ni ogret v tem procesu
+                RUN -> MODEL : warmup: run() na 64x4 sintetičnem naboru
+                note right: nalaganje utež + CUDA init\nne obremeni folda 0 (warmup_s)
+            end
+            loop za vsak fold (n_splits x n_repeats)
+                RUN -> RUN : preskoči, če (algoritem, fold) v done
+                RUN -> MODEL : run(X_train, y_train, X_test, y_test, categorical_cols, random_state)
+                activate MODEL
+                MODEL -> MODEL : predobdelava po pravilu tega algoritma
+                MODEL -> MODEL : t0 = perf_counter(); clf.fit(...)
+                MODEL -> MODEL : t0 = perf_counter(); clf.predict_proba(...)
+                MODEL -> UTILS : compute_roc_auc(y_test, proba), describe_device()
+                UTILS --> MODEL : ROC-AUC (binarno ali OvR macro), 'cpu x8' / 'cuda: ...'
+                MODEL --> RUN : {roc_auc, train_time_s, inference_time_s,\nerror, preprocessing, raw_error, device, proba}
+                deactivate MODEL
+                RUN -> OUT : predictions/<id>/<algoritem>_r<rep>_f<fold>.npz (proba, y_test, test_idx)
+                RUN -> OUT : vrstica (RESULT_COLUMNS) + **write_partial()** atomarno
+            end
+        end
+        RUN -> OUT : **os.replace(partial -> per_dataset/<id>.csv)**
     end
+    deactivate RUN
 end
 
-BENCH -> OUT : results_local_subset.csv (3 x 6 x 5 = 90 vrstic)\n+ preprocessing_log.md
+BENCH -> RUN : merge_run(run_dir)
+RUN -> OUT : results.csv (3 x 6 x 5 = 90 vrstic)
+BENCH --> U : "Povzetek: python -m src.summary <run_dir>"
 deactivate BENCH
 
 note over MODEL
-  Šest modulov z **identičnim podpisom** run(...):
+  Šest modulov z **identičnim podpisom** run(..., random_state):
   src/models/random_forest.py   - imputacija + ordinalno kodiranje
   src/models/xgboost_model.py   - nativni NaN, kategorične -> kode
   src/models/lightgbm_model.py  - nativni NaN + 'category' dtype
   src/models/catboost_model.py  - nativni NaN + cat_features
-  src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki
-  src/models/tabicl_model.py    - SUROVO, fallback šele ob napaki
+  src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
+  src/models/tabicl_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
 
   Vsi so oviti v try/except: izjema se zapiše v
   result["error"] in se NE dvigne naprej (fail-soft),
   zato en neuspeh ne sesuje celotnega zagona.
+  Vsaka vrstica rezultata nosi preprocessing, raw_error,
+  device, git_commit, hostname, timestamp - dnevnik
+  predobdelave je torej del CSV-ja vsakega zagona.
 
   src/~__init~__.py je prazen - obstaja le zato,
   da je src/ paket in delujejo uvozi "from src...".
@@ -178,20 +211,20 @@ participant "SLURM\n(čakalna vrsta)" as SLURM
 box "Računsko vozlišče (H100, BREZ interneta)" #EEF6FD
     participant "scripts/run_cc18.sh" as SH
     participant "src/run_one_dataset.py" as ONE
-    participant "src/data.py" as DATA
-    participant "src/models/~__init~__.py\n(REGISTRY)" as REG
+    participant "src/config.py" as CFGPY
+    participant "src/runner.py" as RUN
 end box
-collections "results/per_dataset/\n<id>.csv, <id>.csv.partial" as PD
+collections "results/runs/<RUN_ID>/per_dataset/\n<id>.csv, <id>.csv.partial" as PD
 participant "scripts/merge_results.py" as MERGE
-collections "results/arnes/cc18/results_arnes_cc18.csv" as FINAL
+collections "results/runs/<RUN_ID>/results.csv" as FINAL
 
 == Korak 1: predpriprava (samo prijavno vozlišče) ==
 
-U -> PRE : python scripts/prestage.py ~--ids-file scripts/cc18_ids.json
+U -> PRE : python scripts/prestage.py ~--dataset-set cc18
 activate PRE
-loop za vsak od 72 ID-jev
-    PRE -> DATA : load_dataset(id, ...) - ista pot predpomnilnika kot benchmark
-    DATA --> PRE : nabor prenesen in predpomnjen
+PRE -> CFGPY : load_config(), dataset_specs(config, "cc18")
+loop za vsak od 72 naborov
+    PRE -> PRE : load_dataset(spec, ...) iz src/data.py - ista pot predpomnilnika kot benchmark
 end
 opt brez ~--skip-weights
     PRE -> PRE : TabPFN.fit() + TabICL.fit(device="cpu")\nna 40x5 naključnem naboru -> prenos utež
@@ -203,60 +236,50 @@ note right of PRE
   Računska vozlišča imajo HF_HUB_OFFLINE=1,
   torej ne morejo prenesti ničesar. Vse -
   nabori IN uteži modelov - mora biti tu vnaprej.
-  Napaka pri enem naboru ne prekine predpriprave;
-  napake se zberejo in izpišejo na koncu.
 
-  Zastavice: ~--ids-file <pot> | ~--ids 31 37 (prevlada)
+  Zastavice: ~--dataset-set <ime> | ~--ids 31 37 (prevlada)
   in ~--skip-weights (samo nabori, brez utež).
 end note
 
 == Korak 2: oddaja polja (array job) ==
 
-U -> SLURM : sbatch scripts/run_cc18.sh
+U -> SLURM : RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh
 note right of SLURM
   ~#SBATCH ~--array=0-71%4  (72 nalog, največ 4 hkrati)
   ~#SBATCH ~--gres=gpu:1 ~--cpus-per-task=8
   ~#SBATCH ~--mem=64G ~--time=12:00:00
 
+  RUN_ID določa mapo results/runs/<RUN_ID>/. Ponovna
+  oddaja z ISTIM RUN_ID nadaljuje iz partialov; nov
+  RUN_ID = nov zagon od začetka (stari se ne prepiše).
+
   scripts/run_subset.sh je ista pot, le manjša
-  (~--array=0-2, subset_ids.json) - validacijski
-  zagon, s katerim je bilo potrjeno, da gruča
-  vrne enake številke kot lokalni računalnik.
+  (~--array=0-2, nabor subset) - validacijski zagon,
+  s katerim se preveri, da gruča vrne enake številke
+  kot lokalni računalnik (scripts/compare_results.py).
 end note
 
 loop 72 vzporednih nalog, $SLURM_ARRAY_TASK_ID = 0..71
     SLURM -> SH : zažene skripto z dodeljenim GPU
     activate SH
     SH -> SH : source ~/.tabpfn_token\nexport HF_HUB_OFFLINE=1, OMP_NUM_THREADS=8
+    SH -> CFGPY : N_IDS = len(dataset_specs(config, "cc18"))
     SH -> SH : varovalka: SLURM_ARRAY_TASK_MAX == N_IDS-1 ?\nsicer **exit 1** (sicer bi zadnji nabori tiho izpadli)
-    SH -> ONE : micromamba run -p ~/envs/tabular\npython -m src.run_one_dataset ~--index $ID ~--ids-file scripts/cc18_ids.json
+    SH -> ONE : micromamba run -p ~/envs/tabular python -m src.run_one_dataset\n~--dataset-set cc18 ~--index $ID ~--run-id $RUN_ID
     activate ONE
-
-    ONE -> ONE : openml_id = ids[index]
+    ONE -> CFGPY : load_config(), dataset_specs(config, "cc18")[index]
+    ONE -> RUN : write_manifest() (le prvi task, ki pride do tu)
+    ONE -> RUN : run_dataset(spec, config, run_dir, run_id)
+    activate RUN
     alt <id>.csv že obstaja
-        ONE --> SH : "already done" (nabor je res dokončan)
+        RUN --> ONE : "already done" (nabor je res dokončan)
     else nadaljevanje ali nov zagon
-        opt obstaja <id>.csv.partial
-            ONE -> PD : prebere partial
-            PD --> ONE : že narejeni (algoritem, fold) pari -> množica done
-        end
-        ONE -> DATA : load_dataset(openml_id, 5, 42, cache_dir)
-        DATA --> ONE : X, y, categorical_cols, folds (identični kot lokalno)
-
-        loop za vsak algoritem v REGISTRY (6)
-            ONE -> REG : run funkcija
-            loop za vsak fold (5)
-                alt (algoritem, fold) v done
-                    ONE -> ONE : preskoči
-                else
-                    ONE -> REG : run(X_train, y_train, X_test, y_test, categorical_cols)
-                    REG --> ONE : rezultat (ali error, fail-soft)
-                    ONE -> PD : **write_partial()** - .tmp + os.replace()\npo VSAKEM posameznem učenju
-                end
-            end
-        end
-        ONE -> PD : **os.replace(partial -> <id>.csv)**\natomarno, šele ko je vseh 30 vrstic zbranih
+        RUN -> PD : prebere partial (če obstaja) -> done
+        RUN -> RUN : ista zanka kot v diagramu 2:\nload_dataset -> warmup -> run() za vsak (algoritem, fold)
+        RUN -> PD : **write_partial()** po VSAKEM učenju (.tmp + os.replace)
+        RUN -> PD : **os.replace(partial -> <id>.csv)**\natomarno, šele ko so vse vrstice zbrane
     end
+    deactivate RUN
     deactivate ONE
     deactivate SH
 end
@@ -273,26 +296,26 @@ end note
 
 == Korak 3: združevanje ==
 
-U -> MERGE : python scripts/merge_results.py results/arnes/cc18/results_arnes_cc18.csv
+U -> MERGE : python scripts/merge_results.py cc18_v2
 activate MERGE
-MERGE -> PD : glob("*.csv") - *.partial po definiciji ne ustreza
-PD --> MERGE : 72 dokončanih datotek
+MERGE -> RUN : merge_run(run_dir)
+RUN -> PD : *.csv - *.partial po definiciji ne ustreza
+PD --> RUN : 72 dokončanih datotek
 opt obstajajo *.partial
-    MERGE --> U : **OPOZORILO**: našteje nedokončane nabore\nin koliko od 30 učenj imajo
+    RUN --> U : **OPOZORILO**: našteje nedokončane nabore\nin koliko učenj imajo
 end
-MERGE -> FINAL : pd.concat -> 2160 vrstic
+RUN -> FINAL : pd.concat -> results.csv
 MERGE --> U : št. vrstic, št. naborov, št. vrstic z napako
 deactivate MERGE
 
 note over FINAL
-  Pričakovano: 72 x 6 x 5 = **2160 vrstic**.
+  Pričakovano: 72 x 6 x n_splits x n_repeats vrstic.
   Manj vrstic = "nedokončano", nikoli "neuspelo" -
   neuspelo učenje vseeno zapiše svojo vrstico,
   s praznim roc_auc in razlogom v stolpcu error.
-  (10 takih vrstic: CIFAR_10 x {TabPFN, TabICL}.)
 
-  Merge NIKOLI ne piše v results/local/results_local_subset.csv -
-  ta je nedotakljiva lokalna izhodiščna meritev.
+  Kurirani zagon se commita skupaj z manifest.json
+  in results.csv; predictions/ ostanejo izven gita.
 end note
 
 @enduml
@@ -309,45 +332,68 @@ autonumber
 
 actor "Uporabnik" as U
 participant "src/summary.py" as SUM
+participant "src/stats.py" as STAT
+participant "scripts/gen_version_table.py" as VER
 participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
-collections "results/local/results_local_subset.csv\n(lokalni pilot)" as LOCAL
-collections "results/arnes/cc18/results_arnes_cc18.csv\nresults/arnes/subset/results_arnes_subset.csv" as ARNES
-collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
+collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
+collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
+collections "../Medic3.csv.zip\n(zaupno, NI v gitu)" as M3
 
 == Povzetek za diplomo ==
 
-U -> SUM : python -m src.summary results/arnes/cc18/results_arnes_cc18.csv
+U -> SUM : python -m src.summary <run_id>
 activate SUM
 SUM --> U : izpiše "Vir: <pot>" - da tabela nikoli ni dvoumna
-SUM -> ARNES : pd.read_csv
-ARNES --> SUM : 2160 vrstic
-SUM -> SUM : dropna(roc_auc) -> ok, ostalo -> failed
-SUM -> SUM : groupby(dataset, algorithm) -> mean +- std
-SUM -> SUM : groupby(dataset, fold).rank() -> povprečen rang
-SUM --> U : dve tabeli + seznam spodletelih učenj
+SUM -> RES : pd.read_csv(results.csv)
+SUM -> SUM : per_dataset_table: mean/std ROC-AUC, mediane časov;\ndelen neuspeh -> NaN
+SUM -> SUM : dataset_pivot (nabor x algoritem), rank_matrix:\nrang NA NABOR, neuspeh = najslabši rang
+SUM -> SUM : saturated_mask: najboljši >= saturation_threshold
+SUM -> SUM : overall_table: povprečje na naborih, kjer so uspeli VSI;\nposebej še brez nasičenih naborov
+SUM -> SUMOUT : overall, overall_nonsaturated, per_dataset,\npivot, ranks (.csv + .tex)
+SUM --> U : tabele + seznam neuspelih učenj
 deactivate SUM
 
-note right of SUM
-  **Past**: brez argumenta povzame
-  results/local/results_local_subset.csv, kar je lokalni pilot
-  na 3 naborih - napačna tabela za diplomo.
-  Pot je zato treba podati eksplicitno.
+== Statistična značilnost (Demšar 2006) ==
+
+U -> STAT : python -m src.stats <run_id> [~--no-saturated]
+activate STAT
+STAT -> SUM : dataset_pivot, rank_matrix (isto pravilo za neuspeh)
+STAT -> STAT : Friedmanov test nad rangi (scipy)
+STAT -> STAT : Nemenyi: CD = q_alpha * sqrt(k(k+1)/6N)
+STAT -> STAT : parni Wilcoxon na povprečnem ROC-AUC + Holm
+STAT -> SUMOUT : cd_diagram.png/.pdf, friedman.csv,\nnemenyi.csv, wilcoxon_holm.csv/.tex
+STAT --> U : chi2_F, p, CD, povprečni rangi, značilni pari
+deactivate STAT
+
+== Različice knjižnic za diplomo ==
+
+U -> VER : python scripts/gen_version_table.py <run_id>
+activate VER
+VER -> RES : manifest.json -> pip_freeze, python, torch, cuda
+VER -> SUMOUT : razlicice.tex (tabela tab:razlicice)
+deactivate VER
+
+note right of VER
+  Vsaka številka v diplomi ima izvor v datoteki:
+  tabele iz summary/*.tex, različice iz razlicice.tex,
+  vse iz manifest.json in results.csv ISTEGA zagona.
 end note
 
-== Preverjanje prenosa na gručo (enkratno, na pilotu) ==
+== Preverjanje prenosa na gručo / učinka nadgradnje ==
 
-U -> CMP : python scripts/compare_results.py\n  results/local/results_local_subset.csv\n  results/arnes/subset/results_arnes_subset.csv
+U -> CMP : python scripts/compare_results.py <run_id A> <run_id B>
 activate CMP
-CMP -> LOCAL : pd.read_csv
-CMP -> ARNES : pd.read_csv
-CMP -> CMP : merge on (dataset, algorithm, fold)\nabs_delta = |roc_auc_local - roc_auc_arnes|
+CMP -> SUM : resolve_results(A), resolve_results(B)
+CMP -> CMP : merge on (dataset, algorithm, fold)\nabs_delta = |roc_auc_A - roc_auc_B|
 CMP --> U : povprečna in največja razlika po algoritmih\n+ 5 najslabših vrstic
 deactivate CMP
 
 note right of CMP
-  Izid: drevesni ansambli bitno identični (delta 0.0),
-  TabPFN/TabICL ~1e-4 (nedeterminizem GPU, SM86 vs SM90).
+  Izid 2026-07 (lokalno proti Arnes): drevesni ansambli
+  bitno identični, TabPFN/TabICL ~1e-4 (nedeterminizem GPU).
+  Izid 2026-09-09 (stara koda proti refaktorirani, isto
+  okolje): vseh 90 vrstic delta 0.0.
 end note
 
 == Stranska veja: podatkovna kartica Medic3 ==
@@ -363,10 +409,10 @@ MED --> U : je manjkajočost SAMA napovednik ciljne spremenljivke?
 deactivate MED
 
 note over MED
-  Ni del benchmarka - pripravljalno delo pred
-  morebitno naslednjo fazo. Uporablja samo
-  standardno knjižnico (csv, collections), zato
-  deluje tudi v okolju brez pandas.
+  Podatkovna kartica pred modeliranjem. Sam benchmark
+  Medic3 teče po isti poti kot OpenML: nabor "medic3"
+  v config.yaml kaže na scripts/medic3.json, ki ga
+  src/data.py naloži kot CSV.
 end note
 
 @enduml

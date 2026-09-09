@@ -1,106 +1,53 @@
-"""Glavni orkestrator: naloži datasete, požene vse algoritme na skupnih 5
-foldih in shrani rezultate + dnevnik predobdelave.
+"""Lokalni zagon: zaporedno čez vse nabore izbranega nabora, nato združi.
 
-Zagon: python -m src.run_benchmark
+    python -m src.run_benchmark                          # pilotna trojica (subset)
+    python -m src.run_benchmark --dataset-set cc18       # vseh 72 naborov, zaporedno
+    python -m src.run_benchmark --run-id pilot_v2        # lastna oznaka zagona
+
+Vsak zagon dobi svojo mapo results/runs/<run_id>/ (privzeto
+<datum-čas>_<nabor>_<stroj>) z manifest.json, per_dataset/, predictions/ in
+results.csv. Nič se ne prepiše: ponovitev z istim --run-id nadaljuje
+nedokončane nabore, nov --run-id začne od začetka.
+
+Zanka učenja je v src/runner.py - ista, kot jo uporablja Arnes.
 """
 
+import argparse
 import os
 import sys
-
-import pandas as pd
-import yaml
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
-from src.data import load_dataset  # noqa: E402
-from src.models import REGISTRY  # noqa: E402
-
-CONFIG_PATH = os.path.join(REPO_ROOT, "config.yaml")
-
-
-def load_config():
-    with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f)
-
-
-def write_preprocessing_log(entries, path):
-    lines = ["# Dnevnik predobdelave\n"]
-    for e in entries:
-        lines.append(f"## {e['algorithm']} × {e['dataset']}")
-        lines.append(f"- Predobdelava: {e['preprocessing']}")
-        if e["raw_error"]:
-            lines.append(f"- Napaka na surovih podatkih: `{e['raw_error']}`")
-        if e["error"]:
-            lines.append(f"- Napaka: `{e['error']}`")
-        lines.append("")
-    with open(path, "w") as f:
-        f.write("\n".join(lines))
+from src.config import dataset_specs, load_config  # noqa: E402
+from src.runner import make_run_id, merge_run, run_dataset, run_dir_for, write_manifest  # noqa: E402
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Lokalni zagon benchmarka.")
+    parser.add_argument("--dataset-set", default="subset", help="Ime nabora iz config.yaml (privzeto subset)")
+    parser.add_argument("--run-id", default=None, help="Oznaka zagona (privzeto <datum-čas>_<nabor>_<stroj>)")
+    parser.add_argument(
+        "--algorithms", nargs="+", default=None,
+        help="Podmnožica algoritmov (privzeto vsi iz config.yaml)",
+    )
+    args = parser.parse_args()
+
     config = load_config()
-    random_state = config["random_state"]
-    n_splits = config["n_splits"]
-    cache_dir = os.path.join(REPO_ROOT, config["cache_dir"])
-    results_csv = os.path.join(REPO_ROOT, config["output"]["results_csv"])
-    log_path = os.path.join(REPO_ROOT, config["output"]["preprocessing_log"])
+    specs = dataset_specs(config, args.dataset_set)
+    run_id = args.run_id or make_run_id(args.dataset_set)
+    run_dir = run_dir_for(config, run_id)
+    print(f"Zagon: {run_id}\nMapa:  {os.path.relpath(run_dir, REPO_ROOT)}")
+    write_manifest(run_dir, config, args.dataset_set, specs, run_id)
 
-    rows = []
-    log_entries = []
+    for i, spec in enumerate(specs, start=1):
+        print(f"\n--- nabor {i}/{len(specs)} ---")
+        run_dataset(spec, config, run_dir, run_id, algorithms=args.algorithms)
 
-    for ds_cfg in config["datasets"]:
-        ds_name = ds_cfg["name"]
-        print(f"\n=== Nalagam dataset: {ds_name} (OpenML ID {ds_cfg['id']}) ===")
-        dataset = load_dataset(
-            ds_cfg["id"], n_splits=n_splits, random_state=random_state, cache_dir=cache_dir
-        )
-        X, y = dataset["X"], dataset["y"]
-        categorical_cols = dataset["categorical_cols"]
-        print(
-            f"  {X.shape[0]} vzorcev, {X.shape[1]} atributov, "
-            f"{len(categorical_cols)} kategoričnih stolpcev"
-        )
-
-        for algo_name in config["algorithms"]:
-            run_fn = REGISTRY[algo_name]
-            logged = False
-
-            for fold_idx, (train_idx, test_idx) in enumerate(dataset["folds"]):
-                X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
-                y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-
-                result = run_fn(X_train, y_train, X_test, y_test, categorical_cols)
-
-                status = "OK" if result["error"] is None else f"ERROR: {result['error']}"
-                auc_str = f"{result['roc_auc']:.4f}" if result["roc_auc"] is not None else "n/a"
-                print(f"  [{ds_name}] {algo_name} fold {fold_idx}: roc_auc={auc_str}, {status}")
-
-                rows.append({
-                    "dataset": ds_name,
-                    "algorithm": algo_name,
-                    "fold": fold_idx,
-                    "roc_auc": result["roc_auc"],
-                    "train_time_s": result["train_time_s"],
-                    "inference_time_s": result["inference_time_s"],
-                })
-
-                if not logged:
-                    log_entries.append({
-                        "dataset": ds_name,
-                        "algorithm": algo_name,
-                        "preprocessing": result.get("preprocessing", "n/a"),
-                        "raw_error": result.get("raw_error"),
-                        "error": result["error"],
-                    })
-                    logged = True
-
-    os.makedirs(os.path.dirname(results_csv), exist_ok=True)
-    pd.DataFrame(rows).to_csv(results_csv, index=False)
-    print(f"\nRezultati shranjeni v {results_csv}")
-
-    write_preprocessing_log(log_entries, log_path)
-    print(f"Dnevnik predobdelave shranjen v {log_path}")
+    print()
+    results_csv = merge_run(run_dir)
+    if results_csv:
+        print(f"\nPovzetek: python -m src.summary {os.path.relpath(run_dir, REPO_ROOT)}")
 
 
 if __name__ == "__main__":

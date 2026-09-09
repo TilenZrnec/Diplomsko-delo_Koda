@@ -13,9 +13,12 @@ SLURM array task na Arnesu, pusti za sabo mapo s smetmi.
 
 import time
 
+import pandas as pd
 from catboost import CatBoostClassifier
 
-from src.utils import compute_roc_auc
+from src.utils import compute_roc_auc, describe_device
+
+USES_GPU = False
 
 PREPROCESSING = (
     "nativna obravnava NaN (numerične); kategorične stolpce pretvorimo v "
@@ -23,7 +26,7 @@ PREPROCESSING = (
 )
 
 
-def run(X_train, y_train, X_test, y_test, categorical_cols):
+def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
     result = {
         "model": "CatBoost",
         "roc_auc": None,
@@ -32,16 +35,28 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
         "error": None,
         "preprocessing": PREPROCESSING,
         "raw_error": None,
+        "device": describe_device(USES_GPU),
+        "proba": None,
     }
     try:
         X_train = X_train.copy()
         X_test = X_test.copy()
 
-        for c in categorical_cols:
-            X_train[c] = X_train[c].astype(str)
-            X_test[c] = X_test[c].astype(str)
+        # Vsako vrednost pretvorimo v niz, NaN v niz 'nan'. Od pandas 3.0 naprej
+        # astype(str) manjkajočih vrednosti NE pretvori več v 'nan', ampak jih
+        # pusti manjkajoče, CatBoost pa NaN v kategoričnem stolpcu zavrne - zato
+        # eksplicitna preslikava po elementih (astype(object) najprej razveže
+        # 'category' dtype, sicer bi map preskočil manjkajoče vrednosti).
+        def _to_str(col):
+            return col.astype(object).map(lambda v: "nan" if pd.isna(v) else str(v))
 
-        clf = CatBoostClassifier(random_state=42, verbose=False, allow_writing_files=False)
+        for c in categorical_cols:
+            X_train[c] = _to_str(X_train[c])
+            X_test[c] = _to_str(X_test[c])
+
+        clf = CatBoostClassifier(
+            random_state=random_state, verbose=False, allow_writing_files=False
+        )
 
         t0 = time.perf_counter()
         clf.fit(X_train, y_train, cat_features=categorical_cols)
@@ -52,6 +67,7 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
         result["inference_time_s"] = time.perf_counter() - t0
 
         result["roc_auc"] = compute_roc_auc(y_test, proba)
+        result["proba"] = proba
     except Exception as e:
         result["error"] = str(e)
     return result

@@ -4,372 +4,266 @@ Explain things to me as if i am a compleete beginner.
 
 ## Purpose
 Benchmarking 6 classical/foundation-model tabular ML algorithms on OpenML
-datasets as part of a diploma thesis at FRI (Faculty of Computer and
-Information Science, Ljubljana), with default hyperparameters throughout.
-Comments and docstrings in the codebase are written in Slovenian. Currently
-3 datasets; designed to extend to ~72 datasets later without restructuring.
+datasets (and the private Medic3 dataset) as part of a diploma thesis at FRI
+(Faculty of Computer and Information Science, Ljubljana), with default
+hyperparameters throughout. Comments and docstrings in the codebase are
+written in Slovenian.
+
+**State on 2026-09-09:** the code was restructured (one runner, config-driven
+parameters, per-run result directories, saved predictions, statistics) and the
+library stack was upgraded to the newest stable versions (Python 3.12). The
+2026-08 CC18 sweep in `results/arnes/cc18/` was produced by the *old* code and
+*old* versions; it is an archive, and the thesis result set is the **re-run
+still to be done on Arnes** with the new stack (see "What is next").
 
 ## Structure
-- `config.yaml` — single source of config: dataset OpenML IDs, `n_splits`,
-  `random_state`, algorithm list, output paths.
-- `src/data.py` — `load_dataset(openml_id, ...)` downloads/caches a dataset
-  from OpenML and builds the 5-fold `StratifiedKFold` splits **once**; every
-  algorithm reuses the same fold indices for a given dataset.
-- `src/utils.py` — `compute_roc_auc()`, binary vs. multiclass aware.
-- `src/models/` — one file per algorithm, each exposing a uniform
-  `run(X_train, y_train, X_test, y_test, categorical_cols) -> dict` returning
-  `{"model", "roc_auc", "train_time_s", "inference_time_s", "error",
-  "preprocessing", "raw_error"}`. `src/models/__init__.py` exposes `REGISTRY`
-  mapping config algorithm names to `run` functions.
-  Implemented: `random_forest.py`, `xgboost_model.py`, `lightgbm_model.py`,
-  `catboost_model.py`, `tabpfn_model.py`, `tabicl_model.py`.
-- `src/run_benchmark.py` — orchestrates: load each dataset, run every
-  algorithm on every fold, write `results/local/results_local_subset.csv` and
-  `results/local/preprocessing_log.md`. Run via `python -m src.run_benchmark`.
-- `src/summary.py` — prints mean ROC-AUC ± std per (dataset, algorithm) and
-  mean ROC-AUC ± std / mean rank per algorithm across datasets. Run via
-  `python -m src.summary [results_csv]`; the optional path defaults to
-  `results/local/results_local_subset.csv` (the local 3-dataset pilot), so pass
-  `results/arnes/cc18/results_arnes_cc18.csv` for the full sweep. It echoes `Vir: <path>`
-  first so the summarised file is never ambiguous.
-- `results/` — one directory per run, split by where it ran. All CSVs share
-  the columns dataset, algorithm, fold, roc_auc, train_time_s,
-  inference_time_s; everything here is generated, not hand-edited.
-  - `results/local/` — the local RTX 3060 pilot:
-    `results_local_subset.csv` (3 datasets) and `preprocessing_log.md` (what
-    preprocessing each algorithm × dataset combo required, and any raw-input
-    errors). Only `run_benchmark.py` writes these two, and it overwrites them
-    on every run, so they always describe the *last* local run.
-  - `results/arnes/subset/` — the cluster validation run on the same 3
-    datasets: `results_arnes_subset.csv`, its `per_dataset/` inputs, the two
-    `pip freeze` files and `PROVENANCE.md`.
-  - `results/arnes/cc18/` — the thesis result set:
-    `results_arnes_cc18.csv` and `PROVENANCE.md`.
-  - `results/per_dataset/` — **scratch**, gitignored, deliberately *not*
-    under `arnes/`: the raw SLURM array output that `merge_results.py`
-    consumes. Curated runs get copied out of it, never left in it.
-  - `results/README.md` — one-paragraph map of the three runs above.
-- `data/openml_cache/` — OpenML's local dataset cache (gitignored). The
-  library appends `org/openml/www`, so files land in
-  `data/openml_cache/org/openml/www/`.
+- `config.yaml` — **the single source of every experiment parameter**:
+  `random_state`, `n_splits`, `n_repeats`, `algorithms`, `dataset_sets`
+  (name → JSON file of dataset specs), `cache_dir`, `results_dir`,
+  `save_predictions`, `saturation_threshold`, `alpha`. Nothing is hardcoded
+  elsewhere; every script reads it through `src/config.py`.
+- `src/config.py` — `load_config()` (resolves paths to absolute),
+  `dataset_specs(config, set_name)`, `spec_id(spec)`.
+- `src/data.py` — `load_dataset(spec, n_splits, random_state, cache_dir,
+  n_repeats)`. A spec is an OpenML ID (int) or a dict; `{"source": "csv",
+  "path", "target", "drop_cols", ...}` loads a local file (also a `.zip`), which
+  is how Medic3 enters the benchmark (`scripts/medic3.json`). Same output dict
+  regardless of source. Builds the `(Repeated)StratifiedKFold` splits **once**;
+  every algorithm reuses the same fold indices.
+- `src/runner.py` — **the only training loop.** `run_dataset()` runs every
+  algorithm on every fold of one dataset with per-fit checkpointing
+  (`<id>.csv.partial`, atomic finalisation to `<id>.csv`), GPU warm-up, saved
+  predictions, and a row per fit with `preprocessing`, `raw_error`, `error`,
+  `device`, `git_commit`, `hostname`, `timestamp`. Also `write_manifest()`
+  (git commit, host, GPU, config snapshot, pip freeze) and `merge_run()`.
+- `src/run_benchmark.py` — local CLI: `python -m src.run_benchmark
+  [--dataset-set subset] [--run-id X] [--algorithms ...]`; loops datasets in
+  process, then merges to `results.csv`.
+- `src/run_one_dataset.py` — Arnes CLI: `python -m src.run_one_dataset
+  --dataset-set cc18 --index N --run-id X`; one dataset per SLURM array task.
+- `src/models/` — one file per algorithm, each exposing
+  `run(X_train, y_train, X_test, y_test, categorical_cols, random_state) -> dict`
+  with keys `model, roc_auc, train_time_s, inference_time_s, error,
+  preprocessing, raw_error, device, proba` and a module flag `USES_GPU`.
+  `src/models/__init__.py` exposes `REGISTRY` mapping config names to modules.
+- `src/utils.py` — `compute_roc_auc()` (binary vs. macro-OvR),
+  `describe_device()`, `cpu_threads()`.
+- `src/summary.py` — `python -m src.summary <run_id|dir|csv>` (path is
+  **required**). Prints and writes to `summary/` (CSV + LaTeX): per-dataset
+  table, dataset×algorithm pivot, ranks, overall table, and the same without
+  saturated datasets. Rules: rank **per dataset** on the fold mean; a
+  (dataset, algorithm) with any failed fold is a failure and gets the **worst
+  rank**; mean ROC-AUC is reported over datasets where **all** algorithms
+  succeeded; "saturated" = best algorithm ≥ `saturation_threshold`.
+- `src/stats.py` — `python -m src.stats <run> [--no-saturated]`: Friedman
+  test, Nemenyi critical difference + CD diagram (`summary/cd_diagram.png/pdf`),
+  pairwise Wilcoxon signed-rank with Holm correction. Uses the same pivot/rank
+  functions as `summary.py`. Verified: q(6, 0.05) from scipy = 2.850 (Demšar).
+- `scripts/` — `gen_cc18_ids.py` (pins the 72 CC18 IDs), `profile_datasets.py
+  --dataset-set X [--from-cache]`, `prestage.py --dataset-set X` (Arnes login
+  node), `run_cc18.sh` / `run_subset.sh` (SLURM, take `RUN_ID`),
+  `merge_results.py <run>`, `compare_results.py <run A> <run B>`,
+  `gen_version_table.py <run>` (LaTeX table of versions from the manifest),
+  `profile_medic3.py` (data card, stdlib only), `medic3.json` (Medic3 spec),
+  `subset_ids.json`, `cc18_ids.json`.
+- `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
+  (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
+  `results.csv`, `summary/`); `results/local/` and `results/arnes/` are the
+  **archive** of the old code/versions.
+- `data/openml_cache/` — OpenML's local dataset cache (gitignored); the
+  library appends `org/openml/www`.
 - `razlaga_repozitorija/` — explanatory material, **not** part of the
-  experiment: `zaporedje.puml` (PlantUML sequence diagrams of the call flow),
-  `preveri_diagram.py` (consistency checker) and `hooks/pre-push`. See the
-  "Sequence diagram" section below — the diagram is a maintained artefact, not
-  a one-off drawing.
+  experiment: `zaporedje.puml` (4 PlantUML sequence diagrams),
+  `preveri_diagram.py` (consistency checker), `hooks/pre-push`.
 
 ## Sequence diagram — keep it in sync (mandatory)
 `razlaga_repozitorija/zaporedje.puml` holds four PlantUML sequence diagrams
 (`01_priprava`, `02_lokalni_pilot`, `03_arnes`, `04_analiza`) showing which file
-calls which. It is the map the author reads to understand the codebase, so a
-stale diagram is worse than none.
+calls which. **Rule: any change to the set of source files updates the diagram
+in the same commit** (adding, renaming, deleting a file in `src/` or
+`scripts/`, or changing what the diagram states about it). Every file in `src/`
+and `scripts/` must appear with its **full path**.
 
-**Rule: any change to the set of source files updates the diagram in the same
-commit.** That means adding a file (a new algorithm in `src/models/`, a new
-script in `scripts/`), renaming one, deleting one, or changing what a file does
-in a way the diagram states (its CLI flags, its outputs, the order of calls).
-Every file in `src/` and `scripts/` must appear with its **full path**
-(`src/models/tabpfn_model.py`, not `tabpfn_model.py`) — that is what makes the
-check below possible.
-
-Enforcement is automatic at `git push`:
-- `razlaga_repozitorija/preveri_diagram.py` checks both directions — a source
-  file missing from the diagram, and a path in the diagram that no longer
-  exists on disk. Covers `src/**/*.py`, `scripts/**/*.py`, `scripts/**/*.sh`
-  and `config.yaml`. Standard library only, so it runs under any system
-  `python3`; the `tabular` env is not needed.
-- `razlaga_repozitorija/hooks/pre-push` runs it and **blocks the push** if the
-  diagram is stale. Escape hatch for one push: `git push --no-verify`.
-- **Per-machine setup**: hooks are not carried by git, so run
-  `git config core.hooksPath razlaga_repozitorija/hooks` once on each machine
-  (done 2026-09-04 on the **laptop**, hostname `DESKTOP-0EPDCR8`; still to do
-  on the **desktop PC** after the next pull). Verify with
-  `git config --get core.hooksPath`.
+Enforcement at `git push`: `razlaga_repozitorija/preveri_diagram.py` checks
+both directions (stdlib only, any `python3`); `hooks/pre-push` blocks the push
+if stale. Escape hatch: `git push --no-verify`. Per-machine setup (hooks are
+not carried by git): `git config core.hooksPath razlaga_repozitorija/hooks`
+(done on the laptop `DESKTOP-0EPDCR8` and on the desktop `Kremen`).
 
 PlantUML creole eats some characters, so the diagram escapes them with `~`:
-`~__init~__.py` (else `__init__.py` renders as underlined "init"), `~--mem`
-(else `--mem=64G` renders struck through) and a leading `~#SBATCH` (else it
-becomes a numbered list). The checker strips `~` before comparing, so escaping
-never breaks the check. Verify a render with
-`java -jar plantuml.jar -tpng razlaga_repozitorija/zaporedje.puml` (or the VS
-Code PlantUML extension, `Alt+D`) — `-checkonly` catches syntax errors but not
-these creole artefacts, which only show up in the rendered image.
+`~__init~__.py`, `~--mem`, `~#SBATCH`. The checker strips `~` before comparing.
+Render with `java -jar plantuml.jar -tpng razlaga_repozitorija/zaporedje.puml`
+or the VS Code PlantUML extension (`Alt+D`).
 
-## Preprocessing policy (per algorithm — this is a deliberate experimental variable)
+## Preprocessing policy (per algorithm — a deliberate experimental variable)
+The protocol is "the *minimal* preprocessing an algorithm needs to accept the
+input", not the best preprocessing. Each row of `results.csv` records what was
+applied (`preprocessing`) and, for the foundation models, whether the raw input
+failed first (`raw_error`).
 - **RandomForest**: no native NaN/categorical support → median imputation
-  (numeric) + most-frequent imputation & ordinal encoding (categorical),
-  fit on train fold only.
+  (numeric) + most-frequent imputation & ordinal encoding (categorical), fit on
+  the train fold only.
 - **XGBoost**: native NaN handling; categorical columns ordinal-encoded to
-  numeric codes with NaN preserved (`OrdinalEncoder(encoded_missing_value=np.nan)`).
+  numeric codes with NaN preserved. Ordinal codes impose an artificial order
+  on nominal categories — that is part of what is measured.
 - **LightGBM**: native NaN handling; categorical columns cast to pandas
-  `category` dtype for native categorical support. Non-categorical columns
-  are explicitly cast to float, since some nominally-numeric OpenML columns
-  (e.g. an all-missing column) load as `object` dtype and LightGBM rejects
-  non-numeric/category dtypes.
-- **CatBoost**: native NaN handling (numeric) + native categorical support
-  via `cat_features`; categorical columns cast to `str` first (CatBoost
-  disallows float NaN inside categorical columns — casting makes `'nan'` its
-  own category, not an imputation).
-- **TabPFN / TabICL**: pass data as raw as possible by design — the
-  experiment is to see what each model handles natively. Each model's
-  `run()` tries the raw fold first; only on an exception does it apply a
-  logged minimal fix and retry:
-  - TabPFN (v3, `tabpfn` 8.x): raw input works on all current datasets,
-    including `object`-dtype columns with unparsable/all-missing values
-    (v2 needed an ordinal-encoding fallback there — kept as a safety net
-    for future datasets, NaN preserved).
-  - TabICL: raw input works. Under torch 2.4.1, `device='auto'` failed to
-    resolve a torch device index in this WSL2/CUDA setup and a fallback to
-    explicit `device='cuda:0'` was needed; fixed by the torch 2.13 upgrade,
-    fallback kept as a safety net.
-  Never silently preprocess — every raw failure + the fix applied is
-  recorded in `results/local/preprocessing_log.md`.
+  `category` dtype; non-categorical columns explicitly cast to float.
+- **CatBoost**: native NaN (numeric) + native categorical via `cat_features`;
+  categorical columns mapped element-wise to strings with NaN → the string
+  `'nan'` (its own category, not an imputation). **pandas 3.0 note:**
+  `astype(str)` no longer turns NaN into `'nan'`, it keeps it missing and
+  CatBoost rejects it; hence the explicit `map` in `catboost_model.py`. This
+  bit the first `tabular2` pilot (all 5 `sick` folds failed) and is fixed.
+- **TabPFN / TabICL**: raw input first; only on an exception apply a logged
+  minimal fix and retry. Under the current versions raw input works on every
+  CC18 dataset; the fallbacks stay as safety nets.
+
+## Timing
+`train_time_s` and `inference_time_s` are wall-clock around `fit` and
+`predict_proba` (including the algorithm's own preprocessing). Foundation
+models do no training, so their cost sits in inference. GPU algorithms get one
+warm-up fit per process (`warmup_s` column) so fold 0 does not carry weight
+loading and CUDA initialisation. The `device` column says where each fit ran
+(`cpu x8` vs. `cuda: NVIDIA H100 ...`); times across the two families compare
+hardware as much as algorithms and the thesis must say so. Summaries report the
+**median** over folds.
 
 ## Environment
-- Runs under WSL2 (Ubuntu) on Windows 11; the repo lives on the WSL **Linux**
-  filesystem at `/home/tilen/fri/diplomska/Diplomsko-delo_Koda` (moved off the
-  Windows mount `/mnt/d/fri/Diplomska/prvo_testiranje` on 2026-08-10, and
-  renamed from `prvo_testiranje`). Any older reference to `/mnt/d/...` or to
-  "prvo_testiranje" is stale.
-- **Two machines** (desktop PC and laptop) use the *same* path
-  `/home/tilen/fri/diplomska/Diplomsko-delo_Koda`, kept in sync through GitHub:
-  `origin = https://github.com/TilenZrnec/Diplomsko-delo_Koda.git`, branch
-  `main`. The parent `~/fri/diplomska/` also holds the thesis text
-  (`Diplomsko_delo_Tabelarični_temeljni_modeli/`) and the CRISP-DM documents,
-  which are *not* part of this repo. Sync discipline: commit + push before
-  switching machines, pull on arrival — nothing here is shared live.
-- Not carried by git, therefore per-machine and to be set up on each:
-  the conda env `tabular`, the TabPFN credential (`~/.cache/tabpfn/`), the
-  OpenML cache (`data/openml_cache/`, gitignored — re-downloaded on demand), and
-  `.claude/settings.local.json` (globally gitignored).
-- Conda env: `tabular` (Python 3.10). GPU: NVIDIA RTX 3060, `torch` 2.13.0+cu130,
-  `torch.cuda.is_available()` is `True`. Run project scripts with
-  `conda run -n tabular python -m src.<module>` (or activate the env first).
-- TabPFN v3 (`tabpfn` 8.x) requires a one-time license acceptance via a
-  PriorLabs account; the credential is cached locally on this machine. On a
-  fresh machine: interactive first `fit()` opens a browser login (needs a
-  real TTY — `conda activate`, not `conda run`), or set `TABPFN_TOKEN` from
-  https://ux.priorlabs.ai/account for headless use.
-- `src/data.py` resolves the OpenML cache path relative to the repo root
-  (`data/openml_cache`), not hardcoded — safe if the repo is moved. It sets it
-  with `openml.config.set_root_cache_directory()`; `openml` then appends
-  `org/openml/www` underneath.
-  **Do not use `openml.config.cache_directory = ...`** — that name was removed
-  after `openml` 0.10 and, because `openml.config` is a plain module, the
-  assignment silently creates an unread attribute instead of raising. The repo
-  carried exactly this bug until 2026-08-31, so the cache landed in
-  `~/.cache/openml/org/openml/www` while `data/openml_cache` stayed empty
-  (no effect on any result — only on where files sat). Verified on the laptop
-  under `openml` 0.14.2: after the assignment `get_cache_directory()` is
-  unchanged; after `set_root_cache_directory()` it follows.
-  `scripts/prestage.py` still reports the *effective* directory via
-  `openml.config.get_cache_directory()` — that stays the reliable source for
-  the **100 GB home-quota check on Arnes**.
-  **Migration:** an old `~/.cache/openml` is now orphaned. Either
-  `mkdir -p data/openml_cache && mv ~/.cache/openml/org data/openml_cache/`,
-  or let it re-download. On Arnes this is not optional: compute nodes are
-  offline (`HF_HUB_OFFLINE=1`), so `scripts/prestage.py` must be re-run on the
-  login node before the next submission, or every array task fails on an empty
-  cache.
+- WSL2 (Ubuntu) on Windows 11; repo at
+  `/home/tilen/fri/diplomska/Diplomsko-delo_Koda` on both machines (desktop
+  `Kremen`, laptop `DESKTOP-0EPDCR8`), synced through GitHub
+  (`origin = https://github.com/TilenZrnec/Diplomsko-delo_Koda.git`, `main`).
+  Commit + push before switching machines, pull on arrival.
+- Not carried by git: the conda envs, the TabPFN credential
+  (`~/.cache/tabpfn/`), the OpenML cache, `.claude/settings.local.json`.
+- **Conda envs.** `tabular2` (Python 3.12) is the current one, built
+  2026-09-09 from `requirements.txt`; GPU RTX 3060, `torch 2.14.0+cu130`,
+  CUDA works. `tabular` (Python 3.10, old pinned stack) is kept untouched as
+  the reference environment for `results/local` and `results/arnes`. Run
+  project scripts with `conda run -n tabular2 python -m src.<module>`.
+- **Version policy (write this in the thesis):** all libraries pinned to the
+  newest stable release co-installable as one environment on the freeze date
+  2026-09-09, identical locally and on Arnes, so no algorithm family is
+  disadvantaged by library age. `requirements.txt` lists the top-level pins;
+  each run's `manifest.json` carries the full `pip freeze`;
+  `scripts/gen_version_table.py` produces the LaTeX table from it (never type
+  versions by hand into the thesis).
+- **Measured effect of the upgrade** (pilot 3 datasets, same machine,
+  `compare_results.py check_refactor_oldenv subset_v2_local`): RandomForest,
+  LightGBM, CatBoost bit-identical; TabPFN/TabICL ≤ 2e-3; **XGBoost 2.1.1 →
+  3.4.1 changes ROC-AUC by up to 0.0175** on a fold (its defaults moved) —
+  worth a sentence in the thesis.
+- **Refactor verified:** the restructured code run in the *old* env
+  (`results/runs/check_refactor_oldenv`) reproduces
+  `results/local/results_local_subset.csv` with Δ = 0.0 on all 90 rows,
+  including TabPFN/TabICL.
+- TabPFN v3 needs a one-time licence acceptance via a PriorLabs account; the
+  credential is cached locally. Fresh machine: interactive first `fit()` opens
+  a browser login (needs a real TTY — `conda activate`, not `conda run`), or set
+  `TABPFN_TOKEN` from https://ux.priorlabs.ai/account.
+- `src/data.py` sets the OpenML cache with
+  `openml.config.set_root_cache_directory()`. **Do not use
+  `openml.config.cache_directory = ...`** — removed after `openml` 0.10 and,
+  because `openml.config` is a plain module, the assignment silently creates an
+  unread attribute. `openml` 0.15 still accepts
+  `list_datasets(..., output_format="dataframe")` without a warning.
 
-## Datasets (OpenML IDs, set in `config.yaml`)
-- 31 — credit-g (1000 rows, 20 attrs, 13 categorical, no missing values)
-- 37 — diabetes / Pima (768 rows, 8 attrs, all numeric, no missing values)
-- 38 — sick (3772 rows, 29 attrs, 22 categorical, has missing values).
-  **Note**: the originally-specified ID 3021 does not exist on OpenML
-  ("Unknown dataset"); 38 is the standard "sick" thyroid dataset and was
-  confirmed with the user as the intended substitute.
+## Datasets
+- `subset` = OpenML 31 credit-g (1000×20, 13 categorical), 37 diabetes
+  (768×8, numeric), 38 sick (3772×29, 22 categorical, missing values; the
+  originally specified ID 3021 does not exist on OpenML).
+- `cc18` = the 72 IDs in `scripts/cc18_ids.json`, pinned from
+  `openml.study.get_suite(99)`.
+- `medic3` = `scripts/medic3.json` → `../Medic3.csv.zip` (outside the repo,
+  confidential): 122 093 × 275, 220 classes, 82 % missing, `Index`/`Field`
+  dropped, `Class` target. Loader verified 2026-09-09
+  (`profile_datasets.py --dataset-set medic3 --from-cache`). TabPFN v3's hard
+  cap is 160 classes, so it will fail-soft on Medic3 as agreed with the
+  supervisor; TabICL handles 220 classes.
 
 ## Arnes HPC
-- The benchmark also runs on the Arnes SLURM cluster (GPU partition `gpu`,
-  H100 nodes). Env: micromamba prefix at `~/envs/tabular` (micromamba binary
-  at `~/bin/micromamba`, no shell activation hooks in batch scripts).
-- TabPFN token lives in `~/.tabpfn_token` (sourced by the batch script);
-  compute nodes run offline (`HF_HUB_OFFLINE=1`), so run
-  `python scripts/prestage.py [--ids-file FILE]` on the login node first — it
-  caches every dataset in the ids-file (default `scripts/subset_ids.json` =
-  31/37/38) plus the TabPFN/TabICL weights (TabICL on CPU), and prints the
-  resulting cache size for the 100 GB home-quota check. Per-dataset download
-  failures don't abort it; they're listed at the end and it exits 1.
-- `src/run_one_dataset.py --index N --ids-file scripts/subset_ids.json` runs
-  all REGISTRY algorithms on the Nth OpenML ID and writes
-  `results/per_dataset/<openml_id>.csv`; exits early ("already done") if the
-  file exists, so re-submitted arrays skip finished datasets.
-- **Per-fit checkpointing.** After every single (algorithm, fold) fit,
-  `run_one_dataset.py` rewrites `<openml_id>.csv.partial`; the final
-  `<openml_id>.csv` is produced only at the end via **atomic `os.replace()`**.
-  Two consequences: a killed task (`--time` overrun, preemption) loses no
-  work — the next submission reads the partial and skips only the fits
-  already recorded — and a partial can never masquerade as a complete result,
-  so "already done" always means genuinely done. Granularity is per *fit*,
-  not per algorithm, so one slow algorithm (CatBoost on Devnagari-Script)
-  can spread its 5 folds across several tasks instead of restarting from
-  fold 0 forever. The partial itself is also written atomically (via `.tmp`),
-  so a kill mid-write can't corrupt it. Verified 2026-07-22 with a kill/resume
-  test: killed at 9/30 fits → no `38.csv` present, only the partial; resumed
-  → 30 rows, identical row order, **max Δ 0.0** vs. a clean single-shot run;
-  re-run after completion → "already done".
-- Submit from the repo root: `sbatch scripts/run_subset.sh` (array 0-2; fill
-  `--account`/`--reservation` from `sacctmgr show assoc user=$USER`).
-- `scripts/merge_results.py <out.csv> [--input-dir DIR]` concatenates
-  per-dataset CSVs (default `results/per_dataset/`);
-  `scripts/compare_results.py <local.csv> <arnes.csv>` diffs ROC-AUC.
-  The merge globs `*.csv` only, so unfinished `*.partial` datasets are
-  excluded — and it prints a loud warning listing each one with its
-  fits-done count, so an incomplete sweep surfaces instead of hiding.
-- `scripts/profile_datasets.py --ids-file FILE [--top N] [--from-cache]`
-  prints n_rows × n_features per dataset, sorted descending — the data-driven
-  input for sizing `--time`/`--mem`. Default reads OpenML metadata (needs
-  internet, no full download); `--from-cache` loads the cached datasets.
+- SLURM cluster, GPU partition `gpu`, H100 nodes. Env: micromamba prefix at
+  `~/envs/tabular` (`~/bin/micromamba`, no shell hooks in batch scripts).
+  **The cluster env must be rebuilt from the new `requirements.txt`
+  (Python 3.12) before the re-run**, and its `manifest.json` compared to the
+  local one.
+- TabPFN token in `~/.tabpfn_token` (sourced by the batch script); compute
+  nodes run offline (`HF_HUB_OFFLINE=1`), so on the login node first:
+  `python scripts/prestage.py --dataset-set cc18` (caches datasets + TabPFN/
+  TabICL weights, prints the cache size for the 100 GB home-quota check).
+- Submit from the repo root with an explicit run id:
+  `RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh` (array `0-71%4`, `--mem=64G`,
+  `--time=12:00:00`). The script checks that the array bound matches the
+  dataset count and aborts loudly if not. Re-submit the four big indices with
+  more memory, **same RUN_ID**:
+  `ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh`.
+- Per-fit checkpointing: a killed task loses no work; re-submitting with the
+  same `RUN_ID` resumes at the first unfinished (algorithm, fold). A new
+  `RUN_ID` is a clean slate, so the old "rm -rf results/per_dataset/*" hazard
+  is gone. Verified 2026-07-22 (kill/resume, max Δ 0.0).
+- Merge and analyse: `python scripts/merge_results.py cc18_v2`, then
+  `python -m src.summary cc18_v2`, `python -m src.stats cc18_v2` (and
+  `--no-saturated`), `python scripts/gen_version_table.py cc18_v2`. Expect
+  72 × 6 × `n_splits` × `n_repeats` rows; fewer rows means unfinished (the merge
+  lists the partials), a failed fit still has its row with the reason in
+  `error`.
+- Record the job receipt after every run:
+  `sacct -j <jobid> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`
+  into a `PROVENANCE.md` inside the run directory.
+- Sizing knowledge from the 2026-08 sweep: `--mem=64G` sufficed for 68/72;
+  indices 27/60/61/70 (mnist_784, Devnagari-Script, CIFAR_10, Fashion-MNIST)
+  needed 120–240G; `--time=12:00:00` sufficed everywhere; CatBoost (1000
+  default iterations) took 13 of the 16 total CPU hours. CIFAR_10 × {TabPFN,
+  TabICL} failed (3072 features > TabPFN's 2000 cap; TabICL asked ~378 GB) —
+  those rows carry the reason in `error`, no subsampling was or will be added.
+- The cluster remote uses SSH (`git@github.com:...`), not HTTPS.
 
-### Full CC18 sweep (72 datasets) — **DONE**, do not re-run
-**Status: complete.** The thesis result set is
-`results/arnes/cc18/results_arnes_cc18.csv`
-— 2160 rows = 72 datasets × 6 algorithms × 5 folds, verified 2026-08-10.
-Ten fits failed, all of them CIFAR_10 (OpenML 40927) × {TabPFN, TabICL} × 5
-folds: TabICL asked for ~378 GB against 256 GB/node. Those rows exist with the
-reason in `error` and an empty `roc_auc` — no subsampling and no
-`disk_offload_dir` were used, so the default-hyperparameter protocol is intact.
-Full provenance (4 SLURM job IDs, the mid-run script fixes, the caveat that
-`train_time_s`/`inference_time_s` for datasets 554/40923/40927/40996 come from
-re-runs on different nodes and are therefore *not* cross-dataset comparable) is
-in `results/arnes/cc18/PROVENANCE.md`.
+### 2026-08 CC18 sweep (archive, old code + old versions)
+`results/arnes/cc18/results_arnes_cc18.csv`, 2160 rows, `PROVENANCE.md` with
+4 SLURM job IDs. Headline (mean rank, failure = worst rank, per-dataset ranks):
+tabicl 1.58, tabpfn 1.88, catboost 3.38, lightgbm 4.50, xgboost 4.59,
+random_forest 5.07; Friedman p = 5e-47, Nemenyi CD = 0.89; 33 of 72 datasets
+are saturated (best ROC-AUC ≥ 0.995). Reproduce with
+`python -m src.summary results/arnes/cc18/results_arnes_cc18.csv` and
+`python -m src.stats results/arnes/cc18/results_arnes_cc18.csv`.
 
-Headline numbers (mean ROC-AUC / mean rank across all 72): tabicl 0.9396/1.75,
-tabpfn 0.9384/2.05, catboost 0.9280/3.43, lightgbm 0.9218/4.37, xgboost
-0.9208/4.42, random_forest 0.9180/4.88. Reproduce with
-`python -m src.summary results/arnes/cc18/results_arnes_cc18.csv` — **the path argument is
-required**; bare `python -m src.summary` summarises the 3-dataset local pilot
-instead, which is the wrong table for the thesis.
-
-The sizing TODOs still written in `scripts/run_cc18.sh` are answered by the run
-itself: `--mem=64G` was too small for indices 27/60/61/70 (mnist_784,
-Devnagari-Script, CIFAR_10, Fashion-MNIST) and those needed 120–240G;
-`--time=12:00:00` sufficed everywhere.
-
-The procedure below is retained for reproducibility and for any future
-re-run — **it is a record of what was done, not pending work.**
-1. **Pin the ID set** (once, already done and committed):
-   `python scripts/gen_cc18_ids.py` → `scripts/cc18_ids.json`, 72 IDs from
-   `openml.study.get_suite(99)`, deduped and sorted; hard-fails if OpenML
-   returns ≠ 72 so a silent suite change can't slip through. The file is
-   committed, so the sweep does not re-fetch the suite at submit time.
-2. **Prestage on the login node** (internet):
-   `python scripts/prestage.py --ids-file scripts/cc18_ids.json`, then check
-   the printed cache size and `du -sh ~` against the 100 GB quota.
-3. **Clear scratch, then submit**: `rm -rf results/per_dataset/*` (**all** of
-   it — `.csv`, `.partial` and `.partial.tmp`; a stale partial from an older
-   code version would otherwise poison a resume) and
-   `sbatch scripts/run_cc18.sh` (array `0-71%4`, now `--time=12:00:00`,
-   `--mem=64G`, otherwise identical plumbing to `run_subset.sh`). Re-submit the
-   four big indices separately with more memory:
-   `ALLOW_SPARSE_ARRAY=1 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh`.
-4. **Merge and summarise**:
-   `python scripts/merge_results.py results/arnes/cc18/results_arnes_cc18.csv`
-   then `python -m src.summary results/arnes/cc18/results_arnes_cc18.csv` —
-   pass the path, or you silently get the pilot. Never merge into
-   `results/local/results_local_subset.csv`.
-5. **Completeness check**: expect **72 × 6 × 5 = 2160** rows. Fewer rows, or
-   any `*.partial` left in `results/per_dataset/` (the merge lists them), means
-   those datasets hit the wall — raise `--time` and re-submit; they resume
-   from where they stopped. A fit that *failed* still produces its row, with
-   the reason in `error`, so missing rows always mean "unfinished", never
-   "failed".
-- **Resume / re-submit**: the array is resume-safe at two levels — whole
-  datasets with a `<id>.csv` print "already done" and cost seconds, and a
-  dataset interrupted mid-way resumes from its partial at the first unfinished
-  (algorithm, fold) fit. So a task killed by a too-short `--time` is fixed by
-  raising `--time` and submitting again, with no lost compute. The script also
-  verifies that the `--array` upper bound matches the ID count and aborts
-  loudly if it doesn't.
-- **CC18 contains the pilot datasets 31/37/38**, so the resume logic *would*
-  skip them if their CSVs are still in `results/per_dataset/`. Two options:
-  (a) knowingly reuse the validated pilot CSVs, or (b) `rm -rf
-  results/per_dataset/*` first, so all 72 datasets come from one code
-  version and one environment. **(b) is the recommendation for the thesis
-  run** — single-version provenance; the pilot results stay archived in
-  `results/arnes/subset/`.
-- TabPFN/TabICL were expected to fail-soft on the four largest CC18 datasets
-  (CIFAR_10 60000×3072, Devnagari-Script 92000×1024, mnist_784 and
-  Fashion-MNIST 70000×784). **Outcome: only CIFAR_10 actually broke** — the
-  other three completed once given 120–240G. No subsampling is implemented and
-  none was added; the 10 CIFAR_10 rows carry their reason in `error`.
-
-### Operational lessons (learned 2026-07-22, validation run)
-- **The cluster remote uses SSH**, not HTTPS: `git@github.com:...`. The
-  cluster has no credential helper for HTTPS, so an `https://` remote
-  prompts for a password and fails in a batch context.
-- **Scratch vs. curated results.** `results/per_dataset/` is *scratch*: it is
-  gitignored, and `run_one_dataset.py` treats an existing
-  `<openml_id>.csv` there as "already done" and skips the dataset. Therefore
-  **`rm -rf results/per_dataset/*` before any real run** — otherwise stale
-  files silently suppress recomputation. This actually happened: a
-  git-committed local CSV made array task 0 skip, contaminating the first
-  attempt with local numbers presented as cluster numbers. Curated,
-  publishable results are committed under their own directory (e.g.
-  `results/arnes/subset/`) with a `PROVENANCE.md`.
-- **Merges always write to a new file.** Never merge into or overwrite
-  `results/local/results_local_subset.csv` — it is the immutable local
-  RTX 3060 baseline. Cluster merges go to
-  `results/arnes/subset/results_arnes_subset.csv` and similar.
-- **Job receipts via `sacct`.** After every cluster run, record the receipt:
-  `sacct -j <jobid> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`.
-  Elapsed/MaxRSS per task go into the run's `PROVENANCE.md` — they are the
-  input for sizing `--time` and `--mem` on the larger CC18 array.
-- Validation outcome: cluster vs. local agreement is exact (bit-identical)
-  for RF/XGBoost/LightGBM/CatBoost and ~1e-4 for TabPFN/TabICL (GPU
-  nondeterminism, SM86 vs SM90). See `results/arnes/subset/PROVENANCE.md`.
+## What is next (agreed 2026-09-09)
+1. Rebuild the Arnes env from `requirements.txt`, prestage, run
+   `RUN_ID=subset_v2 sbatch scripts/run_subset.sh`, compare with
+   `subset_v2_local` (expect trees Δ 0, foundation models ~1e-4).
+2. Run the full CC18 with `RUN_ID=cc18_v2`; decide `n_repeats` in
+   `config.yaml` first (1 = as before; 3 ≈ 50 CPU-hours mostly CatBoost).
+3. Then the supervisor's plan (2026-08-12): Medic3 raw, Medic3 restricted to
+   160 classes, CC18 leakage check, tuning one booster, CC18 with injected NULLs.
 
 ## FRI methodology requirements (official diploma guidelines)
-These are the faculty's rules for the experimental part; the writing/citation
-rules live in the thesis repo's `CLAUDE.md`
-(`../Diplomsko-delo_Tabelaricni-temeljni-modeli/CLAUDE.md`). The directory is
-named exactly like the GitHub repo — hyphens, no diacritics — on every machine;
-keep it that way so the relative path resolves everywhere.
+Writing/citation rules live in the thesis repo's `CLAUDE.md`
+(`../Diplomsko-delo_Tabelaricni-temeljni-modeli/CLAUDE.md`).
 - **Baseline — deliberately not used. Decided 2026-08-16, do not re-raise.**
-  The guidelines mention comparing against a naive lower bound, but this thesis
-  does not need one: the research question is how tabular foundation models
-  compare *against the established tree ensembles*, and the four ensembles
-  already serve as the reference point. A `DummyClassifier` sits at ROC-AUC 0.5
-  by construction and would add no information. There is therefore no
-  `DummyClassifier`-style entry in `REGISTRY` and none is to be added.
-- **Reproducibility.** Fixed random seeds (`random_state=42` throughout),
-  every input parameter recorded in `config.yaml`, library versions pinned in
-  `requirements.txt`, environment isolated (conda env `tabular` / micromamba on
-  Arnes). "Works on my machine" is not acceptable.
-- **Systematic experiment logging**, never hand-named result folders. Each run
-  records its configuration (hyperparameters, dataset size), its output metrics
-  (ROC-AUC, error, train/inference time) and its timestamp into structured
-  CSV/JSON — here `results/*.csv` plus the run's `PROVENANCE.md`.
-- **Link results to code:** each experiment run should record the current **git
-  commit hash** alongside its results, so it is always known which version of
-  the source produced a given table or figure. Currently done by hand in
-  `PROVENANCE.md`; automating it in the run scripts is the better practice.
-- **Version control and data versioning.** Code is committed and pushed to the
-  remote (never only local), open source where possible; if the input dataset
-  set changes, filters or grows, record which version of the data each
-  experiment used (here: the pinned `scripts/cc18_ids.json`).
+  The four tree ensembles are the reference point; a `DummyClassifier` sits at
+  ROC-AUC 0.5 by construction. No such entry in `REGISTRY`, none to be added.
+- **Reproducibility.** Fixed seeds (`random_state` from `config.yaml`
+  everywhere, including every model), every parameter in `config.yaml`,
+  versions pinned in `requirements.txt`, full environment in each run's
+  `manifest.json`.
+- **Systematic experiment logging**, never hand-named result folders: each run
+  directory records configuration, metrics, timestamps, git commit and host
+  automatically. `PROVENANCE.md` is only for what a script cannot know (SLURM
+  receipts, what went wrong and was re-submitted).
+- **Link results to code:** `git_commit` is in `manifest.json` and in every
+  result row.
+- **Version control and data versioning.** Code pushed to the remote; the
+  dataset set is pinned in `scripts/cc18_ids.json`; the Medic3 file is
+  identified by path and, once used, should get a checksum in its run's
+  `PROVENANCE.md`.
 
 ## Conventions
-- Each model module fails soft: exceptions are caught and stored in
-  `result["error"]` rather than raised, so one failing (dataset, algorithm,
-  fold) combo doesn't crash the full benchmark run.
-- `random_state=42` used consistently for reproducibility (data split, CV
-  folds, and every model's `random_state`).
-- All algorithms use **default hyperparameters** — this is intentional per
-  the thesis protocol, not an oversight to "fix".
-- **One deliberate non-default: `RandomForestClassifier(n_jobs=-1)`.** This is
-  a compute setting, not a hyperparameter — trees are independent, so it
-  changes only wall-clock, never the fitted model. Verified 2026-07-22:
-  `predict_proba` bit-identical serial vs. parallel on synthetic 20000×300 and
-  20000×800, and all 30 `sick` rows reproduce
-  `results/local/results_local_subset.csv` exactly
-  (max Δ 0.0 across all six algorithms) with the flag in place — so the pilot's
-  ALL PASS verdict is unaffected. Without it RF was the only one of the four
-  ensembles running single-core: XGBoost, LightGBM and CatBoost all default to
-  every available core (capped by the batch script's `OMP_NUM_THREADS=8`).
-  Measured speedup 8.1× (20000×300) and 6.9× (20000×800) on 12 cores; on tiny
-  datasets it costs ~0.1–1 s of thread-pool overhead per dataset, which is the
-  right trade against hours on the giant CC18 sets. `-1` resolves through
-  joblib, which honours the SLURM cpuset/cgroup allocation, so it means 8 cores
-  on the cluster, not the whole node.
+- Each model module fails soft: exceptions go to `result["error"]`, never
+  raised, so one failing (dataset, algorithm, fold) doesn't crash a run.
+- All algorithms use **default hyperparameters** — intentional per the thesis
+  protocol, not an oversight to "fix". The only non-defaults are compute
+  settings: `RandomForestClassifier(n_jobs=-1)` (bit-identical predictions,
+  verified), `LGBMClassifier(verbosity=-1)`,
+  `CatBoostClassifier(verbose=False, allow_writing_files=False)`.
+- Never merge into or overwrite an existing run's `results.csv` from another
+  run; every run has its own directory.

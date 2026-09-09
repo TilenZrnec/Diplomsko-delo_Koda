@@ -15,3 +15,9 @@ logs/
 .cache/
 *.sif
 results/per_dataset/
+
+# Zagoni benchmarka (results/runs/<run_id>/): napovedi so velike in izpeljane,
+# nedokončani partiali pa začasni. Kurirani CSV-ji in manifest.json se commitajo.
+results/runs/*/predictions/
+results/runs/*/per_dataset/*.partial
+results/runs/*/per_dataset/*.tmp

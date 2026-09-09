@@ -6,10 +6,15 @@ zabeležimo (raw_error) in šele nato uporabimo minimalni popravek - ne
 predobdelujemo tiho.
 
 Ugotovljeno na dejanskih podatkih: TabPFN-3 surove podatke obravnava nativno
-na vseh treh datasetih, vključno z 'object' stolpci z manjkajočimi vrednostmi
-(npr. stolpec TBG v datasetu 'sick'), kjer je TabPFN v2 (tabpfn 2.0.9) še
+na vseh naborih CC18, vključno z 'object' stolpci z manjkajočimi vrednostmi
+(npr. stolpec TBG v naboru 'sick'), kjer je TabPFN v2 (tabpfn 2.0.9) še
 potreboval fallback. Fallback (ordinalno kodiranje kategoričnih stolpcev,
-NaN ohranjen) je ohranjen kot varovalka za nove datasete.
+NaN ohranjen) je ohranjen kot varovalka za nove nabore.
+
+Časi: klic fit() pri TabPFN ne uči ničesar (uteži so predhodno naučene), zato
+je "čas učenja" majhen in ves strošek je v predict_proba. Prvi klic v procesu
+poleg tega vsebuje nalaganje utež na GPU in inicializacijo CUDA; runner zato
+pred prvim merjenim učenjem opravi en ogrevalni klic (USES_GPU = True).
 
 Opomba: prva uporaba zahteva enkraten sprejem licence prek PriorLabs računa
 (interaktivna prijava v brskalniku ali TABPFN_TOKEN okoljska spremenljivka).
@@ -20,7 +25,9 @@ import time
 import numpy as np
 from sklearn.preprocessing import OrdinalEncoder
 
-from src.utils import compute_roc_auc
+from src.utils import compute_roc_auc, describe_device
+
+USES_GPU = True
 
 RAW_PREPROCESSING = "raw (brez predobdelave)"
 FALLBACK_PREPROCESSING = (
@@ -41,7 +48,7 @@ def _fit_predict(clf, X_train, y_train, X_test):
     return proba, train_time, inf_time
 
 
-def run(X_train, y_train, X_test, y_test, categorical_cols):
+def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
     from tabpfn import TabPFNClassifier
 
     result = {
@@ -52,10 +59,12 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
         "error": None,
         "preprocessing": RAW_PREPROCESSING,
         "raw_error": None,
+        "device": describe_device(USES_GPU),
+        "proba": None,
     }
 
     try:
-        clf = TabPFNClassifier(random_state=42)
+        clf = TabPFNClassifier(random_state=random_state)
         proba, train_time, inf_time = _fit_predict(clf, X_train, y_train, X_test)
     except Exception as e:
         result["raw_error"] = str(e)
@@ -74,7 +83,7 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
             X_train_fb = X_train_fb.astype(float)
             X_test_fb = X_test_fb.astype(float)
 
-            clf = TabPFNClassifier(random_state=42)
+            clf = TabPFNClassifier(random_state=random_state)
             proba, train_time, inf_time = _fit_predict(clf, X_train_fb, y_train, X_test_fb)
         except Exception as e2:
             result["error"] = f"raw failed: {result['raw_error']}; fallback failed: {e2}"
@@ -83,4 +92,5 @@ def run(X_train, y_train, X_test, y_test, categorical_cols):
     result["train_time_s"] = train_time
     result["inference_time_s"] = inf_time
     result["roc_auc"] = compute_roc_auc(y_test, proba)
+    result["proba"] = proba
     return result

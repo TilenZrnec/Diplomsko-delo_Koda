@@ -1,53 +1,43 @@
-"""Združi vse per-dataset CSV-je iz mape v en skupni CSV.
+"""Združi per_dataset/*.csv enega zagona v results.csv.
 
-Zagon: python scripts/merge_results.py <izhodni.csv> [--input-dir MAPA]
+Zagon: python scripts/merge_results.py <run_id ali pot do mape zagona> [--output POT]
 
-Privzeta vhodna mapa je results/per_dataset/ (scratch izhod SLURM polja);
-z --input-dir se združi kurirana mapa, npr. results/arnes/subset/per_dataset/.
-Izpiše število vrstic in datasetov ter koliko vrstic ima neprazno napako.
+Privzeto piše v <mapa zagona>/results.csv. Nedokončane nabore (*.partial)
+glasno našteje, a jih ne vključi - nepopoln zagon se tako vidi, namesto da bi
+se skril. Lokalni zagon (src/run_benchmark.py) to naredi sam; skripta je za
+Arnes, kjer taski tečejo ločeno in združevanje sproži uporabnik.
 """
 
 import argparse
-import glob
 import os
-
-import pandas as pd
+import sys
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, REPO_ROOT)
+
+from src.config import load_config  # noqa: E402
+from src.runner import merge_run  # noqa: E402
+
+
+def resolve_run_dir(run, config=None):
+    """Sprejme run_id ali pot; vrne absolutno pot do mape zagona."""
+    if os.path.isdir(run):
+        return os.path.abspath(run)
+    config = config or load_config()
+    candidate = os.path.join(config["results_dir"], run)
+    if os.path.isdir(candidate):
+        return candidate
+    raise SystemExit(f"Mapa zagona ne obstaja: {run} (niti {candidate})")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Združevanje per-dataset CSV-jev.")
-    parser.add_argument("output_csv", help="Pot do izhodnega skupnega CSV-ja")
-    parser.add_argument(
-        "--input-dir",
-        default=os.path.join(REPO_ROOT, "results", "per_dataset"),
-        help="Mapa s per-dataset CSV-ji (privzeto results/per_dataset/)",
-    )
+    parser = argparse.ArgumentParser(description="Združevanje per-dataset CSV-jev enega zagona.")
+    parser.add_argument("run", help="run_id (pod results_dir) ali pot do mape zagona")
+    parser.add_argument("--output", default=None, help="Izhodni CSV (privzeto <mapa>/results.csv)")
     args = parser.parse_args()
 
-    paths = sorted(glob.glob(os.path.join(args.input_dir, "*.csv")))
-    if not paths:
-        print(f"Ni najdenih CSV-jev v {args.input_dir}")
-        return
-
-    # *.partial so nedokončani dataseti (task je npr. presegel --time). V merge
-    # namenoma ne gredo, a moraš zanje vedeti - zato glasno opozorilo.
-    partials = sorted(glob.glob(os.path.join(args.input_dir, "*.partial")))
-    if partials:
-        print(f"OPOZORILO: {len(partials)} nedokončanih datasetov (*.partial) - NISO v merge:")
-        for path in partials:
-            n_done = len(pd.read_csv(path))
-            print(f"  {os.path.basename(path)}: {n_done} od 30 učenj; oddaj znova za dokončanje")
-        print()
-
-    merged = pd.concat([pd.read_csv(p) for p in paths], ignore_index=True)
-    merged.to_csv(args.output_csv, index=False)
-
-    n_errors = merged["error"].notna().sum() if "error" in merged.columns else 0
-    print(f"Združenih {len(paths)} datotek -> {args.output_csv}")
-    print(f"Vrstic: {len(merged)}, datasetov: {merged['dataset'].nunique()}")
-    print(f"Vrstic z neprazno napako: {n_errors}")
+    run_dir = resolve_run_dir(args.run)
+    merge_run(run_dir, output_path=args.output)
 
 
 if __name__ == "__main__":

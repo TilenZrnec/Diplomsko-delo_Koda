@@ -10,51 +10,37 @@
 #SBATCH --output=logs/cc18-%A_%a.out
 #SBATCH --account=fri-users
 
-# Celotna zbirka OpenML-CC18 (72 datasetov), en dataset na array task.
+# Celotna zbirka OpenML-CC18 (72 naborov), en nabor na array task.
 #
-# --array=0-71: zgornja meja = število ID-jev v scripts/cc18_ids.json minus 1.
-#   Preveri z:  python -c "import json; print(len(json.load(open('scripts/cc18_ids.json'))) - 1)"
-#   Spodnje preverjanje v telesu skripte to ujame tudi ob oddaji.
+# ODDAJA (iz korena repozitorija, z izbrano oznako zagona):
+#     RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh
+# Brez RUN_ID se oznaka izpelje iz ID-ja polja (cc18_<SLURM_ARRAY_JOB_ID>) in
+# se izpiše v dnevnik. Rezultati gredo v results/runs/<RUN_ID>/per_dataset/.
 #
-# %4 (THROTTLE) = največ toliko taskov hkrati. TODO: potrdi na gruči, da je
-#   vrednost <= zgornje meje GPU-jev na uporabnika, in jo po potrebi zvišaj:
-#       sacctmgr show qos normal format=Name,MaxTRESPU%40,MaxJobsPU
-#   Privzeto je konzervativno %4; polje je zaradi resume logike varno
-#   ponovno oddati, zato prenizek throttle stane le čas, ne rezultatov.
+# PONOVNA ODDAJA po prekinitvi ali za posamezne nabore: uporabi ISTI RUN_ID,
+# sicer začne nov zagon od začetka namesto da bi nadaljeval iz partialov:
+#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh
 #
-# Dimenzioniranje --time in --mem (pilot je SPODNJA meja, ne zgornja):
-#   Pilot (job 17731379, dataseti 31/37/38) je trajal ~10-60 s na task, ker so
-#   ti dataseti drobni. CC18 vsebuje bistveno večje: CIFAR_10 (60000 x 3072),
-#   Devnagari-Script (92000 x 1024), mnist_784 in Fashion-MNIST (70000 x 784).
-#   Na task se izvede 6 algoritmov x 5 foldov = 30 učenj; na največjih
-#   datasetih sta CatBoost (1000 iteracij) in RandomForest lahko po več deset
-#   minut na fold, TabPFN/TabICL pa sta na GPU dolga repa (ali
-#   pa fail-soft padeta na omejitvah velikosti - to je sprejemljivo in se
-#   zabeleži). Vsi štirje ansambli uporabljajo vseh 8 dodeljenih jeder
-#   (RF prek n_jobs=-1, ostali prek OMP_NUM_THREADS spodaj).
-#   8 h na task je torej velikodušna rezerva; ker je polje
-#   omejeno (throttle) in odporno na ponovni zagon, je preveliki --time
-#   poceni, prekratki pa le podaljša skupni čas (ne izgubi dela - glej
-#   kontrolne točke spodaj).
-#   TODO: pred zagonom preveri zgornjo mejo particije in QOS ter --time
-#   dvigni proti njej (manj ponovnih oddaj):
-#       scontrol show partition gpu | grep -i maxtime
-#       sacctmgr show qos normal format=Name,MaxWall
+# --array=0-71: zgornja meja = število naborov v cc18 (config.yaml: dataset_sets)
+#   minus 1. Varovalka spodaj to preveri ob zagonu vsakega taska.
 #
-# Kontrolne točke: src/run_one_dataset.py po vsakem (algoritem, fold) učenju
-#   zapiše <id>.csv.partial in šele na koncu atomarno preimenuje v <id>.csv.
-#   Prekinjen task (prekoračen --time, preemption) torej ne izgubi dela -
-#   ponovna oddaja nadaljuje pri prvem nenarejenem učenju. Tudi posamezen
-#   dolg algoritem (CatBoost na Devnagari-Script) lahko svojih 5 foldov
-#   razporedi čez več taskov, namesto da bi se v nedogled ponavljal.
-#   --mem=64G: CIFAR_10 kot float64 zasede ~1,4 GiB na kopijo; predobdelava,
-#   train/test razrez in CatBoostova kvantizacija držijo več kopij hkrati -
-#   64G da ~40x rezerve nad surovo matriko. (Pilotni MaxRSS iz sacct je le
-#   spodnja meja, glej results/arnes/cc18/PROVENANCE.md.)
+# %4 (THROTTLE) = največ toliko taskov hkrati; polje je zaradi resume logike
+#   varno ponovno oddati, zato prenizek throttle stane le čas, ne rezultatov.
+#
+# Dimenzioniranje (izkušnja iz zagona 2026-08, glej results/arnes/cc18/PROVENANCE.md):
+#   --mem=64G je zadoščal za 68/72 naborov; indeksi 27 (mnist_784), 60
+#   (Devnagari-Script), 61 (CIFAR_10) in 70 (Fashion-MNIST) so potrebovali
+#   120-240G. --time=12:00:00 je zadoščal povsod. Na task se izvede
+#   6 algoritmov x n_splits x n_repeats učenj (config.yaml).
+#
+# Kontrolne točke: src/runner.py po vsakem (algoritem, fold) učenju zapiše
+#   <id>.csv.partial in šele na koncu atomarno preimenuje v <id>.csv. Prekinjen
+#   task torej ne izgubi dela - ponovna oddaja z istim RUN_ID nadaljuje pri
+#   prvem nenarejenem učenju.
 
 set -euo pipefail
 
-IDS_FILE=scripts/cc18_ids.json
+DATASET_SET=cc18
 MAMBA="$HOME/bin/micromamba run -p $HOME/envs/tabular"
 
 # TABPFN_TOKEN za headless uporabo TabPFN v3
@@ -64,15 +50,18 @@ export HF_HUB_OFFLINE=1
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-mkdir -p logs results/per_dataset
+RUN_ID="${RUN_ID:-${DATASET_SET}_${SLURM_ARRAY_JOB_ID}}"
+echo "RUN_ID=$RUN_ID  (task $SLURM_ARRAY_TASK_ID, nabor $DATASET_SET)"
 
-# Velikost polja mora ustrezati številu ID-jev, sicer bi zadnji dataseti tiho izpadli.
+mkdir -p logs
+
+# Velikost polja mora ustrezati številu naborov, sicer bi zadnji tiho izpadli.
 # tail -n1: micromamba run lahko na stdout doda uvodne vrstice, zanima nas le število.
-N_IDS=$($MAMBA python -c "import json; print(len(json.load(open('$IDS_FILE'))))" | tail -n1)
+N_IDS=$($MAMBA python -c "from src.config import load_config, dataset_specs; print(len(dataset_specs(load_config(), '$DATASET_SET')))" | tail -n1)
 if [ "${ALLOW_SPARSE_ARRAY:-0}" -ne 1 ] && [ "$SLURM_ARRAY_TASK_MAX" -ne "$((N_IDS - 1))" ]; then
-    echo "NAPAKA: --array=0-$SLURM_ARRAY_TASK_MAX ne ustreza $N_IDS ID-jem v $IDS_FILE." >&2
+    echo "NAPAKA: --array=0-$SLURM_ARRAY_TASK_MAX ne ustreza $N_IDS naborom v '$DATASET_SET'." >&2
     echo "Popravi direktivo #SBATCH --array na 0-$((N_IDS - 1)) in oddaj znova." >&2
-    echo "Za ponovni zagon posameznih datasetov nastavi ALLOW_SPARSE_ARRAY=1." >&2
+    echo "Za ponovni zagon posameznih naborov nastavi ALLOW_SPARSE_ARRAY=1." >&2
     exit 1
 fi
 
@@ -82,4 +71,5 @@ if [ "$SLURM_ARRAY_TASK_ID" -ge "$N_IDS" ]; then
     exit 1
 fi
 
-$MAMBA python -m src.run_one_dataset --index $SLURM_ARRAY_TASK_ID --ids-file "$IDS_FILE"
+$MAMBA python -m src.run_one_dataset \
+    --dataset-set "$DATASET_SET" --index "$SLURM_ARRAY_TASK_ID" --run-id "$RUN_ID"

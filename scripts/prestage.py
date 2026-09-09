@@ -1,28 +1,27 @@
 """Predpriprava na prijavnem vozlišču Arnes (login node nima GPU-ja).
 
-Prenese OpenML datasete v data/openml_cache ter enkrat fitta TabPFN in
-TabICL na majhnem naključnem vzorcu, da se uteži modelov preneseta v
-lokalni predpomnilnik - računska vozlišča nato tečejo brez dostopa do
-interneta (HF_HUB_OFFLINE=1).
+Prenese nabore v cache_dir (config.yaml) ter enkrat fitta TabPFN in TabICL na
+majhnem naključnem vzorcu, da se uteži modelov preneseta v lokalni
+predpomnilnik - računska vozlišča nato tečejo brez dostopa do interneta
+(HF_HUB_OFFLINE=1).
 
 Zagon (samo na prijavnem vozlišču, potrebuje internet):
 
-    python scripts/prestage.py                                   # pilotna podmnožica
-    python scripts/prestage.py --ids-file scripts/cc18_ids.json  # cel CC18
-    python scripts/prestage.py --ids 31 37 38                    # izbrani ID-ji
-    python scripts/prestage.py --ids 37 --skip-weights           # samo dataset, brez utež
+    python scripts/prestage.py                          # pilotna trojica (subset)
+    python scripts/prestage.py --dataset-set cc18       # cel CC18
+    python scripts/prestage.py --ids 31 37 38           # izbrani OpenML ID-ji
+    python scripts/prestage.py --ids 37 --skip-weights  # samo nabor, brez utež
 
 --skip-weights preskoči TabPFN/TabICL - uporabno za preverjanje samega
-predpomnilnika datasetov na računalniku brez poverilnice TabPFN.
+predpomnilnika naborov na računalniku brez poverilnice TabPFN.
 
-Prenos posameznega dataseta ne prekine celotne predpriprave - napake se
-zberejo in izpišejo na koncu, izhodna koda pa je 1, če kateri dataset
-manjka. Na koncu izpiše skupno velikost predpomnilnika, da jo je mogoče
-primerjati s kvoto domačega imenika (100 GB) pred oddajo SLURM polja.
+Prenos posameznega nabora ne prekine celotne predpriprave - napake se zberejo
+in izpišejo na koncu, izhodna koda pa je 1, če kateri nabor manjka. Na koncu
+izpiše skupno velikost predpomnilnika, da jo je mogoče primerjati s kvoto
+domačega imenika (100 GB) pred oddajo SLURM polja.
 """
 
 import argparse
-import json
 import os
 import sys
 
@@ -32,9 +31,8 @@ import openml
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
+from src.config import dataset_specs, load_config, spec_id  # noqa: E402
 from src.data import load_dataset  # noqa: E402
-
-CACHE_DIR = os.path.join(REPO_ROOT, "data", "openml_cache")
 
 
 def effective_cache_dir():
@@ -67,20 +65,24 @@ def human_size(n_bytes):
         size /= 1024
 
 
-def prestage_datasets(ids):
-    """Prenese in predpomni vse datasete; vrne seznam (id, napaka) za neuspele."""
+def prestage_datasets(specs, config):
+    """Prenese in predpomni vse nabore; vrne seznam (id, napaka) za neuspele."""
     failures = []
-    for i, openml_id in enumerate(ids, start=1):
+    for i, spec in enumerate(specs, start=1):
+        ds_id = spec_id(spec)
         try:
-            dataset = load_dataset(openml_id, n_splits=5, random_state=42, cache_dir=CACHE_DIR)
+            dataset = load_dataset(
+                spec, n_splits=config["n_splits"], random_state=config["random_state"],
+                cache_dir=config["cache_dir"], n_repeats=config["n_repeats"],
+            )
             X = dataset["X"]
             print(
-                f"[{i}/{len(ids)}] OpenML {openml_id} ({dataset['name']}): "
+                f"[{i}/{len(specs)}] {ds_id} ({dataset['name']}): "
                 f"{X.shape[0]} x {X.shape[1]}, preneseno in predpomnjeno"
             )
-        except Exception as exc:  # noqa: BLE001 - predpriprava ne sme pasti zaradi enega dataseta
-            print(f"[{i}/{len(ids)}] OpenML {openml_id}: NAPAKA - {type(exc).__name__}: {exc}")
-            failures.append((openml_id, f"{type(exc).__name__}: {exc}"))
+        except Exception as exc:  # noqa: BLE001 - predpriprava ne sme pasti zaradi enega nabora
+            print(f"[{i}/{len(specs)}] {ds_id}: NAPAKA - {type(exc).__name__}: {exc}")
+            failures.append((ds_id, f"{type(exc).__name__}: {exc}"))
     return failures
 
 
@@ -107,35 +109,26 @@ def prestage_weights():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Predpriprava datasetov in utež na prijavnem vozlišču.")
+    parser = argparse.ArgumentParser(description="Predpriprava naborov in utež na prijavnem vozlišču.")
+    parser.add_argument("--dataset-set", default="subset", help="Ime nabora iz config.yaml (privzeto subset)")
     parser.add_argument(
-        "--ids-file",
-        default=os.path.join(REPO_ROOT, "scripts", "subset_ids.json"),
-        help="JSON datoteka s seznamom OpenML ID-jev (privzeto scripts/subset_ids.json)",
+        "--ids", nargs="+", type=int,
+        help="Neposreden seznam OpenML ID-jev (npr. --ids 31 37); prevlada nad --dataset-set.",
     )
     parser.add_argument(
-        "--ids",
-        nargs="+",
-        type=int,
-        help="Neposreden seznam OpenML ID-jev (npr. --ids 31 37); prevlada nad --ids-file.",
-    )
-    parser.add_argument(
-        "--skip-weights",
-        action="store_true",
-        help="Preskoči prenos utež TabPFN/TabICL - predpripravi samo datasete.",
+        "--skip-weights", action="store_true",
+        help="Preskoči prenos utež TabPFN/TabICL - predpripravi samo nabore.",
     )
     args = parser.parse_args()
 
+    config = load_config()
     if args.ids:
-        ids = args.ids
-        source = "--ids"
+        specs, source = list(args.ids), "--ids"
     else:
-        with open(args.ids_file) as f:
-            ids = [int(i) for i in json.load(f)]
-        source = args.ids_file
-    print(f"Predpriprava {len(ids)} datasetov iz {source}\n")
+        specs, source = dataset_specs(config, args.dataset_set), args.dataset_set
+    print(f"Predpriprava {len(specs)} naborov iz {source}\n")
 
-    failures = prestage_datasets(ids)
+    failures = prestage_datasets(specs, config)
     if args.skip_weights:
         print("\nUteži TabPFN/TabICL preskočene (--skip-weights).")
     else:
@@ -147,10 +140,10 @@ def main():
     print("(Kvota domačega imenika na Arnesu je 100 GB - preveri z 'du -sh ~' pred oddajo.)")
 
     if failures:
-        print(f"\nNEUSPELI dataseti ({len(failures)}):")
-        for openml_id, error in failures:
-            print(f"  {openml_id}: {error}")
-        print("Računska vozlišča so brez interneta - te datasete pred oddajo predpripravi ročno.")
+        print(f"\nNEUSPELI nabori ({len(failures)}):")
+        for ds_id, error in failures:
+            print(f"  {ds_id}: {error}")
+        print("Računska vozlišča so brez interneta - te nabore pred oddajo predpripravi ročno.")
         sys.exit(1)
 
 

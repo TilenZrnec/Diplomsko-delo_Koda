@@ -17,8 +17,12 @@ Zagon (potrebuje internet - lokalno ali na prijavnem vozlišču):
 
 import json
 import os
+import sys
 
 import openml
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.config import load_config  # noqa: E402
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,7 +33,7 @@ OUT_PATH = os.path.join(REPO_ROOT, "scripts", "cc18_ids.json")
 
 def main():
     # Isti predpomnilnik kot src/data.py, da metapodatki zbirke pristanejo v repu.
-    openml.config.set_root_cache_directory(os.path.join(REPO_ROOT, "data", "openml_cache"))
+    openml.config.set_root_cache_directory(load_config()["cache_dir"])
 
     suite = openml.study.get_suite(SUITE_ID)
     ids = sorted({int(data_id) for data_id in suite.data})

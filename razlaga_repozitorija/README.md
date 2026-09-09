@@ -13,11 +13,14 @@ vpliva na rezultate v `results/`.
 
 `zaporedje.puml` vsebuje **štiri ločene diagrame** v eni datoteki:
 
-1. `01_priprava` — zamrznitev seznama naborov (`gen_cc18_ids.py`) in profiliranje
-   njihovih velikosti (`profile_datasets.py`)
-2. `02_lokalni_pilot` — `python -m src.run_benchmark` na 3 naborih
-3. `03_arnes` — predpriprava, SLURM polje, združevanje rezultatov
-4. `04_analiza` — `src/summary.py`, `compare_results.py`, `profile_medic3.py`
+1. `01_priprava` — `config.yaml` kot edini vir parametrov (`src/config.py`),
+   zamrznitev seznama naborov (`gen_cc18_ids.py`) in profiliranje njihovih
+   velikosti (`profile_datasets.py`)
+2. `02_lokalni_pilot` — `python -m src.run_benchmark` na 3 naborih; zanka
+   učenja v `src/runner.py`, mapa zagona `results/runs/<run_id>/`
+3. `03_arnes` — predpriprava, SLURM polje (isti `src/runner.py`), združevanje
+4. `04_analiza` — `src/summary.py`, `src/stats.py` (Friedman/Nemenyi/Wilcoxon),
+   `gen_version_table.py`, `compare_results.py`, `profile_medic3.py`
 
 ### Izris
 

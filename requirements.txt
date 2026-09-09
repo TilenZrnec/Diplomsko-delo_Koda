@@ -1,20 +1,30 @@
-numpy==1.26.4
-pandas==2.2.2
-scikit-learn==1.5.1
-scipy==1.14.1
+# Pripete različice: najnovejše stabilne izdaje na dan zamrznitve 2026-09-09,
+# ki se namestijo skupaj kot eno okolje (Python 3.12). Vsi algoritmi so na svoji
+# najnovejši različici, da nobena družina metod ni v prednosti zaradi starosti
+# knjižnice. Popoln pip freeze vsakega zagona je v results/runs/<run_id>/manifest.json.
+#
+# Namestitev:  conda create -n tabular2 python=3.12 && conda activate tabular2
+#              pip install -r requirements.txt
+# torch se namesti s privzeto CUDA gradnjo s PyPI (lokalno 2.14.0+cu130).
 
-openml==0.14.2
+numpy==2.5.3
+pandas==3.0.5
+scikit-learn==1.9.0
+scipy==1.18.1
+
+openml==0.15.1
 pyyaml==6.0.3
 
-xgboost==2.1.1
-lightgbm==4.6.0
-catboost==1.2.7
+xgboost==3.4.1
+lightgbm==4.7.0
+catboost==1.2.10
 
-tabpfn==8.1.0
-tabicl==2.1.1
+tabpfn==8.5.0
+tabicl==2.2.0
 
-torch==2.13.0
-torchvision==0.28.0
+torch==2.14.0
+torchvision==0.29.0
 
-tabulate==0.9.0
-tqdm==4.66.5
+tabulate==0.10.0
+tqdm==4.70.0
+matplotlib==3.11.1

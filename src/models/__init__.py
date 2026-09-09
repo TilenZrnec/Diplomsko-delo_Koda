@@ -1,4 +1,12 @@
-"""Register modelov: ime iz config.yaml -> run() funkcija."""
+"""Register modelov: ime iz config.yaml -> modul z run() funkcijo.
+
+Vsak modul izpostavi:
+  * run(X_train, y_train, X_test, y_test, categorical_cols, random_state) -> dict
+    s ključi model, roc_auc, train_time_s, inference_time_s, error,
+    preprocessing, raw_error, device, proba;
+  * USES_GPU (bool) - ali teče na GPU; runner take modele pred prvim merjenim
+    učenjem ogreje, da fold 0 ne vsebuje nalaganja utež in inicializacije CUDA.
+"""
 
 from . import (
     catboost_model,
@@ -10,10 +18,10 @@ from . import (
 )
 
 REGISTRY = {
-    "random_forest": random_forest.run,
-    "xgboost": xgboost_model.run,
-    "lightgbm": lightgbm_model.run,
-    "catboost": catboost_model.run,
-    "tabpfn": tabpfn_model.run,
-    "tabicl": tabicl_model.run,
+    "random_forest": random_forest,
+    "xgboost": xgboost_model,
+    "lightgbm": lightgbm_model,
+    "catboost": catboost_model,
+    "tabpfn": tabpfn_model,
+    "tabicl": tabicl_model,
 }

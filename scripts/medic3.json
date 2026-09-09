@@ -1,0 +1,9 @@
+[
+  {
+    "source": "csv",
+    "name": "medic3",
+    "path": "../Medic3.csv.zip",
+    "target": "Class",
+    "drop_cols": ["Index", "Field"]
+  }
+]

@@ -1,14 +1,23 @@
+# =============================================================================
+# Edini vir parametrov eksperimenta.
+#
+# Vsi skripti (lokalni pilot, SLURM polje na Arnesu, predpriprava, profiliranje)
+# berejo to datoteko prek src/config.py. Nikjer drugje v kodi ni trdo zapisanega
+# semena, števila foldov ali seznama algoritmov - če hočeš spremeniti protokol,
+# spremeniš tukaj in sprememba velja povsod hkrati.
+# =============================================================================
+
+# Naključno seme: delitve na folde in vsak model (random_state).
 random_state: 42
+
+# Prečno preverjanje: n_splits foldov, n_repeats ponovitev z različnim mešanjem.
+# n_repeats = 1 pomeni navaden StratifiedKFold; > 1 pomeni RepeatedStratifiedKFold,
+# kjer je indeks folda v rezultatih enak ponovitev * n_splits + k.
 n_splits: 5
+n_repeats: 1
 
-datasets:
-  - id: 31
-    name: credit-g
-  - id: 37
-    name: diabetes
-  - id: 38
-    name: sick
-
+# Algoritmi, ki se poženejo (imena so ključi v src/models/__init__.py REGISTRY).
+# Vrstni red tu je tudi vrstni red izvajanja.
 algorithms:
   - random_forest
   - xgboost
@@ -17,8 +26,29 @@ algorithms:
   - tabpfn
   - tabicl
 
+# Poimenovani nabori podatkovnih množic. Vsaka datoteka je JSON seznam; element je
+# bodisi celo število (OpenML ID) bodisi objekt {"source": "csv", ...} za lokalno
+# datoteko (glej src/data.py). Na zagon izbereš enega z --dataset-set <ime>.
+dataset_sets:
+  subset: scripts/subset_ids.json     # pilotna trojica 31/37/38
+  cc18: scripts/cc18_ids.json         # celotna zbirka OpenML-CC18 (72 naborov)
+  medic3: scripts/medic3.json         # zaupni lokalni nabor (ni v gitu, glej data.py)
+
+# Kam OpenML shrani prenesene nabore (relativno na koren repozitorija).
 cache_dir: data/openml_cache
 
-output:
-  results_csv: results/local/results_local_subset.csv
-  preprocessing_log: results/local/preprocessing_log.md
+# Koren map z zagoni: vsak zagon dobi svojo mapo results/runs/<run_id>/ z
+# manifest.json, per_dataset/, predictions/ in results.csv. Nič se ne prepisuje.
+results_dir: results/runs
+
+# Ali naj vsako učenje shrani napovedane verjetnosti (predict_proba) v
+# predictions/<nabor>/<algoritem>_r<ponovitev>_f<fold>.npz. Omogoča, da se
+# pozneje izračuna poljubna metrika brez ponovnega zagona.
+save_predictions: true
+
+# Analiza (src/summary.py, src/stats.py):
+# nabor je "nasičen", če najboljši algoritem doseže vsaj ta ROC-AUC - tam razlike
+# med algoritmi niso informativne, zato se povzetek poroča tudi brez njih.
+saturation_threshold: 0.995
+# Stopnja značilnosti za Friedmanov test, Nemenyijev post-hoc in Wilcoxon-Holm.
+alpha: 0.05
