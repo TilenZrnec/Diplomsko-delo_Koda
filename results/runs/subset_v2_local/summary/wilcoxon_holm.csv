@@ -1,0 +1,16 @@
+a,b,n,mean_diff,wins_a,wins_b,ties,p,p_holm,significant
+catboost,lightgbm,3,0.018640648577360586,3,0,0,1.0,1.0,False
+catboost,random_forest,3,0.0053151870357571,3,0,0,1.0,1.0,False
+catboost,tabicl,3,-0.006002167473611819,0,3,0,1.0,1.0,False
+catboost,tabpfn,3,-0.005658897253849974,0,3,0,1.0,1.0,False
+catboost,xgboost,3,0.01988345564673592,3,0,0,1.0,1.0,False
+lightgbm,random_forest,3,-0.013325461541603486,1,2,0,1.0,1.0,False
+lightgbm,tabicl,3,-0.024642816050972405,0,3,0,1.0,1.0,False
+lightgbm,tabpfn,3,-0.02429954583121056,0,3,0,1.0,1.0,False
+lightgbm,xgboost,3,0.0012428070693753328,2,1,0,1.0,1.0,False
+random_forest,tabicl,3,-0.011317354509368919,0,3,0,1.0,1.0,False
+random_forest,tabpfn,3,-0.010974084289607075,0,3,0,1.0,1.0,False
+random_forest,xgboost,3,0.014568268610978818,3,0,0,1.0,1.0,False
+tabicl,tabpfn,3,0.00034327021976184496,1,2,0,1.0,1.0,False
+tabicl,xgboost,3,0.02588562312034774,3,0,0,1.0,1.0,False
+tabpfn,xgboost,3,0.02554235290058589,3,0,0,1.0,1.0,False
