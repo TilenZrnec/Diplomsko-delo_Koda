@@ -1,9 +1,9 @@
 # Rezultati
 
-Dve generaciji rezultatov. **Nova** (od 2026-09-09) živi v `runs/`, vsak zagon v
-svoji mapi; **stara** (`local/`, `arnes/`) je arhiv zagonov s prejšnjo kodo in
-prejšnjimi različicami knjižnic in se ne spreminja več. Nič v tej mapi se ne
-ureja na roko, vse nastane iz zagona.
+Vsak zagon živi v svoji mapi pod `runs/`. Edina izjema je `arnes/cc18/`, arhiv
+polnega zagona CC18 iz avgusta 2026 s prejšnjo kodo in prejšnjimi različicami
+knjižnic, ki ostane, dokler ga ne nadomesti `runs/cc18_v2`. Nič v tej mapi se
+ne ureja na roko, vse nastane iz zagona.
 
 ## `runs/<run_id>/` — vsak zagon svoja mapa
 
@@ -31,20 +31,17 @@ Zagoni v `runs/`:
 
 | `run_id` | Kaj | Okolje |
 |---|---|---|
-| `check_refactor_oldenv` | preverjanje, da refaktorirana koda vrne iste številke kot `local/results_local_subset.csv` — vseh 90 vrstic Δ = 0,0 | staro (`tabular`, Python 3.10, sklearn 1.5.1, torch 2.13) |
+| `check_refactor_oldenv` | pilotna trojica s **starim** okoljem in novo kodo; vseh 90 vrstic Δ = 0,0 proti prvotni lokalni meritvi iz julija 2026 (ta je zato izbrisana, glej git zgodovino). Referenca za učinek nadgradnje. | staro (`tabular`, Python 3.10, sklearn 1.5.1, torch 2.13) |
 | `subset_v2_local` | pilotna trojica z nadgrajenimi knjižnicami (`requirements.txt`, zamrznitev 2026-09-09) | novo (`tabular2`, Python 3.12, sklearn 1.9.0, torch 2.14) |
 
-## Arhiv (stara koda, stare različice)
+## Arhiv: `arnes/cc18/` (stara koda, stare različice)
 
-| Mapa | Zagon | Vsebina |
-|---|---|---|
-| `local/` | lokalni pilot, NVIDIA RTX 3060 (WSL2), 3 nabori | `results_local_subset.csv` (90 vrstic) in `preprocessing_log.md` |
-| `arnes/subset/` | validacija prenosa na gručo Arnes (H100), isti 3 nabori | `results_arnes_subset.csv`, `per_dataset/` vhodi, oba `pip freeze`, `PROVENANCE.md` |
-| `arnes/cc18/` | poln OpenML-CC18, 72 naborov, 2026-08 | `results_arnes_cc18.csv` (2160 vrstic) in `PROVENANCE.md` |
-
-Stari CSV-ji imajo le stolpce `dataset, algorithm, fold, roc_auc, train_time_s,
-inference_time_s[, error]`; `src/summary.py` in `src/stats.py` jih še vedno
-znata prebrati (`python -m src.summary results/arnes/cc18/results_arnes_cc18.csv`).
-Ti rezultati so nastali z `scikit-learn 1.5.1`, `xgboost 2.1.1`, `tabpfn 8.1.0`
-itd. (glej `arnes/subset/arnes_pip_freeze.txt`) in **niso** rezultati diplome
-po nadgradnji; služijo kot referenca za primerjavo učinka različic.
+`results_arnes_cc18.csv` (2160 vrstic = 72 naborov × 6 algoritmov × 5 foldov)
+in `PROVENANCE.md` s štirimi SLURM opravili iz avgusta 2026. Stolpci so le
+`dataset, algorithm, fold, roc_auc, train_time_s, inference_time_s, error`;
+`src/summary.py` in `src/stats.py` ga še vedno znata prebrati
+(`python -m src.summary results/arnes/cc18/results_arnes_cc18.csv`). Nastal je
+s `scikit-learn 1.5.1`, `xgboost 2.1.1`, `tabpfn 8.1.0` (celoten seznam v
+`runs/check_refactor_oldenv/manifest.json`) in **ni** rezultat diplome po
+nadgradnji; služi kot rezerva in za primerjavo učinka različic na vseh 72
+naborih. Ko je `runs/cc18_v2` končan in preverjen, se ta mapa izbriše.

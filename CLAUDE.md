@@ -68,8 +68,11 @@ still to be done on Arnes** with the new stack (see "What is next").
   `subset_ids.json`, `cc18_ids.json`.
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
-  `results.csv`, `summary/`); `results/local/` and `results/arnes/` are the
-  **archive** of the old code/versions.
+  `results.csv`, `summary/`). `results/arnes/cc18/` is the only archive left
+  (2026-08 sweep, old code/versions), kept until `cc18_v2` replaces it. The
+  old `results/local/` and `results/arnes/subset/` were deleted on 2026-09-09
+  (git history has them); `runs/check_refactor_oldenv` is the old-env
+  reference now.
 - `data/openml_cache/` — OpenML's local dataset cache (gitignored); the
   library appends `org/openml/www`.
 - `razlaga_repozitorija/` — explanatory material, **not** part of the
@@ -139,8 +142,9 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
 - **Conda envs.** `tabular2` (Python 3.12) is the current one, built
   2026-09-09 from `requirements.txt`; GPU RTX 3060, `torch 2.14.0+cu130`,
   CUDA works. `tabular` (Python 3.10, old pinned stack) is kept untouched as
-  the reference environment for `results/local` and `results/arnes`. Run
-  project scripts with `conda run -n tabular2 python -m src.<module>`.
+  the reference environment that produced `results/runs/check_refactor_oldenv`
+  and `results/arnes/cc18`. Run project scripts with
+  `conda run -n tabular2 python -m src.<module>`.
 - **Version policy (write this in the thesis):** all libraries pinned to the
   newest stable release co-installable as one environment on the freeze date
   2026-09-09, identical locally and on Arnes, so no algorithm family is
@@ -154,9 +158,9 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   3.4.1 changes ROC-AUC by up to 0.0175** on a fold (its defaults moved) —
   worth a sentence in the thesis.
 - **Refactor verified:** the restructured code run in the *old* env
-  (`results/runs/check_refactor_oldenv`) reproduces
-  `results/local/results_local_subset.csv` with Δ = 0.0 on all 90 rows,
-  including TabPFN/TabICL.
+  (`results/runs/check_refactor_oldenv`) reproduced the July 2026 local
+  baseline (`results/local/results_local_subset.csv`, since deleted, in git
+  history) with Δ = 0.0 on all 90 rows, including TabPFN/TabICL.
 - TabPFN v3 needs a one-time licence acceptance via a PriorLabs account; the
   credential is cached locally. Fresh machine: interactive first `fit()` opens
   a browser login (needs a real TTY — `conda activate`, not `conda run`), or set
@@ -182,11 +186,11 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   supervisor; TabICL handles 220 classes.
 
 ## Arnes HPC
-- SLURM cluster, GPU partition `gpu`, H100 nodes. Env: micromamba prefix at
-  `~/envs/tabular` (`~/bin/micromamba`, no shell hooks in batch scripts).
-  **The cluster env must be rebuilt from the new `requirements.txt`
-  (Python 3.12) before the re-run**, and its `manifest.json` compared to the
-  local one.
+- SLURM cluster, GPU partition `gpu`, H100 nodes. Env: micromamba prefix
+  `~/envs/tabular2` (Python 3.12, from `requirements.txt`; `~/bin/micromamba`,
+  no shell hooks in batch scripts). The batch scripts default to that prefix;
+  override with `TABULAR_ENV=/path sbatch ...`. The old `~/envs/tabular` on
+  the cluster can be deleted once `subset_v2` matches `subset_v2_local`.
 - TabPFN token in `~/.tabpfn_token` (sourced by the batch script); compute
   nodes run offline (`HF_HUB_OFFLINE=1`), so on the login node first:
   `python scripts/prestage.py --dataset-set cc18` (caches datasets + TabPFN/
@@ -228,9 +232,10 @@ are saturated (best ROC-AUC ≥ 0.995). Reproduce with
 `python -m src.stats results/arnes/cc18/results_arnes_cc18.csv`.
 
 ## What is next (agreed 2026-09-09)
-1. Rebuild the Arnes env from `requirements.txt`, prestage, run
+1. Build `~/envs/tabular2` on Arnes from `requirements.txt`, prestage, run
    `RUN_ID=subset_v2 sbatch scripts/run_subset.sh`, compare with
-   `subset_v2_local` (expect trees Δ 0, foundation models ~1e-4).
+   `subset_v2_local` (expect trees Δ 0, foundation models ~1e-4). Exact
+   commands are in `razlaga_repozitorija/razlaga.md`, part 3.
 2. Run the full CC18 with `RUN_ID=cc18_v2`; decide `n_repeats` in
    `config.yaml` first (1 = as before; 3 ≈ 50 CPU-hours mostly CatBoost).
 3. Then the supervisor's plan (2026-08-12): Medic3 raw, Medic3 restricted to

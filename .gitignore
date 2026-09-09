@@ -1,20 +1,13 @@
 __pycache__/
 *.pyc
-venv/
-.venv/
-*.egg-info/
 .ipynb_checkpoints/
 
-data/openml_cache/
-# Medic3 so zaupni medicinski podatki (anonimizirani in zamegljeni) in so
-# hkrati veliki 142 MB - cez 100 MB omejitev GitHuba. V repozitorij NE gredo;
-# izvor in kontrolna vsota sta zabelezena v results/medic3/PROVENANCE.md.
-data/medic3/
+# OpenML predpomnilnik naborov - se prenese na zahtevo, ne sodi v git.
+data/
 catboost_info/
 logs/
 .cache/
 *.sif
-results/per_dataset/
 
 # Zagoni benchmarka (results/runs/<run_id>/): napovedi so velike in izpeljane,
 # nedokončani partiali pa začasni. Kurirani CSV-ji in manifest.json se commitajo.

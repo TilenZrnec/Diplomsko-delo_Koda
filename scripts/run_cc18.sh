@@ -41,7 +41,9 @@
 set -euo pipefail
 
 DATASET_SET=cc18
-MAMBA="$HOME/bin/micromamba run -p $HOME/envs/tabular"
+# Okolje na gruči: privzeto ~/envs/tabular2 (Python 3.12, requirements.txt);
+# drugo pot podaš s TABULAR_ENV=... pred sbatch.
+MAMBA="$HOME/bin/micromamba run -p ${TABULAR_ENV:-$HOME/envs/tabular2}"
 
 # TABPFN_TOKEN za headless uporabo TabPFN v3
 source ~/.tabpfn_token

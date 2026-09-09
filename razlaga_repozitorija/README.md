@@ -5,6 +5,7 @@ vpliva na rezultate v `results/`.
 
 | Datoteka | Kaj je |
 |---|---|
+| `razlaga.md` | Razlaga z besedami, en del na diagram, za začetnika: kaj počne vsaka datoteka in kaj pomenijo parametri (stratified folds, ROC-AUC, Friedman ...) ter točni ukazi za Arnes |
 | `zaporedje.puml` | Diagram zaporedja (PlantUML): katera datoteka kliče katero, v štirih fazah |
 | `preveri_diagram.py` | Preveri, da je diagram še usklajen z izvorno kodo |
 | `hooks/pre-push` | Kljuka, ki to preverjanje požene ob vsakem `git push` |

@@ -34,6 +34,6 @@ echo "RUN_ID=$RUN_ID  (task $SLURM_ARRAY_TASK_ID, nabor $DATASET_SET)"
 
 mkdir -p logs
 
-$HOME/bin/micromamba run -p $HOME/envs/tabular \
+$HOME/bin/micromamba run -p "${TABULAR_ENV:-$HOME/envs/tabular2}" \
     python -m src.run_one_dataset \
         --dataset-set "$DATASET_SET" --index "$SLURM_ARRAY_TASK_ID" --run-id "$RUN_ID"
