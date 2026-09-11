@@ -45,5 +45,15 @@ sacct -j 19096168 --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList
 ```
 
 ```
-(prilepi izpis sem)
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList
+------------ -------------------- ---------- ---------- ---------- ---------------
+19096168_0             tfm-subset   00:00:40             COMPLETED           gwn06
+19096168_0.+                batch   00:00:40   2548968K  COMPLETED           gwn06
+19096168_0.+               extern   00:00:40             COMPLETED           gwn06
+19096168_1             tfm-subset   00:00:17             COMPLETED           gwn06
+19096168_1.+                batch   00:00:17      4452K  COMPLETED           gwn06
+19096168_1.+               extern   00:00:17             COMPLETED           gwn06
+19096168_2             tfm-subset   00:00:30             COMPLETED           gwn06
+19096168_2.+                batch   00:00:30      4408K  COMPLETED           gwn06
+19096168_2.+               extern   00:00:30             COMPLETED           gwn06
 ```
