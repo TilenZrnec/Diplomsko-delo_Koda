@@ -44,9 +44,16 @@ prebere to datoteko, nikjer drugje ni nastavitev zapisanih trdo. Ključi:
   testiranje, ostale štiri za učenje. Vsak primer je natanko enkrat v testnem
   delu. Rezultat je 5 ocen namesto ene, kar pove tudi, koliko se ocene med
   seboj razlikujejo.
-- `n_repeats: 1`. Koliko krat ponovimo celotno prečno preverjanje z drugačnim
-  mešanjem. Pri 1 dobimo 5 foldov, pri 3 dobimo 15. Več ponovitev da bolj
-  stabilno oceno, a stane sorazmerno več računanja.
+- `n_repeats: 3`. Kolikokrat ponovimo celotno prečno preverjanje z drugačnim
+  mešanjem. Pri 1 dobimo 5 foldov, pri 3 dobimo 15 učenj na (nabor,
+  algoritem). Ena sama delitev na folde je en naključni izbor; če je slučajno
+  ugodna ali neugodna za kak algoritem, tega z eno ponovitvijo ne opazimo.
+  Tri ponovitve povprečijo tri različne delitve in standardno napako ocene
+  zmanjšajo za približno faktor 1,7. Model v ponovitvi r dobi seme
+  `random_state + r` (42, 43, 44), zato razlike med ponovitvami zajamejo tudi
+  naključnost samega modela. Več kot 3 bi stalo sorazmerno več (največji
+  nabor že tako teče približno en dan), test čez 72 naborov pa tega ne
+  potrebuje.
 - `algorithms`. Seznam imen; vsako ime je ključ v `REGISTRY` v
   `src/models/__init__.py`, ki pove, katera datoteka izvede ta algoritem.
 - `dataset_sets`. Slovar ime → JSON datoteka z opisi naborov. `subset` je
@@ -336,21 +343,43 @@ git commit -m "Add Arnes validation run subset_v2"
 git push
 ```
 
-Nato polni CC18. Pred oddajo se odloči za `n_repeats` v `config.yaml` in
-spremembo commitaj, ker manifest zapiše konfiguracijo ob zagonu:
+Nato polni CC18 (`n_repeats: 3` je že v `config.yaml`). Oddaja gre v **dveh
+poljih z istim `RUN_ID`**: 68 običajnih naborov s privzetimi viri in štirje
+največji (27 mnist_784, 60 Devnagari-Script, 61 CIFAR_10, 70 Fashion-MNIST)
+z 240 GB pomnilnika in 36 urami, ker pri treh ponovitvah Devnagari-Script
+potrebuje približno 26 ur. `ALLOW_SPARSE_ARRAY=1` izklopi varovalko, ki sicer
+zahteva polje čez vseh 72 indeksov.
 
 ```bash
+git pull
+source ~/.tabpfn_token
 ~/bin/micromamba run -p ~/envs/tabular2 python scripts/prestage.py --dataset-set cc18
 du -sh ~                         # kvota 100 GB
-RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh
+ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
+ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
+squeue -u $USER
 ```
 
-Po koncu (ali ko del opravil pade zaradi pomnilnika):
+Pričakovan potek: prvo polje je končano v nekaj urah (68 naborov skupaj
+približno 5 ur računanja, po 4 hkrati), drugo polje traja do približno 30
+ur. Ko je `squeue` prazen:
 
 ```bash
 ~/bin/micromamba run -p ~/envs/tabular2 python scripts/merge_results.py cc18_v2
-# če merge našteje .partial ali so opravila 27/60/61/70 padla:
-ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh
+```
+
+Pričakovanih je 72 × 6 × 15 = 6480 vrstic. Če merge našteje `.partial`
+(opravilo je preseglo `--time`), ponovi **isti** ukaz `sbatch` za tiste
+indekse z istim `RUN_ID`; nadaljujejo, kjer so ostali. Nato analiza in
+commit:
+
+```bash
+~/bin/micromamba run -p ~/envs/tabular2 python -m src.summary cc18_v2
+~/bin/micromamba run -p ~/envs/tabular2 python -m src.stats cc18_v2
+~/bin/micromamba run -p ~/envs/tabular2 python -m src.stats cc18_v2 --no-saturated
+~/bin/micromamba run -p ~/envs/tabular2 python scripts/gen_version_table.py cc18_v2
+sacct -j <JOBID1>,<JOBID2> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList
+git add results/runs/cc18_v2 && git commit -m "Add CC18 run cc18_v2" && git push
 ```
 
 ---

@@ -321,7 +321,13 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
             X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
             y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
 
-            result = module.run(X_train, y_train, X_test, y_test, categorical_cols, random_state)
+            # Seme modela: random_state + ponovitev (42, 43, 44 ...). Pri eni ponovitvi
+            # je to natanko random_state; pri več ponovitvah vsaka dobi svojo delitev
+            # na folde IN svoje seme, tako da odklon med ponovitvami zajame tudi
+            # naključnost samega modela (izbor atributov v drevesih, vzorčenje).
+            result = module.run(
+                X_train, y_train, X_test, y_test, categorical_cols, random_state + repeat
+            )
 
             status = "OK" if result["error"] is None else f"ERROR: {result['error']}"
             auc_str = f"{result['roc_auc']:.4f}" if result["roc_auc"] is not None else "n/a"

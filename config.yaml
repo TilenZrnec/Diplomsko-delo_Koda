@@ -12,9 +12,11 @@ random_state: 42
 
 # Prečno preverjanje: n_splits foldov, n_repeats ponovitev z različnim mešanjem.
 # n_repeats = 1 pomeni navaden StratifiedKFold; > 1 pomeni RepeatedStratifiedKFold,
-# kjer je indeks folda v rezultatih enak ponovitev * n_splits + k.
+# kjer je indeks folda v rezultatih enak ponovitev * n_splits + k. Model v
+# ponovitvi r dobi seme random_state + r (42, 43, 44), da ponovitve zajamejo tudi
+# naključnost modela, ne le delitve. 3 ponovitve = 15 učenj na (nabor, algoritem).
 n_splits: 5
-n_repeats: 1
+n_repeats: 3
 
 # Algoritmi, ki se poženejo (imena so ključi v src/models/__init__.py REGISTRY).
 # Vrstni red tu je tudi vrstni red izvajanja.

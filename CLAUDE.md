@@ -195,12 +195,14 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   nodes run offline (`HF_HUB_OFFLINE=1`), so on the login node first:
   `python scripts/prestage.py --dataset-set cc18` (caches datasets + TabPFN/
   TabICL weights, prints the cache size for the 100 GB home-quota check).
-- Submit from the repo root with an explicit run id:
-  `RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh` (array `0-71%4`, `--mem=64G`,
-  `--time=12:00:00`). The script checks that the array bound matches the
-  dataset count and aborts loudly if not. Re-submit the four big indices with
-  more memory, **same RUN_ID**:
-  `ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G scripts/run_cc18.sh`.
+- Submit from the repo root as **two arrays with the same RUN_ID** (decided
+  2026-09-11): the 68 ordinary datasets at the script defaults (`--mem=64G`,
+  `--time=12:00:00`, `%4`), and the four big ones (27 mnist_784, 60
+  Devnagari-Script, 61 CIFAR_10, 70 Fashion-MNIST) with `--mem=240G
+  --time=1-12:00:00`. Both need `ALLOW_SPARSE_ARRAY=1` because neither array
+  spans all 72 indices. Exact commands in `scripts/run_cc18.sh` header and
+  `razlaga_repozitorija/razlaga.md`. A task that still hits `--time` is
+  re-submitted with the same command; it resumes from its partial.
 - Per-fit checkpointing: a killed task loses no work; re-submitting with the
   same `RUN_ID` resumes at the first unfinished (algorithm, fold). A new
   `RUN_ID` is a clean slate, so the old "rm -rf results/per_dataset/*" hazard
@@ -236,8 +238,12 @@ are saturated (best ROC-AUC ≥ 0.995). Reproduce with
    `RUN_ID=subset_v2 sbatch scripts/run_subset.sh`, compare with
    `subset_v2_local` (expect trees Δ 0, foundation models ~1e-4). Exact
    commands are in `razlaga_repozitorija/razlaga.md`, part 3.
-2. Run the full CC18 with `RUN_ID=cc18_v2`; decide `n_repeats` in
-   `config.yaml` first (1 = as before; 3 ≈ 50 CPU-hours mostly CatBoost).
+2. Run the full CC18 with `RUN_ID=cc18_v2`. `n_repeats = 3` was decided on
+   2026-09-11 (15 fits per dataset × algorithm; model seed = 42 + repeat).
+   Estimated compute from the 2026-08 run: 17 h per repeat, of which
+   Devnagari-Script 8.6 h and CIFAR_10 3.7 h; so ~51 h total, ~26 h wall-clock
+   for Devnagari-Script alone. Local 3-repeat smoke test passed (`test_r3`,
+   270 rows, deleted afterwards).
 3. Then the supervisor's plan (2026-08-12): Medic3 raw, Medic3 restricted to
    160 classes, CC18 leakage check, tuning one booster, CC18 with injected NULLs.
 
@@ -247,8 +253,9 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
 - **Baseline — deliberately not used. Decided 2026-08-16, do not re-raise.**
   The four tree ensembles are the reference point; a `DummyClassifier` sits at
   ROC-AUC 0.5 by construction. No such entry in `REGISTRY`, none to be added.
-- **Reproducibility.** Fixed seeds (`random_state` from `config.yaml`
-  everywhere, including every model), every parameter in `config.yaml`,
+- **Reproducibility.** Fixed seeds (`random_state` from `config.yaml` for the
+  folds; model seed is `random_state + repeat`, i.e. 42/43/44 with three
+  repeats, so repeats also cover model randomness), every parameter in `config.yaml`,
   versions pinned in `requirements.txt`, full environment in each run's
   `manifest.json`.
 - **Systematic experiment logging**, never hand-named result folders: each run
