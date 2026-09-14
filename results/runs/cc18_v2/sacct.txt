@@ -1,0 +1,218 @@
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList 
+------------ -------------------- ---------- ---------- ---------- --------------- 
+19100043_0               tfm-cc18   00:01:42             COMPLETED           gwn01 
+19100043_0.+                batch   00:01:42   2867704K  COMPLETED           gwn01 
+19100043_0.+               extern   00:01:42             COMPLETED           gwn01 
+19100043_1               tfm-cc18   00:07:54             COMPLETED           gwn01 
+19100043_1.+                batch   00:07:54   3023800K  COMPLETED           gwn01 
+19100043_1.+               extern   00:07:54             COMPLETED           gwn01 
+19100043_2               tfm-cc18   00:00:41             COMPLETED           gwn01 
+19100043_2.+                batch   00:00:41   2601144K  COMPLETED           gwn01 
+19100043_2.+               extern   00:00:41             COMPLETED           gwn01 
+19100043_3               tfm-cc18   00:12:46             COMPLETED           gwn01 
+19100043_3.+                batch   00:12:46   2959380K  COMPLETED           gwn01 
+19100043_3.+               extern   00:12:46             COMPLETED           gwn01 
+19100043_4               tfm-cc18   00:05:54             COMPLETED           gwn06 
+19100043_4.+                batch   00:05:54   2799276K  COMPLETED           gwn06 
+19100043_4.+               extern   00:05:54             COMPLETED           gwn06 
+19100043_5               tfm-cc18   00:00:33             COMPLETED           gwn06 
+19100043_5.+                batch   00:00:33   2636448K  COMPLETED           gwn06 
+19100043_5.+               extern   00:00:33             COMPLETED           gwn06 
+19100043_6               tfm-cc18   00:05:01             COMPLETED           gwn06 
+19100043_6.+                batch   00:05:01   1097928K  COMPLETED           gwn06 
+19100043_6.+               extern   00:05:01             COMPLETED           gwn06 
+19100043_7               tfm-cc18   00:01:39             COMPLETED           gwn01 
+19100043_7.+                batch   00:01:39   2834896K  COMPLETED           gwn01 
+19100043_7.+               extern   00:01:39             COMPLETED           gwn01 
+19100043_8               tfm-cc18   00:04:05             COMPLETED           gwn06 
+19100043_8.+                batch   00:04:05   2810364K  COMPLETED           gwn06 
+19100043_8.+               extern   00:04:05             COMPLETED           gwn06 
+19100043_9               tfm-cc18   00:01:21             COMPLETED           gwn01 
+19100043_9.+                batch   00:01:21   2713484K  COMPLETED           gwn01 
+19100043_9.+               extern   00:01:21             COMPLETED           gwn01 
+19100043_10              tfm-cc18   00:03:08             COMPLETED           gwn01 
+19100043_10+                batch   00:03:08   2879768K  COMPLETED           gwn01 
+19100043_10+               extern   00:03:08             COMPLETED           gwn01 
+19100043_11              tfm-cc18   00:01:04             COMPLETED           gwn06 
+19100043_11+                batch   00:01:04   2740504K  COMPLETED           gwn06 
+19100043_11+               extern   00:01:04             COMPLETED           gwn06 
+19100043_12              tfm-cc18   00:01:37             COMPLETED           gwn01 
+19100043_12+                batch   00:01:37   2879432K  COMPLETED           gwn01 
+19100043_12+               extern   00:01:37             COMPLETED           gwn01 
+19100043_13              tfm-cc18   00:02:16             COMPLETED           gwn06 
+19100043_13+                batch   00:02:16   2843592K  COMPLETED           gwn06 
+19100043_13+               extern   00:02:16             COMPLETED           gwn06 
+19100043_14              tfm-cc18   00:00:46             COMPLETED           gwn01 
+19100043_14+                batch   00:00:46   2598892K  COMPLETED           gwn01 
+19100043_14+               extern   00:00:46             COMPLETED           gwn01 
+19100043_15              tfm-cc18   00:01:15             COMPLETED           gwn06 
+19100043_15+                batch   00:01:15   2821320K  COMPLETED           gwn06 
+19100043_15+               extern   00:01:15             COMPLETED           gwn06 
+19100043_16              tfm-cc18   00:01:44             COMPLETED           gwn01 
+19100043_16+                batch   00:01:44   2810068K  COMPLETED           gwn01 
+19100043_16+               extern   00:01:44             COMPLETED           gwn01 
+19100043_17              tfm-cc18   00:09:18             COMPLETED           gwn06 
+19100043_17+                batch   00:09:18   3587184K  COMPLETED           gwn06 
+19100043_17+               extern   00:09:18             COMPLETED           gwn06 
+19100043_18              tfm-cc18   00:01:19             COMPLETED           gwn01 
+19100043_18+                batch   00:01:19   2742808K  COMPLETED           gwn01 
+19100043_18+               extern   00:01:19             COMPLETED           gwn01 
+19100043_19              tfm-cc18   00:01:03             COMPLETED           gwn01 
+19100043_19+                batch   00:01:03   2703484K  COMPLETED           gwn01 
+19100043_19+               extern   00:01:03             COMPLETED           gwn01 
+19100043_20              tfm-cc18   00:05:36             COMPLETED           gwn01 
+19100043_20+                batch   00:05:36   3315816K  COMPLETED           gwn01 
+19100043_20+               extern   00:05:36             COMPLETED           gwn01 
+19100043_21              tfm-cc18   00:01:48             COMPLETED           gwn06 
+19100043_21+                batch   00:01:48   2792016K  COMPLETED           gwn06 
+19100043_21+               extern   00:01:48             COMPLETED           gwn06 
+19100043_22              tfm-cc18   00:02:17             COMPLETED           gwn01 
+19100043_22+                batch   00:02:17   3351928K  COMPLETED           gwn01 
+19100043_22+               extern   00:02:17             COMPLETED           gwn01 
+19100043_23              tfm-cc18   02:09:04             COMPLETED           gwn06 
+19100043_23+                batch   02:09:04   3808664K  COMPLETED           gwn06 
+19100043_23+               extern   02:09:04             COMPLETED           gwn06 
+19100043_24              tfm-cc18   00:03:09             COMPLETED           gwn01 
+19100043_24+                batch   00:03:09   2877036K  COMPLETED           gwn01 
+19100043_24+               extern   00:03:09             COMPLETED           gwn01 
+19100043_25              tfm-cc18   00:01:53             COMPLETED           gwn03 
+19100043_25+                batch   00:01:53   2621016K  COMPLETED           gwn03 
+19100043_25+               extern   00:01:53             COMPLETED           gwn03 
+19100043_26              tfm-cc18   00:02:00             COMPLETED           gwn03 
+19100043_26+                batch   00:02:00   1296496K  COMPLETED           gwn03 
+19100043_26+               extern   00:02:00             COMPLETED           gwn03 
+19100043_28              tfm-cc18   00:01:03             COMPLETED           gwn01 
+19100043_28+                batch   00:01:03   2761252K  COMPLETED           gwn01 
+19100043_28+               extern   00:01:03             COMPLETED           gwn01 
+19100043_29              tfm-cc18   00:01:04             COMPLETED           gwn01 
+19100043_29+                batch   00:01:04   2680260K  COMPLETED           gwn01 
+19100043_29+               extern   00:01:04             COMPLETED           gwn01 
+19100043_30              tfm-cc18   00:01:58             COMPLETED           gwn03 
+19100043_30+                batch   00:01:58   2681920K  COMPLETED           gwn03 
+19100043_30+               extern   00:01:58             COMPLETED           gwn03 
+19100043_31              tfm-cc18   00:00:50             COMPLETED           gwn01 
+19100043_31+                batch   00:00:50   2639904K  COMPLETED           gwn01 
+19100043_31+               extern   00:00:50             COMPLETED           gwn01 
+19100043_32              tfm-cc18   00:01:03             COMPLETED           gwn01 
+19100043_32+                batch   00:01:03   2704732K  COMPLETED           gwn01 
+19100043_32+               extern   00:01:03             COMPLETED           gwn01 
+19100043_33              tfm-cc18   00:01:04             COMPLETED           gwn03 
+19100043_33+                batch   00:01:04   2686668K  COMPLETED           gwn03 
+19100043_33+               extern   00:01:04             COMPLETED           gwn03 
+19100043_34              tfm-cc18   00:07:27             COMPLETED           gwn01 
+19100043_34+                batch   00:07:27   3372560K  COMPLETED           gwn01 
+19100043_34+               extern   00:07:27             COMPLETED           gwn01 
+19100043_35              tfm-cc18   00:00:53             COMPLETED           gwn03 
+19100043_35+                batch   00:00:53   2577512K  COMPLETED           gwn03 
+19100043_35+               extern   00:00:53             COMPLETED           gwn03 
+19100043_36              tfm-cc18   00:00:49             COMPLETED           gwn03 
+19100043_36+                batch   00:00:49   2583624K  COMPLETED           gwn03 
+19100043_36+               extern   00:00:49             COMPLETED           gwn03 
+19100043_37              tfm-cc18   00:05:31             COMPLETED           gwn03 
+19100043_37+                batch   00:05:31   2906340K  COMPLETED           gwn03 
+19100043_37+               extern   00:05:31             COMPLETED           gwn03 
+19100043_38              tfm-cc18   00:05:07             COMPLETED           gwn03 
+19100043_38+                batch   00:05:07   2924832K  COMPLETED           gwn03 
+19100043_38+               extern   00:05:07             COMPLETED           gwn03 
+19100043_39              tfm-cc18   00:45:52             COMPLETED           gwn01 
+19100043_39+                batch   00:45:52   3548104K  COMPLETED           gwn01 
+19100043_39+               extern   00:45:52             COMPLETED           gwn01 
+19100043_40              tfm-cc18   00:00:46             COMPLETED           gwn01 
+19100043_40+                batch   00:00:46   2605784K  COMPLETED           gwn01 
+19100043_40+               extern   00:00:46             COMPLETED           gwn01 
+19100043_41              tfm-cc18   00:06:09             COMPLETED           gwn01 
+19100043_41+                batch   00:06:09   2941400K  COMPLETED           gwn01 
+19100043_41+               extern   00:06:09             COMPLETED           gwn01 
+19100043_42              tfm-cc18   00:15:33             COMPLETED           gwn01 
+19100043_42+                batch   00:15:33      3877M  COMPLETED           gwn01 
+19100043_42+               extern   00:15:33             COMPLETED           gwn01 
+19100043_43              tfm-cc18   00:01:46             COMPLETED           gwn01 
+19100043_43+                batch   00:01:46   2754472K  COMPLETED           gwn01 
+19100043_43+               extern   00:01:46             COMPLETED           gwn01 
+19100043_44              tfm-cc18   00:01:05             COMPLETED           gwn01 
+19100043_44+                batch   00:01:05   2739892K  COMPLETED           gwn01 
+19100043_44+               extern   00:01:05             COMPLETED           gwn01 
+19100043_45              tfm-cc18   00:01:04             COMPLETED           gwn01 
+19100043_45+                batch   00:01:04   2643072K  COMPLETED           gwn01 
+19100043_45+               extern   00:01:04             COMPLETED           gwn01 
+19100043_46              tfm-cc18   00:02:18             COMPLETED           gwn01 
+19100043_46+                batch   00:02:18   2788624K  COMPLETED           gwn01 
+19100043_46+               extern   00:02:18             COMPLETED           gwn01 
+19100043_47              tfm-cc18   00:08:37             COMPLETED           gwn01 
+19100043_47+                batch   00:08:37   2831096K  COMPLETED           gwn01 
+19100043_47+               extern   00:08:37             COMPLETED           gwn01 
+19100043_48              tfm-cc18   00:01:05             COMPLETED           gwn01 
+19100043_48+                batch   00:01:05   2696116K  COMPLETED           gwn01 
+19100043_48+               extern   00:01:05             COMPLETED           gwn01 
+19100043_49              tfm-cc18   00:08:23             COMPLETED           gwn01 
+19100043_49+                batch   00:08:23   3409564K  COMPLETED           gwn01 
+19100043_49+               extern   00:08:23             COMPLETED           gwn01 
+19100043_50              tfm-cc18   00:13:32             COMPLETED           gwn01 
+19100043_50+                batch   00:13:32   3821208K  COMPLETED           gwn01 
+19100043_50+               extern   00:13:32             COMPLETED           gwn01 
+19100043_51              tfm-cc18   00:02:54             COMPLETED           gwn01 
+19100043_51+                batch   00:02:54   3076444K  COMPLETED           gwn01 
+19100043_51+               extern   00:02:54             COMPLETED           gwn01 
+19100043_52              tfm-cc18   00:03:52             COMPLETED           gwn01 
+19100043_52+                batch   00:03:52   2854420K  COMPLETED           gwn01 
+19100043_52+               extern   00:03:52             COMPLETED           gwn01 
+19100043_53              tfm-cc18   00:01:54             COMPLETED           gwn06 
+19100043_53+                batch   00:01:54   1149736K  COMPLETED           gwn06 
+19100043_53+               extern   00:01:54             COMPLETED           gwn06 
+19100043_54              tfm-cc18   00:01:15             COMPLETED           gwn06 
+19100043_54+                batch   00:01:15   2773440K  COMPLETED           gwn06 
+19100043_54+               extern   00:01:15             COMPLETED           gwn06 
+19100043_55              tfm-cc18   00:09:21             COMPLETED           gwn06 
+19100043_55+                batch   00:09:21   3369964K  COMPLETED           gwn06 
+19100043_55+               extern   00:09:21             COMPLETED           gwn06 
+19100043_56              tfm-cc18   00:06:39             COMPLETED           gwn01 
+19100043_56+                batch   00:06:39   2874016K  COMPLETED           gwn01 
+19100043_56+               extern   00:06:39             COMPLETED           gwn01 
+19100043_57              tfm-cc18   01:36:57             COMPLETED           gwn01 
+19100043_57+                batch   01:36:57   3984068K  COMPLETED           gwn01 
+19100043_57+               extern   01:36:57             COMPLETED           gwn01 
+19100043_58              tfm-cc18   00:03:09             COMPLETED           gwn06 
+19100043_58+                batch   00:03:09   3050384K  COMPLETED           gwn06 
+19100043_58+               extern   00:03:09             COMPLETED           gwn06 
+19100043_59              tfm-cc18   00:01:21             COMPLETED           gwn06 
+19100043_59+                batch   00:01:21   2900988K  COMPLETED           gwn06 
+19100043_59+               extern   00:01:21             COMPLETED           gwn06 
+19100043_62              tfm-cc18   00:05:58             COMPLETED           gwn06 
+19100043_62+                batch   00:05:58   1477352K  COMPLETED           gwn06 
+19100043_62+               extern   00:05:58             COMPLETED           gwn06 
+19100043_63              tfm-cc18   00:01:34             COMPLETED           gwn06 
+19100043_63+                batch   00:01:34   3013100K  COMPLETED           gwn06 
+19100043_63+               extern   00:01:34             COMPLETED           gwn06 
+19100043_64              tfm-cc18   00:10:10             COMPLETED           gwn06 
+19100043_64+                batch   00:10:10   3435636K  COMPLETED           gwn06 
+19100043_64+               extern   00:10:10             COMPLETED           gwn06 
+19100043_65              tfm-cc18   00:03:21             COMPLETED           gwn06 
+19100043_65+                batch   00:03:21   2712384K  COMPLETED           gwn06 
+19100043_65+               extern   00:03:21             COMPLETED           gwn06 
+19100043_66              tfm-cc18   00:02:10             COMPLETED           gwn06 
+19100043_66+                batch   00:02:10   2788240K  COMPLETED           gwn06 
+19100043_66+               extern   00:02:10             COMPLETED           gwn06 
+19100043_67              tfm-cc18   00:00:47             COMPLETED           gwn06 
+19100043_67+                batch   00:00:47   2644920K  COMPLETED           gwn06 
+19100043_67+               extern   00:00:47             COMPLETED           gwn06 
+19100043_68              tfm-cc18   00:01:45             COMPLETED           gwn06 
+19100043_68+                batch   00:01:45   2638212K  COMPLETED           gwn06 
+19100043_68+               extern   00:01:45             COMPLETED           gwn06 
+19100043_69              tfm-cc18   00:00:42             COMPLETED           gwn06 
+19100043_69+                batch   00:00:42   2595388K  COMPLETED           gwn06 
+19100043_69+               extern   00:00:42             COMPLETED           gwn06 
+19100043_71              tfm-cc18   00:02:54             COMPLETED           gwn06 
+19100043_71+                batch   00:02:54   2911244K  COMPLETED           gwn06 
+19100043_71+               extern   00:02:54             COMPLETED           gwn06 
+19100044_27              tfm-cc18   04:12:03             COMPLETED           gwn03 
+19100044_27+                batch   04:12:03 136900384K  COMPLETED           gwn03 
+19100044_27+               extern   04:12:03             COMPLETED           gwn03 
+19100044_60              tfm-cc18 1-10:53:41             COMPLETED           gwn03 
+19100044_60+                batch 1-10:53:41 181691288K  COMPLETED           gwn03 
+19100044_60+               extern 1-10:53:41             COMPLETED           gwn03 
+19100044_61              tfm-cc18   18:46:47             COMPLETED           gwn04 
+19100044_61+                batch   18:46:47  43066968K  COMPLETED           gwn04 
+19100044_61+               extern   18:46:47             COMPLETED           gwn04 
+19100044_70              tfm-cc18   04:35:50             COMPLETED           gwn05 
+19100044_70+                batch   04:35:50 143542996K  COMPLETED           gwn05 
+19100044_70+               extern   04:35:50             COMPLETED           gwn05 

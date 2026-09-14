@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\centering
+\caption{Parni Wilcoxonovi testi s Holmovim popravkom.}
+\label{tab:wilcoxon}
+\begin{tabular}{lrrrrrrr}
+\hline
+a & b & n & mean\_diff & wins\_a & wins\_b & p\_holm & significant \\
+\hline
+catboost & lightgbm & 72 & 0.0061 & 58 & 14 & 0.0000 & True \\
+catboost & random\_forest & 72 & 0.0098 & 65 & 7 & 0.0000 & True \\
+catboost & tabicl & 71 & -0.0111 & 5 & 66 & 0.0000 & True \\
+catboost & tabpfn & 71 & -0.0101 & 5 & 66 & 0.0000 & True \\
+catboost & xgboost & 72 & 0.0074 & 57 & 14 & 0.0000 & True \\
+lightgbm & random\_forest & 72 & 0.0037 & 52 & 20 & 0.0419 & True \\
+lightgbm & tabicl & 71 & -0.0171 & 3 & 68 & 0.0000 & True \\
+lightgbm & tabpfn & 71 & -0.0161 & 2 & 69 & 0.0000 & True \\
+lightgbm & xgboost & 72 & 0.0013 & 41 & 31 & 0.2652 & False \\
+random\_forest & tabicl & 71 & -0.0202 & 3 & 68 & 0.0000 & True \\
+random\_forest & tabpfn & 71 & -0.0192 & 1 & 70 & 0.0000 & True \\
+random\_forest & xgboost & 72 & -0.0023 & 27 & 45 & 0.2652 & False \\
+tabicl & tabpfn & 71 & 0.0010 & 47 & 20 & 0.0046 & True \\
+tabicl & xgboost & 71 & 0.0184 & 67 & 4 & 0.0000 & True \\
+tabpfn & xgboost & 71 & 0.0175 & 68 & 3 & 0.0000 & True \\
+\hline
+\end{tabular}
+\end{table}

@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{Povzetek brez nasičenih naborov (ROC-AUC $\geq$ 0.995).}
+\label{tab:overall-nonsat}
+\begin{tabular}{lrrrrrrrrrr}
+\hline
+algorithm & mean\_roc\_auc\_complete & mean\_roc\_auc\_own & mean\_rank & n\_wins & n\_failed\_datasets & n\_datasets & train\_time\_median\_s & inference\_time\_median\_s & train\_time\_total\_s & inference\_time\_total\_s \\
+\hline
+tabicl & 0.8885 & 0.8885 & 1.6026 & 26 & 1 & 39 & 0.4772 & 0.1275 & 860.4680 & 607.8445 \\
+tabpfn & 0.8866 & 0.8866 & 1.8846 & 11 & 1 & 39 & 0.5458 & 0.4482 & 444.5940 & 1014.2967 \\
+catboost & 0.8703 & 0.8713 & 3.3077 & 2 & 0 & 39 & 3.2184 & 0.0035 & 59870.9584 & 8.7735 \\
+lightgbm & 0.8604 & 0.8613 & 4.4359 & 0 & 0 & 39 & 0.1576 & 0.0043 & 3475.0989 & 13.8866 \\
+xgboost & 0.8574 & 0.8585 & 4.8462 & 0 & 0 & 39 & 0.1336 & 0.0034 & 7974.8942 & 7.2587 \\
+random\_forest & 0.8582 & 0.8581 & 4.9231 & 0 & 0 & 39 & 0.1504 & 0.0258 & 1150.9503 & 27.8642 \\
+\hline
+\end{tabular}
+\end{table}
