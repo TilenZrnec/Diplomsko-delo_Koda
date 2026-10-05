@@ -10,19 +10,19 @@
 #SBATCH --output=logs/subset-%A_%a.out
 #SBATCH --account=fri-users
 
-# Pilotna trojica (subset: 31/37/38) na gruči - validacija, da gruča vrne enake
-# številke kot lokalni zagon. Ista pot kot run_cc18.sh, le manjša.
+# Pilotna trojica (subset: 31/37/38) na gruči - hitra validacija novega okolja,
+# preden se odda celoten CC18. Ista pot kot run_cc18.sh, le manjša.
 #
-# Oddaja:   RUN_ID=subset_v2 sbatch scripts/run_subset.sh
-# Primerjava z lokalnim zagonom po združitvi:
-#   python scripts/merge_results.py subset_v2
-#   python scripts/compare_results.py <lokalni run_id> subset_v2
+# Oddaja:   RUN_ID=subset_v3 sbatch scripts/run_subset.sh
+# Primerjava po združitvi (cc18_v2 vsebuje iste tri nabore z istimi foldi in semeni):
+#   python scripts/merge_results.py subset_v3
+#   python scripts/compare_results.py cc18_v2 subset_v3
 
 set -euo pipefail
 
 DATASET_SET=subset
 
-# TABPFN_TOKEN za headless uporabo TabPFN v3
+# TABPFN_TOKEN za prenos in uporabo utež TabPFN brez brskalnika
 source ~/.tabpfn_token
 
 export HF_HUB_OFFLINE=1
@@ -34,6 +34,6 @@ echo "RUN_ID=$RUN_ID  (task $SLURM_ARRAY_TASK_ID, nabor $DATASET_SET)"
 
 mkdir -p logs
 
-$HOME/bin/micromamba run -p "${TABULAR_ENV:-$HOME/envs/tabular2}" \
+$HOME/bin/micromamba run -p "${TABULAR_ENV:-$HOME/envs/tabular3.5}" \
     python -m src.run_one_dataset \
         --dataset-set "$DATASET_SET" --index "$SLURM_ARRAY_TASK_ID" --run-id "$RUN_ID"

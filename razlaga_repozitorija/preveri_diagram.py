@@ -13,7 +13,7 @@ Preverja v obe smeri:
      Ujame preimenovanje in brisanje.
 
 Namenoma uporablja samo standardno knjižnico, da deluje s katerimkoli
-sistemskim pythonom - kljuka ne sme biti odvisna od okolja 'tabular'.
+sistemskim pythonom - kljuka ne sme biti odvisna od okolja projekta (conda).
 
 Zagon:
 

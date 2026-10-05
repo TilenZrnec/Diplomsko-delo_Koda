@@ -25,6 +25,17 @@ USES_GPU = True
 RAW_PREPROCESSING = "raw (brez predobdelave)"
 
 
+def checkpoint_name():
+    """Ime datoteke z utežmi, ki jih TabICL uporabi s privzetimi nastavitvami.
+
+    Runner ga zapiše v manifest.json, ker pip freeze pove le različico paketa
+    (tabicl 2.2.0 privzeto naloži tabicl-classifier-v2-20260212.ckpt, TabICLv2).
+    """
+    from tabicl import TabICLClassifier
+
+    return TabICLClassifier().checkpoint_version
+
+
 def _fit_predict(clf, X_train, y_train, X_test):
     t0 = time.perf_counter()
     clf.fit(X_train, y_train)
@@ -49,6 +60,7 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
         "raw_error": None,
         "device": describe_device(USES_GPU),
         "proba": None,
+        "classes": None,
     }
 
     try:
@@ -71,6 +83,12 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
 
     result["train_time_s"] = train_time
     result["inference_time_s"] = inf_time
-    result["roc_auc"] = compute_roc_auc(y_test, proba)
-    result["proba"] = proba
+    # V try, ker mora tudi napaka pri izračunu metrike pristati v stolpcu error
+    # in ne podreti celotnega opravila (pravilo "vsak model odpove mehko").
+    try:
+        result["classes"] = clf.classes_
+        result["roc_auc"] = compute_roc_auc(y_test, proba, clf.classes_)
+        result["proba"] = proba
+    except Exception as e:
+        result["error"] = f"izračun ROC-AUC ni uspel: {e}"
     return result

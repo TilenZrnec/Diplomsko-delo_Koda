@@ -2,20 +2,58 @@
 
 import os
 
+import numpy as np
 from sklearn.metrics import roc_auc_score
 
 
-def compute_roc_auc(y_true, proba):
+def scored_class_indices(y_true, classes):
+    """Indeksi stolpcev proba, po katerih se sme povprečiti več-razredni ROC-AUC.
+
+    Stolpec v predict_proba obstaja samo za razrede, ki jih je model videl v
+    UČNI množici (`classes` = model.classes_, v istem vrstnem redu kot stolpci).
+    ROC-AUC posameznega razreda pa je definiran samo, če je razred prisoten v
+    TESTNI množici (`y_true`) - sicer v one-vs-rest podnalogi ni nobenega
+    pozitivnega primera.
+
+    Pri naborih, kjer ima vsak razred vsaj n_splits primerov (vsi CC18 nabori in
+    Medic3, katerega najmanjši razred ima 50 vrstic), sta seznama enaka in ta
+    funkcija vrne vse stolpce. Razlikujeta se le pri naboru z razredom, manjšim
+    od n_splits: stratificirana delitev ga ne more razporediti v vsak fold.
+    Funkcija je zato varovalka za prihodnje nabore, ne popravek za Medic3.
+    """
+    present = set(np.unique(np.asarray(y_true)).tolist())
+    return [i for i, c in enumerate(np.asarray(classes).tolist()) if c in present]
+
+
+def compute_roc_auc(y_true, proba, classes=None):
     """Izračuna ROC-AUC iz predict_proba izhoda; podpira binarno in več-razredno.
 
     Binarno: površina pod ROC krivuljo za verjetnost razreda 1.
     Več-razredno: one-vs-rest za vsak razred posebej, nato neuteženo povprečje
     (macro), da ima vsak razred enako težo ne glede na pogostost.
+
+    `classes` so oznake razredov, ki pripadajo stolpcem `proba` (model.classes_).
+    Povpreči se SAMO po razredih, za katere je metrika definirana (glej
+    scored_class_indices); koliko jih je bilo, zapiše runner v stolpec
+    n_classes_scored, da je v rezultatih vidno, če se folda razlikujeta.
+    Kadar so prisotni vsi razredi, je izid bitno identičen klicu
+    roc_auc_score(..., multi_class="ovr", average="macro") - preverjeno.
+
+    Vrne None, če ostaneta manj kot dva razreda in povprečje ne pove ničesar.
     """
-    n_classes = proba.shape[1]
-    if n_classes == 2:
+    y_true = np.asarray(y_true)
+    classes = np.arange(proba.shape[1]) if classes is None else np.asarray(classes)
+
+    if proba.shape[1] == 2:
         return roc_auc_score(y_true, proba[:, 1])
-    return roc_auc_score(y_true, proba, multi_class="ovr", average="macro")
+
+    indices = scored_class_indices(y_true, classes)
+    if len(indices) < 2:
+        return None
+    scores = [
+        roc_auc_score((y_true == classes[i]).astype(int), proba[:, i]) for i in indices
+    ]
+    return float(np.mean(scores))
 
 
 def cpu_threads():

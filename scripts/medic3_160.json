@@ -1,12 +1,13 @@
 [
   {
     "source": "csv",
-    "name": "medic3",
+    "name": "medic3_160",
     "path": "data/medic3/Medic3.csv",
     "target": "Class",
     "drop_cols": [
       "Index",
       "Field"
-    ]
+    ],
+    "max_classes": 160
   }
 ]

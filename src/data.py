@@ -66,7 +66,8 @@ def _load_csv(spec):
     Obvezni ključi: path, target. Neobvezni: name, drop_cols (stolpci, ki niso
     atributi, npr. zaporedna številka vrstice), categorical_cols (če manjka, so
     kategorični vsi stolpci z ne-številskimi vrednostmi), read_csv (dodatni
-    argumenti za pandas.read_csv, npr. {"sep": ";"}).
+    argumenti za pandas.read_csv, npr. {"sep": ";"}). Ključ max_classes obdela
+    load_dataset(), ker velja enako za OpenML in CSV vir.
     """
     path = spec["path"]
     if not os.path.isabs(path):
@@ -89,14 +90,42 @@ def _load_csv(spec):
     return name, X, y, categorical_cols
 
 
+def _limit_classes(X, y, max_classes):
+    """Obdrži samo vrstice max_classes najpogostejših razredov; vrne (X, y, opis).
+
+    Zakaj: TabPFN v3 ima trdo mejo 160 razredov, Medic3 pa jih ima 220, zato na
+    surovem naboru sploh ne steče. Da je primerjava vseh šestih algoritmov na
+    istih podatkih mogoča, naredimo drugo različico nabora, omejeno na 160
+    najpogostejših razredov. Vrstice ostalih razredov zavržemo (razredov NE
+    zlivamo v skupni razred 'drugo', ker bi bilo teh razredov spet 161).
+
+    Vrstni red: po pogostosti padajoče, ob enakem številu primerov po oznaki
+    naraščajoče - da je izbor determinističen in ponovljiv.
+    """
+    counts = y.value_counts()
+    order = sorted(counts.index, key=lambda c: (-counts[c], str(c)))
+    keep = set(order[:max_classes])
+    mask = y.isin(keep)
+    info = {
+        "max_classes": max_classes,
+        "n_classes_before": int(len(counts)),
+        "n_classes_after": int(len(keep)),
+        "n_rows_before": int(len(y)),
+        "n_rows_after": int(mask.sum()),
+        "n_rows_dropped": int((~mask).sum()),
+    }
+    return X[mask].reset_index(drop=True), y[mask].reset_index(drop=True), info
+
+
 def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1):
     """Naloži nabor (OpenML ali CSV) in pripravi razdelitve na folde.
 
     Vrne slovar: name, source ("openml"/"csv"), X (DataFrame), y (Series celih
     števil 0..K-1), classes (izvirne oznake razredov v vrstnem redu kod),
-    categorical_cols (imena kategoričnih stolpcev) in folds (seznam parov
+    categorical_cols (imena kategoričnih stolpcev), folds (seznam parov
     (train_idx, test_idx) pozicijskih indeksov; pri n_repeats > 1 jih je
-    n_repeats * n_splits, fold k pripada ponovitvi k // n_splits).
+    n_repeats * n_splits, fold k pripada ponovitvi k // n_splits) in
+    class_limit (None ali opis omejitve iz ključa max_classes v opisu nabora).
     """
     spec = _normalise_spec(spec)
     if spec["source"] == "openml":
@@ -106,11 +135,18 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
 
     # Vrstice preštevilči na 0, 1, 2, ... - foldi vračajo pozicijske indekse.
     X = X.reset_index(drop=True)
+    y = y.reset_index(drop=True)
+
+    # Neobvezna omejitev na N najpogostejših razredov (glej _limit_classes).
+    # Zgodi se PRED kodiranjem oznak, da so kode spet zvezne 0..N-1.
+    class_limit = None
+    if spec.get("max_classes"):
+        X, y, class_limit = _limit_classes(X, y, int(spec["max_classes"]))
 
     # Ciljne oznake (npr. "good"/"bad") pretvori v števila (0, 1, ...). To ni
     # uhajanje informacije: preslikava oznak ne uporabi ničesar iz atributov.
     encoder = LabelEncoder()
-    y = pd.Series(encoder.fit_transform(y.reset_index(drop=True)), name="target")
+    y = pd.Series(encoder.fit_transform(y), name="target")
 
     # Razdelitve: "stratified" ohrani razmerje razredov v vsakem foldu.
     # list() jih shrani, da jih lahko vsi algoritmi berejo večkrat.
@@ -130,4 +166,5 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
         "classes": [str(c) for c in encoder.classes_],
         "categorical_cols": categorical_cols,
         "folds": folds,
+        "class_limit": class_limit,
     }

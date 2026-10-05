@@ -15,8 +15,8 @@
 # ODDAJA (iz korena repozitorija) v DVEH poljih z istim RUN_ID, ker štirje
 # največji nabori (indeksi 27 mnist_784, 60 Devnagari-Script, 61 CIFAR_10,
 # 70 Fashion-MNIST) potrebujejo 120-240G pomnilnika in pri n_repeats=3 do ~30 h:
-#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
-#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
+#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
+#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
 # Rezultati gredo v results/runs/<RUN_ID>/per_dataset/. Brez RUN_ID se oznaka
 # izpelje iz ID-ja polja (cc18_<SLURM_ARRAY_JOB_ID>), a dve polji bi tako dobili
 # različni mapi - zato RUN_ID vedno podaj izrecno.
@@ -30,7 +30,7 @@
 # %4 (THROTTLE) = največ toliko taskov hkrati; polje je zaradi resume logike
 #   varno ponovno oddati, zato prenizek throttle stane le čas, ne rezultatov.
 #
-# Dimenzioniranje (izkušnja iz zagona 2026-08, glej results/arnes/cc18/PROVENANCE.md):
+# Dimenzioniranje (izkušnja iz zagonov 2026-08 in cc18_v2, glej results/runs/cc18_v2/PROVENANCE.md):
 #   --mem=64G je zadoščal za 68/72 naborov; indeksi 27 (mnist_784), 60
 #   (Devnagari-Script), 61 (CIFAR_10) in 70 (Fashion-MNIST) so potrebovali
 #   120-240G. --time=12:00:00 je zadoščal povsod. Na task se izvede
@@ -44,11 +44,11 @@
 set -euo pipefail
 
 DATASET_SET=cc18
-# Okolje na gruči: privzeto ~/envs/tabular2 (Python 3.12, requirements.txt);
+# Okolje na gruči: privzeto ~/envs/tabular3.5 (Python 3.12, requirements.txt);
 # drugo pot podaš s TABULAR_ENV=... pred sbatch.
-MAMBA="$HOME/bin/micromamba run -p ${TABULAR_ENV:-$HOME/envs/tabular2}"
+MAMBA="$HOME/bin/micromamba run -p ${TABULAR_ENV:-$HOME/envs/tabular3.5}"
 
-# TABPFN_TOKEN za headless uporabo TabPFN v3
+# TABPFN_TOKEN za prenos in uporabo utež TabPFN brez brskalnika
 source ~/.tabpfn_token
 
 export HF_HUB_OFFLINE=1

@@ -1,22 +1,32 @@
-"""Statistično preverjanje razlik med algoritmi čez več naborov (Demšar 2006).
+"""Statistično preverjanje razlik med algoritmi (Demšar 2006; Benavoli in sod. 2016).
 
 Zagon: python -m src.stats <run_id | mapa zagona | results.csv> [--no-saturated]
 
-Vprašanje, na katero odgovarja: ali so razlike v rangih med šestimi algoritmi
-čez N naborov večje, kot bi jih pričakovali po naključju? Postopek:
+VEČ NABOROV (npr. CC18). Vprašanje: ali so razlike v rangih med algoritmi čez
+N naborov večje, kot bi jih pričakovali po naključju? Postopek po Demšarju:
 
 1. Friedmanov test (neparametrični ANOVA nad rangi): ničelna domneva je, da so
-   vsi algoritmi enakovredni. Če ga zavrnemo, sledi post-hoc.
+   vsi algoritmi enakovredni. Poročamo chi2_F in Iman-Davenportovo statistiko
+   F_F = (N-1) chi2_F / (N(k-1) - chi2_F), ki jo Demšar (2006, str. 11)
+   priporoča, ker je chi2_F "undesirably conservative"; o zavrnitvi odloča
+   p-vrednost F_F. Če jo zavrnemo, sledi post-hoc.
 2. Nemenyijev post-hoc: dva algoritma se značilno razlikujeta, če se njuna
    povprečna ranga razlikujeta za vsaj kritično razdaljo
    CD = q_alpha * sqrt(k(k+1) / (6N)). Izriše se diagram kritične razdalje.
 3. Parni Wilcoxonov test predznačenih rangov na povprečnem ROC-AUC po naborih,
-   s Holmovim popravkom za večkratno testiranje - občutljivejši od Nemenyija
-   (Benavoli, Corani in Mangili 2016 priporočajo prav to kombinacijo).
+   s Holmovim popravkom za večkratno testiranje - občutljivejši od Nemenyija in
+   neodvisen od preostalih algoritmov v primerjavi (Benavoli, Corani in
+   Mangili 2016 priporočajo prav to kombinacijo).
 
 Vse teče na ravni NABORA (en podatek na nabor = povprečje čez folde), ne folda.
 Neuspeh dobi najslabši rang (isto pravilo kot v src/summary.py); Wilcoxon
 primerja le nabore, kjer sta oba algoritma uspela.
+
+EN NABOR (Medic3). Zgornji testi tu ne veljajo: enota opazovanja je nabor, N je
+1. Namesto njih za vsak par algoritmov "corrected repeated k-fold cv test"
+(Bouckaert in Frank 2004) na razlikah ROC-AUC po istih foldih, s popravkom
+variance za prekrivanje učnih množic po Nadeau in Bengio (2003), in Holmov
+popravek čez vse pare. Zagon, ki vsebuje en sam nabor, to izbere samodejno.
 """
 
 import argparse
@@ -56,16 +66,60 @@ def critical_difference(k, n, alpha):
 
 
 def friedman(ranks):
-    """Friedmanov test nad matriko rangov (nabor x algoritem)."""
-    stat, p = stats.friedmanchisquare(*[ranks[c].values for c in ranks.columns])
-    return float(stat), float(p)
+    """Friedmanov test nad matriko rangov (nabor x algoritem), z Iman-Davenportovo F_F.
+
+    Vrne slovar:
+      chi2_F, p   - Friedmanov chi2 s k-1 prostostnimi stopnjami, po Demšarjevi
+                    formuli (2006, str. 11) iz povprečnih rangov R_j:
+                    chi2_F = 12N / (k(k+1)) * (sum_j R_j^2 - k(k+1)^2 / 4)
+      F_F, p_F    - Iman in Davenport (1980): F_F = (N-1) chi2_F / (N(k-1) - chi2_F),
+                    porazdeljen po F s (k-1) in (k-1)(N-1) prostostnimi stopnjami;
+                    Demšar (2006) priporoča to statistiko, zato odloča p_F
+      df1, df2    - prostostni stopnji za F_F
+
+    Izenačeni algoritmi dobijo povprečje rangov, popravka za izenačitve pa ni - tako
+    kot pri Demšarju. scipy.stats.friedmanchisquare ta popravek uporabi in da pri
+    izenačitvah nekoliko večji chi2_F (na Demšarjevem primeru 10,23 namesto 9,28).
+    Demšarjevo formulo uporabljamo, da je vsako število mogoče preveriti iz tabele
+    povprečnih rangov in članka; brez popravka je test kvečjemu malo konzervativnejši.
+    """
+    n, k = ranks.shape
+    mean_ranks = ranks.mean().to_numpy(dtype=float)
+    chi2 = float(12.0 * n / (k * (k + 1)) * (np.sum(mean_ranks ** 2) - k * (k + 1) ** 2 / 4.0))
+    p = float(stats.chi2.sf(chi2, k - 1))
+    df1, df2 = k - 1, (k - 1) * (n - 1)
+    denominator = n * (k - 1) - chi2
+    if denominator <= 0:  # vsi nabori razvrstijo algoritme natanko enako
+        f_f, p_f = np.inf, 0.0
+    else:
+        f_f = (n - 1) * chi2 / denominator
+        p_f = float(stats.f.sf(f_f, df1, df2))
+    return {"chi2_F": chi2, "p": p, "F_F": float(f_f), "p_F": p_f, "df1": df1, "df2": df2}
+
+
+def holm(p_values):
+    """Holmov postopek (Holm 1979): popravljene p-vrednosti v izvirnem vrstnem redu.
+
+    p-vrednosti uredimo naraščajoče, i-to (šteto od 0) pomnožimo z (m - i) in
+    vzamemo kumulativni maksimum, da popravljene ostanejo monotone; meja je 1.
+    Popravljeno p-vrednost primerjamo neposredno z alpha. Skupna verjetnost vsaj
+    ene lažne zavrnitve med vsemi m testi ostane pod alpha.
+    """
+    p = np.asarray(p_values, dtype=float)
+    m = len(p)
+    adjusted = np.empty(m)
+    running = 0.0
+    for i, idx in enumerate(np.argsort(p, kind="stable")):
+        running = max(running, p[idx] * (m - i))
+        adjusted[idx] = min(1.0, running)
+    return adjusted
 
 
 def wilcoxon_holm(pivot, alpha):
     """Parni Wilcoxonovi testi na povprečnem ROC-AUC po naborih s Holmovim popravkom.
 
     Vrne DataFrame s stolpci: a, b, n (skupni nabori), mean_diff (a - b),
-    wins_a, wins_b, p, p_holm, significant.
+    wins_a, wins_b, ties, p, p_holm, significant.
     """
     algos = list(pivot.columns)
     rows = []
@@ -83,18 +137,68 @@ def wilcoxon_holm(pivot, alpha):
             "ties": int((diff == 0).sum()), "p": p,
         })
     out = pd.DataFrame(rows)
-    # Holm: p-vrednosti uredimo naraščajoče, i-to pomnožimo z (m - i + 1) in
-    # vzamemo kumulativni maksimum, da popravljene ostanejo monotone.
-    m = len(out)
-    order = np.argsort(out["p"].values)
-    adjusted = np.empty(m)
-    running = 0.0
-    for i, idx in enumerate(order):
-        running = max(running, out["p"].values[idx] * (m - i))
-        adjusted[idx] = min(1.0, running)
-    out["p_holm"] = adjusted
+    out["p_holm"] = holm(out["p"].values)
     out["significant"] = out["p_holm"] < alpha
     return out
+
+
+def corrected_resampled_ttest(diffs, test_train_ratio):
+    """Popravljeni t-test za ponovljeno k-kratno prečno preverjanje na ENEM naboru.
+
+    diffs            - razlike metrike (a - b) po učenjih, parno po istih foldih;
+                       pri r ponovitvah k-kratnega preverjanja jih je n = k * r
+    test_train_ratio - n2 / n1, velikost testne proti učni množici (pri 5 foldih 1/4)
+
+    Učne množice različnih foldov se prekrivajo, zato navadni parni t-test
+    podceni varianco in prepogosto zavrne ničelno domnevo. Bouckaert in Frank
+    (2004, razdelek 3.3) za ponovljeno k-kratno prečno preverjanje predlagata
+    "corrected repeated k-fold cv test" s popravkom variance po Nadeau in Bengio:
+        t = mean(d) / sqrt((1/n + n2/n1) * var(d)),   n - 1 prostostnih stopenj,
+    kjer je var(d) vzorčna varianca (deljeno z n - 1). Pri test_train_ratio = 0 je
+    to navaden parni t-test (preverjeno proti scipy.stats.ttest_rel).
+    Vrne (t, p) za dvostranski test.
+    """
+    d = np.asarray(diffs, dtype=float)
+    n = len(d)
+    if n < 2:
+        return np.nan, np.nan
+    mean, var = float(d.mean()), float(d.var(ddof=1))
+    if var == 0:
+        return (0.0, 1.0) if mean == 0 else (float(np.copysign(np.inf, mean)), 0.0)
+    t = mean / np.sqrt((1.0 / n + test_train_ratio) * var)
+    return float(t), float(2 * stats.t.sf(abs(t), df=n - 1))
+
+
+def single_dataset_tests(df, alpha):
+    """Parni popravljeni t-testi s Holmovim popravkom za rezultate enega nabora.
+
+    Primerja učenja na istih foldih (stolpec fold je pri vseh algoritmih ista
+    delitev). Algoritem, ki na katerem koli učenju ni uspel, v primerjavah ne
+    nastopa - isto pravilo kot v src/summary.py, kjer je delen neuspeh neuspeh na
+    naboru. Vrne (DataFrame parov, seznam izključenih algoritmov, n2/n1).
+    """
+    by_fold = df.pivot(index="fold", columns="algorithm", values="roc_auc")
+    failed = df.groupby("algorithm")["failed"].any()
+    usable = [a for a in by_fold.columns if not failed[a]]
+    excluded = [a for a in by_fold.columns if failed[a]]
+    ratio = float(df["n_test"].mean() / df["n_train"].mean())
+
+    rows = []
+    for a, b in itertools.combinations(usable, 2):
+        both = by_fold[[a, b]].dropna()
+        diff = both[a] - both[b]
+        t, p = corrected_resampled_ttest(diff.values, ratio)
+        rows.append({
+            "a": a, "b": b, "n": int(len(both)),
+            "mean_diff": float(diff.mean()),
+            "wins_a": int((diff > 0).sum()), "wins_b": int((diff < 0).sum()),
+            "ties": int((diff == 0).sum()), "t": t, "p": p,
+        })
+    columns = ["a", "b", "n", "mean_diff", "wins_a", "wins_b", "ties", "t", "p"]
+    out = pd.DataFrame(rows, columns=columns)
+    out["p_holm"] = holm(out["p"].values)
+    out["significant"] = out["p_holm"] < alpha
+    return out, excluded, ratio
 
 
 def cd_diagram(mean_ranks, cd, path, title=None):
@@ -163,6 +267,41 @@ def cd_diagram(mean_ranks, cd, path, title=None):
     return cliques
 
 
+def analyse_single_dataset(df, alpha, base_dir, write=True):
+    """Analiza zagona z enim samim naborom (Medic3): popravljeni t-testi + Holm."""
+    name = df["dataset"].iloc[0]
+    n_fits = int(df.groupby("algorithm").size().max())
+    out, excluded, ratio = single_dataset_tests(df, alpha)
+
+    print(f"En sam nabor ({name}, {n_fits} učenj na algoritem). Friedman, Nemenyi in "
+          "Wilcoxon potrebujejo več naborov (Demšar 2006),")
+    print("zato: popravljeni t-test za ponovljeno k-kratno prečno preverjanje "
+          "(Bouckaert in Frank 2004; Nadeau in Bengio 2003)")
+    print(f"za vsak par algoritmov, Holmov popravek čez vse pare. n2/n1 = {ratio:.3f}, "
+          f"prostostnih stopenj = {n_fits - 1}.\n")
+    if excluded:
+        print(f"Izključeni (neuspeh na vsaj enem učenju): {', '.join(excluded)}\n")
+    for _, r in out.sort_values("p_holm").iterrows():
+        flag = "*" if r["significant"] else " "
+        print(f" {flag} {r['a']:14s} vs {r['b']:14s} n={r['n']:3d} "
+              f"zmage {r['wins_a']:2d}:{r['wins_b']:2d} diff={r['mean_diff']:+.4f} "
+              f"t={r['t']:+7.3f} p={r['p']:.2e} p_holm={r['p_holm']:.2e}")
+
+    if write:
+        out_dir = os.path.join(base_dir, "summary")
+        os.makedirs(out_dir, exist_ok=True)
+        out.to_csv(os.path.join(out_dir, "corrected_ttest_holm.csv"), index=False)
+        with open(os.path.join(out_dir, "corrected_ttest_holm.tex"), "w", encoding="utf-8") as f:
+            f.write(to_latex(
+                out[["a", "b", "n", "mean_diff", "wins_a", "wins_b", "t", "p_holm", "significant"]],
+                "Popravljeni t-testi za ponovljeno prečno preverjanje s Holmovim popravkom.",
+                "tab:corrected-ttest", ".4f",
+            ))
+        print(f"\nZapisano v {os.path.relpath(out_dir, REPO_ROOT)}/: corrected_ttest_holm.csv/.tex")
+
+    return {"single_dataset": out, "excluded": excluded, "test_train_ratio": ratio}
+
+
 def analyse(path_or_id, config=None, drop_saturated=False, write=True):
     config = config or load_config()
     alpha = config["alpha"]
@@ -170,6 +309,11 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
     print(f"Vir: {os.path.relpath(results_csv, REPO_ROOT)}\n")
 
     df = load_results(results_csv)
+    if df["dataset"].nunique() == 1:
+        if drop_saturated:
+            print("--no-saturated pri enem samem naboru nima pomena; ignoriram.\n")
+        return analyse_single_dataset(df, alpha, base_dir, write)
+
     pivot = dataset_pivot(df)
     suffix = ""
     if drop_saturated:
@@ -177,15 +321,25 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
         pivot = pivot[~sat]
         suffix = "_nonsaturated"
         print(f"Brez nasičenih naborov: {int(sat.sum())} izločenih, {len(pivot)} ostane.\n")
+    if len(pivot) < 2:
+        print("Za teste čez nabore sta potrebna vsaj dva nabora - ni kaj testirati.")
+        return None
 
     ranks = rank_matrix(pivot)
     k, n = ranks.shape[1], ranks.shape[0]
     mean_ranks = ranks.mean().sort_values()
 
-    stat, p = friedman(ranks)
+    fr = friedman(ranks)
     cd = critical_difference(k, n, alpha)
-    print(f"Friedmanov test: k = {k} algoritmov, N = {n} naborov, chi2_F = {stat:.3f}, p = {p:.2e}")
-    print(f"{'Zavrnemo' if p < alpha else 'NE zavrnemo'} ničelno domnevo enakovrednosti (alpha = {alpha}).")
+    print(f"Friedmanov test: k = {k} algoritmov, N = {n} naborov")
+    print(f"  chi2_F = {fr['chi2_F']:.3f} (df = {fr['df1']}), p = {fr['p']:.2e}")
+    print(f"  F_F    = {fr['F_F']:.3f} (df = {fr['df1']}, {fr['df2']}), p = {fr['p_F']:.2e}"
+          "   <- Iman in Davenport (1980), odloča")
+    if not (n > 10 and k > 5):
+        print("  Opozorilo: Demšar (2006) priporoča porazdelitev chi2 le pri N > 10 in k > 5; "
+              "pri manj je p le groba ocena.")
+    print(f"{'Zavrnemo' if fr['p_F'] < alpha else 'NE zavrnemo'} ničelno domnevo "
+          f"enakovrednosti (alpha = {alpha}).")
     print(f"Nemenyi: kritična razdalja CD = {cd:.3f}\n")
     print("Povprečni rangi:")
     for name, r in mean_ranks.items():
@@ -213,8 +367,9 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
             title=f"Nemenyi, N = {n} naborov, alpha = {alpha}",
         )
         friedman_df = pd.DataFrame([{
-            "k": k, "N": n, "chi2_F": stat, "p": p, "alpha": alpha, "CD": cd,
-            "reject_H0": p < alpha,
+            "k": k, "N": n, "chi2_F": fr["chi2_F"], "p": fr["p"],
+            "F_F": fr["F_F"], "df1": fr["df1"], "df2": fr["df2"], "p_F": fr["p_F"],
+            "alpha": alpha, "CD": cd, "reject_H0": fr["p_F"] < alpha,
         }])
         friedman_df.to_csv(os.path.join(out_dir, f"friedman{suffix}.csv"), index=False)
         nemenyi.to_csv(os.path.join(out_dir, f"nemenyi{suffix}.csv"), index=False)
@@ -231,7 +386,7 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
             groups = [", ".join(mean_ranks.index[a:b + 1]) for a, b in cliques]
             print("Skupine brez značilne razlike (Nemenyi): " + " | ".join(groups))
 
-    return {"friedman": (stat, p), "cd": cd, "mean_ranks": mean_ranks, "nemenyi": nemenyi, "wilcoxon": wil}
+    return {"friedman": fr, "cd": cd, "mean_ranks": mean_ranks, "nemenyi": nemenyi, "wilcoxon": wil}
 
 
 if __name__ == "__main__":

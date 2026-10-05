@@ -35,6 +35,7 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
         "raw_error": None,
         "device": describe_device(USES_GPU),
         "proba": None,
+        "classes": None,
     }
     try:
         numeric_cols = [c for c in X_train.columns if c not in categorical_cols]
@@ -63,7 +64,11 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
         proba = clf.predict_proba(X_test)
         result["inference_time_s"] = time.perf_counter() - t0
 
-        result["roc_auc"] = compute_roc_auc(y_test, proba)
+        # classes_ so oznake razredov v vrstnem redu stolpcev proba. Pri naborih
+        # z zelo redkimi razredi jih je lahko manj kot v celotnem naboru (razreda,
+        # ki ga v učnem foldu ni, model ne pozna), zato jih metrika potrebuje.
+        result["classes"] = clf.classes_
+        result["roc_auc"] = compute_roc_auc(y_test, proba, clf.classes_)
         result["proba"] = proba
     except Exception as e:
         result["error"] = str(e)

@@ -18,15 +18,21 @@ sys.path.insert(0, REPO_ROOT)
 
 from scripts.merge_results import resolve_run_dir  # noqa: E402
 
-# (algoritem, paket na PyPI, razred) v vrstnem redu, kot nastopajo v diplomi.
+# (ime v config.yaml, algoritem, paket na PyPI, razred) v vrstnem redu, kot
+# nastopajo v diplomi.
 ROWS = [
-    ("Naključni gozd", "scikit-learn", "RandomForestClassifier"),
-    ("XGBoost", "xgboost", "XGBClassifier"),
-    ("LightGBM", "lightgbm", "LGBMClassifier"),
-    ("CatBoost", "catboost", "CatBoostClassifier"),
-    ("TabPFN", "tabpfn", "TabPFNClassifier"),
-    ("TabICL", "tabicl", "TabICLClassifier"),
+    ("random_forest", "Naključni gozd", "scikit-learn", "RandomForestClassifier"),
+    ("xgboost", "XGBoost", "xgboost", "XGBClassifier"),
+    ("lightgbm", "LightGBM", "lightgbm", "LGBMClassifier"),
+    ("catboost", "CatBoost", "catboost", "CatBoostClassifier"),
+    ("tabpfn", "TabPFN", "tabpfn", "TabPFNClassifier"),
+    ("tabicl", "TabICL", "tabicl", "TabICLClassifier"),
 ]
+
+
+def _checkpoint_label(name):
+    """Ime datoteke z utežmi brez končnice, primerno za celico tabele."""
+    return os.path.splitext(name)[0].replace("_", "\\_")
 
 
 def versions_from_manifest(manifest):
@@ -51,8 +57,14 @@ def build_table(manifest):
         "Algoritem & Knjižnica & Razred & Različica \\\\",
         "\\hline",
     ]
-    for algo, package, cls in ROWS:
+    # Pri temeljnih modelih različica paketa ne pove, katere uteži so tekle (tabpfn
+    # 9 zna naložiti TabPFN-3 ali TabPFN-3.5), zato dodamo ime kontrolne točke iz
+    # manifesta. Starejši manifesti (pred 2026-10-05) tega ključa nimajo.
+    checkpoints = manifest.get("model_checkpoints", {})
+    for key, algo, package, cls in ROWS:
         version = versions.get(package.lower(), "?")
+        if checkpoints.get(key):
+            version += f", uteži \\texttt{{{_checkpoint_label(checkpoints[key])}}}"
         lines.append(f"{algo} & {package} & \\texttt{{{cls.replace('_', '_')}}} & {version} \\\\")
     lines += ["\\hline"]
     lines.append(f"Python & -- & -- & {manifest.get('python', '?')} \\\\")

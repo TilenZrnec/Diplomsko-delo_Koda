@@ -32,7 +32,7 @@ participant "scripts/profile_datasets.py" as PROF
 participant "src/config.py" as CFGPY
 participant "src/data.py" as DATA
 database "OpenML\n(splet)" as OML
-collections "scripts/cc18_ids.json\nscripts/subset_ids.json\nscripts/medic3.json" as IDS
+collections "scripts/cc18_ids.json\nscripts/subset_ids.json\nscripts/medic3.json\nscripts/medic3_160.json" as IDS
 collections "config.yaml" as CFG
 
 U -> GEN : python scripts/gen_cc18_ids.py
@@ -57,7 +57,8 @@ note over IDS, CFG
 
   cc18_ids.json se **commita v git**: obseg eksperimenta je zamrznjen.
   subset_ids.json = [31, 37, 38], pilotna trojica.
-  medic3.json = {"source": "csv", "path": "../Medic3.csv.zip", ...} -
+  medic3_160.json = isto, z "max_classes": 160 (glej diagram 3).
+  medic3.json = {"source": "csv", "path": "data/medic3/Medic3.csv", ...} -
   opis lokalnega nabora, ki ga src/data.py naloži enako kot OpenML.
 end note
 
@@ -115,7 +116,7 @@ BENCH -> CFGPY : load_config(), dataset_specs(config, set)
 CFGPY --> BENCH : config (seme, foldi, algoritmi, poti), opisi naborov
 BENCH -> RUN : make_run_id() -> <datum-čas>_<nabor>_<stroj>, run_dir_for()
 BENCH -> RUN : write_manifest(run_dir, config, ...)
-RUN -> OUT : manifest.json - git commit, stroj, GPU, konfiguracija, pip freeze
+RUN -> OUT : manifest.json - git commit, stroj, GPU, konfiguracija, pip freeze,\nmodel_checkpoints (uteži temeljnih modelov); zapis prek .tmp, edinstvenega za proces
 
 loop za vsak nabor iz izbranega nabora (3)
     BENCH -> RUN : run_dataset(spec, config, run_dir, run_id)
@@ -148,7 +149,7 @@ loop za vsak nabor iz izbranega nabora (3)
             end
             loop za vsak fold (n_splits x n_repeats)
                 RUN -> RUN : preskoči, če (algoritem, fold) v done
-                RUN -> MODEL : run(X_train, y_train, X_test, y_test, categorical_cols, random_state)
+                RUN -> MODEL : run(X_train, y_train, X_test, y_test, categorical_cols, random_state + repeat)
                 activate MODEL
                 MODEL -> MODEL : predobdelava po pravilu tega algoritma
                 MODEL -> MODEL : t0 = perf_counter(); clf.fit(...)
@@ -167,7 +168,7 @@ loop za vsak nabor iz izbranega nabora (3)
 end
 
 BENCH -> RUN : merge_run(run_dir)
-RUN -> OUT : results.csv (3 x 6 x 5 = 90 vrstic)
+RUN -> OUT : results.csv (3 x 6 x 15 = 270 vrstic)
 BENCH --> U : "Povzetek: python -m src.summary <run_dir>"
 deactivate BENCH
 
@@ -177,7 +178,8 @@ note over MODEL
   src/models/xgboost_model.py   - nativni NaN, kategorične -> kode
   src/models/lightgbm_model.py  - nativni NaN + 'category' dtype
   src/models/catboost_model.py  - nativni NaN + cat_features
-  src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
+  src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU);
+                                  TabPFN-3.5 izrecno prek make_classifier()
   src/models/tabicl_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
 
   Vsi so oviti v try/except: izjema se zapiše v
@@ -210,6 +212,7 @@ end box
 participant "SLURM\n(čakalna vrsta)" as SLURM
 box "Računsko vozlišče (H100, BREZ interneta)" #EEF6FD
     participant "scripts/run_cc18.sh" as SH
+    participant "scripts/run_medic3.sh" as SHM
     participant "src/run_one_dataset.py" as ONE
     participant "src/config.py" as CFGPY
     participant "src/runner.py" as RUN
@@ -227,7 +230,7 @@ loop za vsak od 72 naborov
     PRE -> PRE : load_dataset(spec, ...) iz src/data.py - ista pot predpomnilnika kot benchmark
 end
 opt brez ~--skip-weights
-    PRE -> PRE : TabPFN.fit() + TabICL.fit(device="cpu")\nna 40x5 naključnem naboru -> prenos utež
+    PRE -> PRE : tabpfn_model.make_classifier() (TabPFN-3.5) + TabICL.fit(device="cpu")\nna 40x5 naključnem naboru -> prenos natanko tistih utež, ki jih uporabi benchmark
 end
 PRE --> U : velikost predpomnilnika (kvota doma = 100 GB)\nizhodna koda 1, če kateri nabor manjka
 deactivate PRE
@@ -243,9 +246,12 @@ end note
 
 == Korak 2: oddaja polja (array job) ==
 
-U -> SLURM : RUN_ID=cc18_v2 sbatch scripts/run_cc18.sh
+U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch ~--array=... scripts/run_cc18.sh\n(dve polji z istim RUN_ID, glej opombo)
 note right of SLURM
-  ~#SBATCH ~--array=0-71%4  (72 nalog, največ 4 hkrati)
+  ~#SBATCH ~--array=0-71%4  (privzeto: 72 nalog, največ 4 hkrati)
+  Oddaja v DVEH poljih z istim RUN_ID: 0-26,28-59,62-69,71%4
+  s privzetimi viri in 27,60,61,70 (mnist_784, Devnagari-Script,
+  CIFAR_10, Fashion-MNIST) z ~--mem=240G ~--time=1-12:00:00.
   ~#SBATCH ~--gres=gpu:1 ~--cpus-per-task=8
   ~#SBATCH ~--mem=64G ~--time=12:00:00
 
@@ -259,13 +265,47 @@ note right of SLURM
   kot lokalni računalnik (scripts/compare_results.py).
 end note
 
+== Korak 2b: Medic3 - polje po ALGORITMIH, ne po naborih ==
+
+U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw
+sbatch ~--array=0,1,2,4,5 scripts/run_medic3.sh
+U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw
+sbatch ~--array=3 ~--time=1-12:00:00 ~--mem=120G scripts/run_medic3.sh
+activate SHM
+SHM -> CFGPY : N_ALGOS = len(load_config()["algorithms"])
+ALGO = algorithms[$SLURM_ARRAY_TASK_ID]
+SHM -> ONE : python -m src.run_one_dataset ~--dataset-set $DATASET_SET
+~--index 0 ~--run-id $RUN_ID ~--algorithms $ALGO
+ONE -> RUN : run_dataset(spec, ..., algorithms=[ALGO])
+RUN -> PD : piše v <nabor>~__<algoritem>.csv (ne <id>.csv)
+deactivate SHM
+
+note over SHM
+  Medic3 je EN nabor, zato bi shema "en nabor na task"
+  vseh šest algoritmov gnala zaporedno (ocena ~60 h,
+  čez ~--time). Tu je zato en ALGORITEM na task; indeks
+  je mesto algoritma v config.yaml (algorithms):
+  0 random_forest 1 xgboost 2 lightgbm 3 catboost
+  4 tabpfn 5 tabicl. CatBoost gre v svoje opravilo,
+  ker je pri 220 razredih daleč najdražji.
+
+  Zato src/runner.py ob izrecnem ~--algorithms piše v
+  <nabor>~__<algoritem>.csv: brez tega bi vzporedni
+  taski istega nabora pisali isti .partial in si med
+  sabo brisali vrstice. merge_results.py jih združi.
+
+  DATASET_SET=medic3 (220 razredov; TabPFN-3 je imel
+  mejo 160, meja TabPFN-3.5 še ni izmerjena) ali
+  medic3_160 (160 najpogostejših razredov, steče vseh šest).
+end note
+
 loop 72 vzporednih nalog, $SLURM_ARRAY_TASK_ID = 0..71
     SLURM -> SH : zažene skripto z dodeljenim GPU
     activate SH
     SH -> SH : source ~/.tabpfn_token\nexport HF_HUB_OFFLINE=1, OMP_NUM_THREADS=8
     SH -> CFGPY : N_IDS = len(dataset_specs(config, "cc18"))
     SH -> SH : varovalka: SLURM_ARRAY_TASK_MAX == N_IDS-1 ?\nsicer **exit 1** (sicer bi zadnji nabori tiho izpadli)
-    SH -> ONE : micromamba run -p ~/envs/tabular python -m src.run_one_dataset\n~--dataset-set cc18 ~--index $ID ~--run-id $RUN_ID
+    SH -> ONE : micromamba run -p ~/envs/tabular3.5 python -m src.run_one_dataset\n~--dataset-set cc18 ~--index $ID ~--run-id $RUN_ID
     activate ONE
     ONE -> CFGPY : load_config(), dataset_specs(config, "cc18")[index]
     ONE -> RUN : write_manifest() (le prvi task, ki pride do tu)
@@ -338,7 +378,7 @@ participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
-collections "../Medic3.csv.zip\n(zaupno, NI v gitu)" as M3
+collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
 
 == Povzetek za diplomo ==
 
@@ -358,19 +398,25 @@ deactivate SUM
 
 U -> STAT : python -m src.stats <run_id> [~--no-saturated]
 activate STAT
-STAT -> SUM : dataset_pivot, rank_matrix (isto pravilo za neuspeh)
-STAT -> STAT : Friedmanov test nad rangi (scipy)
-STAT -> STAT : Nemenyi: CD = q_alpha * sqrt(k(k+1)/6N)
-STAT -> STAT : parni Wilcoxon na povprečnem ROC-AUC + Holm
-STAT -> SUMOUT : cd_diagram.png/.pdf, friedman.csv,\nnemenyi.csv, wilcoxon_holm.csv/.tex
-STAT --> U : chi2_F, p, CD, povprečni rangi, značilni pari
+alt več naborov (CC18)
+    STAT -> SUM : dataset_pivot, rank_matrix (isto pravilo za neuspeh)
+    STAT -> STAT : Friedmanov test: chi2_F po Demšarjevi formuli iz povprečnih rangov\n+ Iman-Davenportova F_F (odloča o zavrnitvi)
+    STAT -> STAT : Nemenyi: CD = q_alpha * sqrt(k(k+1)/6N)
+    STAT -> STAT : parni Wilcoxon na povprečnem ROC-AUC + holm()
+    STAT -> SUMOUT : cd_diagram.png/.pdf, friedman.csv,\nnemenyi.csv, wilcoxon_holm.csv/.tex
+    STAT --> U : chi2_F, F_F, p, CD, povprečni rangi, značilni pari
+else en sam nabor (Medic3) - zazna samodejno
+    STAT -> STAT : za vsak par: popravljeni t-test za ponovljeno k-kratno\nprečno preverjanje (Bouckaert in Frank 2004) na istih foldih + holm()
+    STAT -> SUMOUT : corrected_ttest_holm.csv/.tex
+    STAT --> U : t, p, p_holm po parih; izključeni algoritmi z neuspehom
+end
 deactivate STAT
 
 == Različice knjižnic za diplomo ==
 
 U -> VER : python scripts/gen_version_table.py <run_id>
 activate VER
-VER -> RES : manifest.json -> pip_freeze, python, torch, cuda
+VER -> RES : manifest.json -> pip_freeze, python, torch, cuda,\nmodel_checkpoints (uteži TabPFN/TabICL)
 VER -> SUMOUT : razlicice.tex (tabela tab:razlicice)
 deactivate VER
 
@@ -390,10 +436,10 @@ CMP --> U : povprečna in največja razlika po algoritmih\n+ 5 najslabših vrsti
 deactivate CMP
 
 note right of CMP
-  Izid 2026-07 (lokalno proti Arnes): drevesni ansambli
-  bitno identični, TabPFN/TabICL ~1e-4 (nedeterminizem GPU).
-  Izid 2026-09-09 (stara koda proti refaktorirani, isto
-  okolje): vseh 90 vrstic delta 0.0.
+  Naslednja uporaba: cc18_v2 (stara zamrznitev) proti
+  subset_v3 (nova) - isti trije nabori, isti foldi in semena.
+  Lokalno 2026-10-05: drevesni ansambli bitno identični,
+  TabICL do 1.5e-5; TabPFN se razlikuje (drug model).
 end note
 
 == Stranska veja: podatkovna kartica Medic3 ==
@@ -412,7 +458,14 @@ note over MED
   Podatkovna kartica pred modeliranjem. Sam benchmark
   Medic3 teče po isti poti kot OpenML: nabor "medic3"
   v config.yaml kaže na scripts/medic3.json, ki ga
-  src/data.py naloži kot CSV.
+  src/data.py naloži kot CSV; oddaja je v diagramu 3.
+
+  Posebnost analize: pri 220 razredih stratificirana
+  delitev redkega razreda ne more dati v vsak fold,
+  zato je ROC-AUC makro povprečje le čez razrede,
+  prisotne v testnem foldu (src/utils.py,
+  scored_class_indices). Stolpec n_classes_scored pove,
+  po koliko razredih je bilo povprečje izračunano.
 end note
 
 @enduml

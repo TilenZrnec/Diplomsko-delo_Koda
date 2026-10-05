@@ -44,6 +44,7 @@ import pandas as pd
 from src.config import REPO_ROOT, spec_id
 from src.data import load_dataset
 from src.models import REGISTRY
+from src.utils import scored_class_indices
 
 # Vrstni red stolpcev v vseh CSV-jih z rezultati. Nove stolpce dodajaj na konec,
 # da starejši zagoni ostanejo berljivi z istimi orodji.
@@ -52,7 +53,7 @@ RESULT_COLUMNS = [
     "n_train", "n_test", "n_features", "n_categorical", "n_classes",
     "roc_auc", "train_time_s", "inference_time_s", "warmup_s", "device",
     "preprocessing", "raw_error", "error",
-    "git_commit", "hostname", "timestamp",
+    "git_commit", "hostname", "timestamp", "n_classes_scored",
 ]
 
 # Algoritmi, ki so v tem procesu že bili ogreti (nalaganje utež, CUDA).
@@ -120,10 +121,38 @@ def _gpu_info():
 
 
 def _atomic_write_json(path, payload):
-    tmp = path + ".tmp"
+    """Zapis prek začasne datoteke z imenom, edinstvenim za ta proces.
+
+    Več SLURM taskov istega zagona (pri Medic3 en algoritem na task) lahko hkrati
+    ugotovi, da manifesta še ni, in ga piše sočasno. S skupnim imenom "path.tmp"
+    bi si delili isto začasno datoteko: rezultat je bil lahko pomešan JSON ali
+    FileNotFoundError pri os.replace. Z ločenim imenom vsak proces zapiše svojo
+    celo datoteko in os.replace jo atomarno postavi na mesto - zmaga zadnji,
+    manifest pa je vedno veljaven.
+    """
+    tmp = f"{path}.{socket.gethostname()}.{os.getpid()}.tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
+
+
+def _model_checkpoints(algorithms):
+    """Ime datoteke z utežmi za vsak algoritem, ki nalaga predhodno naučene uteži.
+
+    pip freeze pove različico paketa, ne pa, katere uteži je paket naložil (tabpfn
+    9 zna naložiti TabPFN-3 ali TabPFN-3.5). Zato modul, ki nalaga uteži, izpostavi
+    checkpoint_name(); drevesni ansambli ga nimajo in jih tu ni.
+    """
+    out = {}
+    for name in algorithms:
+        fn = getattr(REGISTRY.get(name), "checkpoint_name", None)
+        if fn is None:
+            continue
+        try:
+            out[name] = fn()
+        except Exception as e:  # noqa: BLE001 - manifest ne sme podreti zagona
+            out[name] = f"neznano ({type(e).__name__}: {e})"
+    return out
 
 
 def write_manifest(run_dir, config, dataset_set, specs, run_id):
@@ -154,6 +183,7 @@ def write_manifest(run_dir, config, dataset_set, specs, run_id):
         "slurm_job_id": os.environ.get("SLURM_ARRAY_JOB_ID") or os.environ.get("SLURM_JOB_ID"),
         "cpu_threads": os.environ.get("OMP_NUM_THREADS") or os.cpu_count(),
         **_gpu_info(),
+        "model_checkpoints": _model_checkpoints(config["algorithms"]),
         "config": {k: v for k, v in config.items() if k != "config_path"},
         "pip_freeze": pip_freeze(),
     }
@@ -178,19 +208,29 @@ def write_partial(rows, partial_path):
 
 
 def save_predictions(run_dir, ds_id, algo_name, repeat, fold, result, y_test, test_idx, classes):
-    """Shrani predict_proba enega učenja v .npz (float32, da je datoteka pol manjša)."""
+    """Shrani predict_proba enega učenja v .npz (float32, da je datoteka pol manjša).
+
+    Poleg oznak vseh razredov nabora (classes) shrani tudi proba_classes - kode
+    razredov, ki pripadajo stolpcem proba. Ti dve nista nujno enaki: če razreda
+    v učnem foldu ni bilo, model zanj nima stolpca. Brez proba_classes se iz
+    .npz pozneje ne bi dalo ugotoviti, kateri stolpec je kateri razred.
+    """
     if result.get("proba") is None:
         return
     pred_dir = os.path.join(run_dir, "predictions", ds_id)
     os.makedirs(pred_dir, exist_ok=True)
     path = os.path.join(pred_dir, f"{algo_name}_r{repeat}_f{fold}.npz")
     tmp = path + ".tmp.npz"
+    proba_classes = result.get("classes")
     np.savez_compressed(
         tmp,
         proba=np.asarray(result["proba"], dtype=np.float32),
         y_test=np.asarray(y_test, dtype=np.int32),
         test_idx=np.asarray(test_idx, dtype=np.int64),
         classes=np.asarray(classes),
+        proba_classes=np.asarray(
+            np.arange(np.shape(result["proba"])[1]) if proba_classes is None else proba_classes
+        ),
     )
     os.replace(tmp, path)
 
@@ -264,18 +304,26 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
     run_dir     - mapa zagona (run_dir_for)
     algorithms  - seznam imen; privzeto config["algorithms"]
     """
+    requested = algorithms
     algorithms = algorithms or config["algorithms"]
     unknown = [a for a in algorithms if a not in REGISTRY]
     if unknown:
         raise KeyError(f"Neznani algoritmi v config.yaml: {unknown}; znani: {sorted(REGISTRY)}")
 
+    # Ime izhodne datoteke. Brez --algorithms je to <id>.csv kot doslej. Z izrecno
+    # podmnožico dobi vsak zagon svojo datoteko <id>__<algoritmi>.csv, ker sicer
+    # bi vzporedni SLURM taski ISTEGA nabora pisali isti .partial in si med sabo
+    # brisali vrstice. Tako se en velik nabor (Medic3) lahko razdeli po algoritmih
+    # na več hkratnih opravil; merge_run vse datoteke v per_dataset/ tako ali tako
+    # združi v eno results.csv.
     ds_id = spec_id(spec)
+    file_stem = ds_id if requested is None else f"{ds_id}__{'-'.join(requested)}"
     per_dataset = os.path.join(run_dir, "per_dataset")
     os.makedirs(per_dataset, exist_ok=True)
-    out_path = os.path.join(per_dataset, f"{ds_id}.csv")
+    out_path = os.path.join(per_dataset, f"{file_stem}.csv")
     partial_path = out_path + ".partial"
     if os.path.exists(out_path):
-        log(f"[{ds_id}] already done ({out_path})")
+        log(f"[{file_stem}] already done ({out_path})")
         return out_path
 
     # Nadaljevanje po prekinitvi: kaj je iz prejšnjega zagona že narejeno.
@@ -285,7 +333,7 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
         previous = pd.read_csv(partial_path)
         rows = previous.to_dict("records")
         done = {(str(a), int(f)) for a, f in zip(previous["algorithm"], previous["fold"])}
-        log(f"[{ds_id}] najden partial: {len(done)} učenj že narejenih, nadaljujem.")
+        log(f"[{file_stem}] najden partial: {len(done)} učenj že narejenih, nadaljujem.")
 
     n_splits = config["n_splits"]
     n_repeats = config["n_repeats"]
@@ -303,6 +351,13 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
         f"{len(categorical_cols)} kategoričnih, {n_classes} razredov, "
         f"{len(dataset['folds'])} foldov ==="
     )
+    if dataset.get("class_limit"):
+        cl = dataset["class_limit"]
+        log(
+            f"    omejitev razredov: {cl['n_classes_before']} -> {cl['n_classes_after']}, "
+            f"zavrženih {cl['n_rows_dropped']} od {cl['n_rows_before']} vrstic "
+            f"({100 * cl['n_rows_dropped'] / cl['n_rows_before']:.2f} %)"
+        )
 
     commit, _dirty = git_info()
     hostname = socket.gethostname()
@@ -327,6 +382,17 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
             # naključnost samega modela (izbor atributov v drevesih, vzorčenje).
             result = module.run(
                 X_train, y_train, X_test, y_test, categorical_cols, random_state + repeat
+            )
+
+            # Po koliko razredih je bilo makro povprečje ROC-AUC dejansko
+            # izračunano. Pri CC18 in Medic3 je to vedno n_classes (najmanjši
+            # razred Medic3 ima 50 vrstic, zato je vsak razred v vsakem testnem
+            # foldu); manj bi bilo le pri naboru z razredom, manjšim od n_splits
+            # (glej src/utils.scored_class_indices).
+            n_scored = (
+                len(scored_class_indices(y_test, result["classes"]))
+                if result.get("classes") is not None
+                else None
             )
 
             status = "OK" if result["error"] is None else f"ERROR: {result['error']}"
@@ -362,11 +428,12 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
                 "git_commit": commit,
                 "hostname": hostname,
                 "timestamp": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+                "n_classes_scored": n_scored,
             })
             write_partial(rows, partial_path)
 
     write_partial(rows, partial_path)
     # Atomarno: <id>.csv se pojavi šele zdaj, ko so vse vrstice zbrane.
     os.replace(partial_path, out_path)
-    log(f"[{ds_id}] rezultati shranjeni v {out_path} ({len(rows)} vrstic)")
+    log(f"[{file_stem}] rezultati shranjeni v {out_path} ({len(rows)} vrstic)")
     return out_path

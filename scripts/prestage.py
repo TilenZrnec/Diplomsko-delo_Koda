@@ -93,19 +93,21 @@ def prestage_weights():
     X = rng.standard_normal((40, 5))
     y = np.tile([0, 1], 20)
 
-    from tabpfn import TabPFNClassifier
+    # Isti klasifikator kot v benchmarku (izrecno TabPFN-3.5), da se prenesejo
+    # natanko uteži, ki jih bodo računska vozlišča brez interneta potrebovala.
+    from src.models import tabicl_model, tabpfn_model
 
-    clf = TabPFNClassifier()
+    clf = tabpfn_model.make_classifier(random_state=0)
     clf.fit(X, y)
     clf.predict_proba(X[:4])
-    print("TabPFN: uteži prenesene in predpomnjene")
+    print(f"TabPFN: uteži prenesene in predpomnjene ({tabpfn_model.checkpoint_name()})")
 
     from tabicl import TabICLClassifier
 
     clf = TabICLClassifier(device="cpu")
     clf.fit(X, y)
     clf.predict_proba(X[:4])
-    print("TabICL: uteži prenesene in predpomnjene")
+    print(f"TabICL: uteži prenesene in predpomnjene ({tabicl_model.checkpoint_name()})")
 
 
 def main():

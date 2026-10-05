@@ -71,7 +71,7 @@ Preverja v obe smeri:
 
 Pokrite so `src/**/*.py`, `scripts/**/*.py`, `scripts/**/*.sh` in `config.yaml`.
 Skripta uporablja samo standardno knjižnico, zato deluje s katerimkoli
-sistemskim pythonom — okolje `tabular` ni potrebno.
+sistemskim pythonom — okolje projekta (conda) ni potrebno.
 
 **Česa preverjanje NE zajame:** poti do podatkov in rezultatov
 (`results/...`, `data/...`). Diagram jih omenja veliko, a jih kljuka ignorira,

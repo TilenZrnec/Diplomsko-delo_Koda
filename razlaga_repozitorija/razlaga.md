@@ -77,7 +77,7 @@ datoteke, na primer `31` ali `medic3`.
 ### Opisi naborov: `scripts/subset_ids.json`, `scripts/cc18_ids.json`, `scripts/medic3.json`
 
 Opis nabora je bodisi celo število, OpenML ID (`31`), bodisi slovar za lokalno
-datoteko: `{"source": "csv", "path": "../Medic3.csv.zip", "target": "Class",
+datoteko: `{"source": "csv", "path": "data/medic3/Medic3.csv", "target": "Class",
 "drop_cols": ["Index", "Field"]}`. `target` je stolpec, ki ga napovedujemo,
 `drop_cols` so stolpci, ki niso atributi (zaporedna številka vrstice in
 oznaka oddelka, ki bi izdala razred).
@@ -224,13 +224,34 @@ Predobdelave po algoritmih:
 
 ### `src/utils.py`
 
-`compute_roc_auc(y_true, proba)`. **ROC-AUC** meri, kako dobro model **razvršča**
-primere: vzemi naključen pozitiven in naključen negativen primer; AUC je
-verjetnost, da model pozitivnemu pripiše višjo verjetnost. 1,0 je popolno,
-0,5 je ugibanje. Pri več kot dveh razredih se uporabi **one-vs-rest**: za vsak
-razred posebej »ta razred proti vsem ostalim«, nato **macro** povprečje, kjer
-ima vsak razred enako težo ne glede na pogostost. `describe_device()` vrne
-`cpu x8` ali `cuda: NVIDIA H100`, da je pri vsakem času jasno, na čem je tekel.
+`compute_roc_auc(y_true, proba, classes)`. **ROC-AUC** meri, kako dobro model
+**razvršča** primere: vzemi naključen pozitiven in naključen negativen primer;
+AUC je verjetnost, da model pozitivnemu pripiše višjo verjetnost. 1,0 je
+popolno, 0,5 je ugibanje. Pri več kot dveh razredih se uporabi **one-vs-rest**:
+za vsak razred posebej »ta razred proti vsem ostalim«, nato **macro** povprečje,
+kjer ima vsak razred enako težo ne glede na pogostost.
+
+**Zakaj tretji argument.** `classes` je `model.classes_`, torej oznaka razreda
+za vsak stolpec `predict_proba`. Pri vseh naborih CC18 in pri Medic3 (njegov
+najmanjši razred ima 50 vrstic) so v vsakem foldu vsi razredi. Argument je
+varovalka za nabor, ki bi imel razred z manj kot 5 primeri: stratificirana
+delitev takega razreda ne more dati v vsak fold. Posledici bi bili dve:
+
+1. razreda, ki ga v **učnem** foldu ni, model ne pozna in zanj nima stolpca -
+   zato brez `classes` sploh ne bi vedeli, kateri stolpec je kateri razred;
+2. razreda, ki ga v **testnem** foldu ni, ne moremo oceniti - v podnalogi
+   »ta razred proti vsem ostalim« ni nobenega pozitivnega primera.
+
+Zato `scored_class_indices()` izbere samo razrede, prisotne v testnem foldu, in
+povprečje teče po njih. Koliko jih je bilo, gre v stolpec `n_classes_scored`.
+Brez tega bi `roc_auc_score(..., multi_class="ovr")` vrgel napako
+*Number of classes in y_true not equal to the number of columns in 'y_score'*
+in bi na takem naboru odpovedalo vsako učenje. Kadar so prisotni vsi razredi, je izid
+**bitno identičen** prejšnjemu (preverjeno na naboru OpenML 11: 90 učenj,
+razlika 0,0 pri petih od šestih algoritmov).
+
+`describe_device()` vrne `cpu x8` ali `cuda: NVIDIA H100`, da je pri vsakem času
+jasno, na čem je tekel.
 
 ---
 
@@ -268,12 +289,12 @@ in 12 ur. Vsako opravilo je isti skript, le spremenljivka
 3. `export HF_HUB_OFFLINE=1` pove knjižnici Hugging Face, naj ne poskuša na
    internet. `OMP_NUM_THREADS=8` omeji ansamble na dodeljenih 8 jeder, sicer
    bi poskusili uporabiti vsa jedra vozlišča.
-4. `RUN_ID` vzame iz okolja (`RUN_ID=cc18_v2 sbatch ...`) ali sestavi
+4. `RUN_ID` vzame iz okolja (`RUN_ID=cc18_v3 sbatch ...`) ali sestavi
    `cc18_<številka polja>`. Vsa opravila polja pišejo v isto mapo
    `results/runs/<RUN_ID>/`.
 5. Varovalka: prek `config.py` prešteje nabore in preveri, da je zgornja meja
    polja enaka številu naborov minus 1; sicer bi zadnji nabori tiho izpadli.
-6. Požene `micromamba run -p ~/envs/tabular2 python -m src.run_one_dataset
+6. Požene `micromamba run -p ~/envs/tabular3.5 python -m src.run_one_dataset
    --dataset-set cc18 --index $SLURM_ARRAY_TASK_ID --run-id $RUN_ID`.
    `micromamba run -p <pot>` pomeni »poženi v tem okolju«, ker skripte v
    ozadju ne morejo klicati `conda activate`.
@@ -287,76 +308,118 @@ in isti zapis napovedi kot lokalni.
 
 **Ponovna oddaja.** Če opravilo preseže čas ali zmanjka pomnilnika, oddaš
 polje znova z **istim** `RUN_ID`; vsako opravilo prebere svoj partial in
-nadaljuje pri prvem nenarejenem učenju. Za posamezne nabore z več pomnilnika:
-`ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G
-scripts/run_cc18.sh`. `ALLOW_SPARSE_ARRAY=1` izklopi varovalko iz točke 5.
+nadaljuje pri prvem nenarejenem učenju. Za štiri največje nabore je to isti
+ukaz kot ob prvi oddaji, vključno z daljšim časom (brez `--time` bi dobili
+privzetih 12 ur in spet presegli čas):
+`ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G
+--time=1-12:00:00 scripts/run_cc18.sh`. `ALLOW_SPARSE_ARRAY=1` izklopi
+varovalko iz točke 5.
+
+### Korak 2b: Medic3, `scripts/run_medic3.sh`
+
+Medic3 je **en sam** nabor, zato bi shema »en nabor na opravilo« vseh šest
+algoritmov pognala zaporedno. Ocena po CC18 je ~60 h, od tega CatBoost ~48 h
+(pri 220 razredih je daleč najdražji), kar je čez mejo `--time`. Zato tu en
+**algoritem** na opravilo; indeks polja je mesto algoritma v `config.yaml`:
+
+| indeks | 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| algoritem | random_forest | xgboost | lightgbm | catboost | tabpfn | tabicl |
+
+Da si vzporedna opravila **istega** nabora ne bi prepisovala kontrolnih točk,
+`run_dataset()` ob izrecnem `--algorithms` piše v `<nabor>__<algoritem>.csv`
+namesto v `<id>.csv`. `merge_results.py` vse skupaj zlepi v en `results.csv`.
+
+Dve različici nabora: `medic3` (vseh 220 razredov) in `medic3_160` (160
+najpogostejših razredov). TabPFN-3 je imel trdo mejo 160 razredov in bi na
+`medic3` mehko odpovedal s 15 vrsticami z razlogom v `error` - to bi bil
+rezultat, ne okvara. Meja TabPFN-3.5 še ni izmerjena (najprej je treba sprejeti
+licenco, glej spodaj); če zmore 220 razredov, steče vseh šest tudi na `medic3`.
+Točni ukazi za oddajo so v glavi skripte, statistika za en sam nabor pa je
+opisana v delu 4.
 
 ### Korak 3: združevanje, `scripts/merge_results.py`
 
-`python scripts/merge_results.py cc18_v2` pokliče `merge_run()` iz runnerja,
+`python scripts/merge_results.py cc18_v3` pokliče `merge_run()` iz runnerja,
 ki zlepi 72 datotek v `results.csv` in našteje `.partial`, če kateri ostane.
 Pričakovanih je 72 × 6 × `n_splits` × `n_repeats` vrstic; manj vrstic pomeni
 nedokončano, nikoli neuspešno, ker neuspešno učenje vseeno zapiše vrstico z
 razlogom v `error`.
 
-### Točni ukazi za preizkus na Arnesu
+### Točni ukazi za zagon na Arnesu (zamrznitev 2026-10-05, okolje `tabular3.5`)
 
-Na prijavnem vozlišču, v mapi repozitorija. Najprej okolje (enkrat):
+**Najprej, enkrat, v brskalniku:** na https://ux.priorlabs.ai se prijaviš in na
+zavihku *Licenses* sprejmeš licenco za **TabPFN-3.5**. Sprejem velja za vsako
+različico modela posebej; licenca za TabPFN-3 ne zadošča. Brez tega predpriprava
+in vsa učenja TabPFN odpovejo s `TabPFNLicenseError`. Žeton v `~/.tabpfn_token`
+ostane isti.
+
+Na prijavnem vozlišču, v mapi repozitorija. Novo okolje (enkrat). Stari okolji
+na gruči, `~/envs/tabular2` (z njim je tekel `cc18_v2`) in `~/envs/tabular`, nista
+več v uporabi; zbrišeš ju lahko z `rm -rf`.
 
 ```bash
 cd ~/Diplomsko-delo_Koda        # ali kjerkoli je repozitorij na gruči
 git pull
-~/bin/micromamba create -y -p ~/envs/tabular2 -c conda-forge python=3.12
-~/bin/micromamba run -p ~/envs/tabular2 pip install --upgrade pip
-~/bin/micromamba run -p ~/envs/tabular2 pip install -r requirements.txt
-~/bin/micromamba run -p ~/envs/tabular2 python -c "import torch, sklearn, xgboost, tabpfn; print(torch.__version__, sklearn.__version__, xgboost.__version__)"
+~/bin/micromamba create -y -p ~/envs/tabular3.5 -c conda-forge python=3.12
+~/bin/micromamba run -p ~/envs/tabular3.5 pip install --upgrade pip
+~/bin/micromamba run -p ~/envs/tabular3.5 pip install -r requirements.txt
+~/bin/micromamba run -p ~/envs/tabular3.5 python -c "import torch, sklearn, tabpfn; print(torch.__version__, sklearn.__version__, tabpfn.__version__)"
 ```
 
-Na prijavnem vozlišču `torch.cuda.is_available()` vrne `False`, ker tam ni
-GPU-ja; to je pričakovano. Nato predpriprava in validacijski zagon pilotne
-trojice:
+Pričakovano `2.14.1+cu130 1.9.1 9.1.0`. Na prijavnem vozlišču
+`torch.cuda.is_available()` vrne `False`, ker tam ni GPU-ja; to je pričakovano.
+Nato predpriprava in validacijski zagon pilotne trojice:
 
 ```bash
 source ~/.tabpfn_token
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/prestage.py --dataset-set subset
-RUN_ID=subset_v2 sbatch scripts/run_subset.sh
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/prestage.py --dataset-set subset
+RUN_ID=subset_v3 sbatch scripts/run_subset.sh
 squeue -u $USER                  # dokler se ne izprazni
 tail -n 20 logs/subset-*_0.out   # izpis prvega opravila
 ```
 
-Ko so vsa tri opravila v stanju `COMPLETED`:
+Predpriprava izpiše imeni datotek z utežmi
+(`tabpfn-v3.5-20260909.safetensors`, `tabicl-classifier-v2-20260212.ckpt`);
+isti imeni zagon zapiše v svoj `manifest.json` pod `model_checkpoints`. Ko so
+vsa tri opravila v stanju `COMPLETED`:
 
 ```bash
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/merge_results.py subset_v2
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/compare_results.py subset_v2_local subset_v2
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/merge_results.py subset_v3
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/compare_results.py cc18_v2 subset_v3
 sacct -j <JOBID> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList
 ```
 
-Pričakovano: RandomForest, XGBoost, LightGBM, CatBoost razlika 0,0, TabPFN in
-TabICL do približno 1e-4 do 1e-3 (druga grafična kartica). Če se ujema,
-rezultate commitaš in potisneš, izpis `sacct` pa prilepiš v
-`results/runs/subset_v2/PROVENANCE.md`:
+Primerjava s `cc18_v2` (stara zamrznitev) izmeri **učinek nove zamrznitve**:
+`cc18_v2` vsebuje iste tri nabore z istimi 15 foldi in semeni, zato
+`compare_results.py` poravna 270 učenj. Pri štirih ansamblih so se zamenjale le
+popravne izdaje (scikit-learn 1.9.1, pandas 3.0.6), zato pričakujemo razliko 0,0
+(lokalni preizkus 2026-10-05 je dal natanko 0,0); TabICL do približno 1e-5;
+**TabPFN se bo razlikoval**, ker je to drug model (TabPFN-3.5 namesto TabPFN-3). Izmerjene
+razlike zapiši v `CLAUDE.md` in v diplomo. Rezultate commitaš in potisneš,
+izpis `sacct` pa prilepiš v `results/runs/subset_v3/PROVENANCE.md`:
 
 ```bash
-git add results/runs/subset_v2
-git commit -m "Add Arnes validation run subset_v2"
+git add results/runs/subset_v3
+git commit -m "Add Arnes validation run subset_v3"
 git push
 ```
 
-Nato polni CC18 (`n_repeats: 3` je že v `config.yaml`). Oddaja gre v **dveh
-poljih z istim `RUN_ID`**: 68 običajnih naborov s privzetimi viri in štirje
-največji (27 mnist_784, 60 Devnagari-Script, 61 CIFAR_10, 70 Fashion-MNIST)
-z 240 GB pomnilnika in 36 urami, ker pri treh ponovitvah Devnagari-Script
-potrebuje približno 26 ur. `ALLOW_SPARSE_ARRAY=1` izklopi varovalko, ki sicer
+Nato polni CC18. Oddaja gre v **dveh poljih z istim `RUN_ID`**: 68 običajnih
+naborov s privzetimi viri in štirje največji (27 mnist_784, 60 Devnagari-Script,
+61 CIFAR_10, 70 Fashion-MNIST) z 240 GB pomnilnika in 36 urami, ker pri treh
+ponovitvah Devnagari-Script potrebuje približno 26 ur. TabPFN-3.5 sprejme do
+20 000 atributov, zato bo prvič tekel tudi na CIFAR_10 (3072 atributov), kar
+drugemu polju doda nekaj ur. `ALLOW_SPARSE_ARRAY=1` izklopi varovalko, ki sicer
 zahteva polje čez vseh 72 indeksov.
 
 ```bash
 git pull
 source ~/.tabpfn_token
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/prestage.py --dataset-set cc18
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/prestage.py --dataset-set cc18
 du -sh ~                         # kvota 100 GB
-ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
-ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v2 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
+ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
+ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
 squeue -u $USER
 ```
 
@@ -365,7 +428,7 @@ približno 5 ur računanja, po 4 hkrati), drugo polje traja do približno 30
 ur. Ko je `squeue` prazen:
 
 ```bash
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/merge_results.py cc18_v2
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/merge_results.py cc18_v3
 ```
 
 Pričakovanih je 72 × 6 × 15 = 6480 vrstic. Če merge našteje `.partial`
@@ -374,12 +437,22 @@ indekse z istim `RUN_ID`; nadaljujejo, kjer so ostali. Nato analiza in
 commit:
 
 ```bash
-~/bin/micromamba run -p ~/envs/tabular2 python -m src.summary cc18_v2
-~/bin/micromamba run -p ~/envs/tabular2 python -m src.stats cc18_v2
-~/bin/micromamba run -p ~/envs/tabular2 python -m src.stats cc18_v2 --no-saturated
-~/bin/micromamba run -p ~/envs/tabular2 python scripts/gen_version_table.py cc18_v2
+~/bin/micromamba run -p ~/envs/tabular3.5 python -m src.summary cc18_v3
+~/bin/micromamba run -p ~/envs/tabular3.5 python -m src.stats cc18_v3
+~/bin/micromamba run -p ~/envs/tabular3.5 python -m src.stats cc18_v3 --no-saturated
+~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/gen_version_table.py cc18_v3
 sacct -j <JOBID1>,<JOBID2> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList
-git add results/runs/cc18_v2 && git commit -m "Add CC18 run cc18_v2" && git push
+git add results/runs/cc18_v3 && git commit -m "Add CC18 run cc18_v3" && git push
+```
+
+**Shrani napovedi.** Mapa `predictions/` (napovedane verjetnosti vsakega
+učenja) ni v gitu, ker je velika, zato ostane na gruči. Iz nje lahko pozneje
+izračunaš katerokoli drugo metriko brez ponovnega zagona, zato jo po koncu
+prekopiraj domov, na primer na prenosniku:
+
+```bash
+rsync -av <uporabnik>@<prijavno-vozlišče>:<pot-do-repozitorija>/results/runs/cc18_v3/predictions/ \
+    results/runs/cc18_v3/predictions/
 ```
 
 ---
@@ -392,7 +465,7 @@ da se nikoli ne povzame napačna tabela; prva vrstica izpisa je vedno
 
 ### `src/summary.py`
 
-`python -m src.summary cc18_v2`. Korak za korakom:
+`python -m src.summary cc18_v3`. Korak za korakom:
 
 1. `per_dataset_table`: za vsak par (nabor, algoritem) povprečje in standardni
    odklon ROC-AUC čez folde ter **mediani** časov. Mediana je srednja vrednost
@@ -418,8 +491,9 @@ da se nikoli ne povzame napačna tabela; prva vrstica izpisa je vedno
 
 ### `src/stats.py`
 
-`python -m src.stats cc18_v2 [--no-saturated]`. Odgovarja na vprašanje: ali so
-razlike med algoritmi večje, kot bi jih pričakovali po naključju?
+`python -m src.stats cc18_v3 [--no-saturated]`. Odgovarja na vprašanje: ali so
+razlike med algoritmi večje, kot bi jih pričakovali po naključju? Postopek je
+povzet po Demšarju (2006), parni del po Benavoliju in sod. (2016).
 
 - **Ničelna domneva** je trditev »vsi algoritmi so enakovredni«. **p-vrednost**
   je verjetnost, da bi ob resnični ničelni domnevi videli tako velike (ali
@@ -427,7 +501,11 @@ razlike med algoritmi večje, kot bi jih pričakovali po naključju?
   zavrnemo in rečemo, da so razlike **statistično značilne**.
 - **Friedmanov test** to naredi nad matriko rangov (nabor × algoritem). Je
   neparametričen: ne predpostavlja normalne porazdelitve, uporablja le range.
-  Rezultat sta `chi2_F` in p.
+  Izpiše dve statistiki: `chi2_F`, izračunano po Demšarjevi formuli iz
+  povprečnih rangov (zato jo lahko preveriš na roke iz tabele rangov), in
+  **`F_F`** (Iman in Davenport 1980), ki jo Demšar priporoča, ker je `chi2_F`
+  preveč konzervativen. O zavrnitvi ničelne domneve odloča p-vrednost `F_F`.
+  Obe sta v `summary/friedman.csv`.
 - **Nemenyijev post-hoc**: če je Friedman značilen, kateri pari se razlikujejo?
   Dva algoritma se značilno razlikujeta, če se njuna povprečna ranga
   razlikujeta za vsaj **kritično razdaljo** `CD = q_alpha * sqrt(k(k+1)/(6N))`,
@@ -443,6 +521,16 @@ razlike med algoritmi večje, kot bi jih pričakovali po naključju?
   parnih testov, se poveča možnost, da kak par »slučajno« izpade značilen;
   **Holmov popravek** p-vrednosti zato zaostri, tako da skupna verjetnost
   lažnega alarma ostane pod alpha. Izpis pokaže p in `p_holm`; šteje `p_holm`.
+- **En sam nabor (Medic3).** Vsi trije testi zgoraj potrebujejo več naborov,
+  ker je enota opazovanja nabor. Ko zagon vsebuje en sam nabor, `src.stats` to
+  zazna sam in za vsak par algoritmov naredi **popravljeni t-test za ponovljeno
+  prečno preverjanje** (Bouckaert in Frank 2004): primerja ROC-AUC obeh
+  algoritmov na istih 15 učenjih, vendar varianco poveča s faktorjem
+  `n_test/n_train`. Učne množice foldov se namreč prekrivajo, zato bi navadni
+  t-test prepogosto našel »značilno« razliko (popravek variance sta predlagala
+  Nadeau in Bengio 2003). Čez vse pare gre spet Holmov popravek, izid je v
+  `summary/corrected_ttest_holm.csv`. Algoritem, ki na katerem koli učenju ni
+  uspel (npr. TabPFN, če ne zmore 220 razredov), v primerjavah ne nastopa.
 
 ### `scripts/gen_version_table.py`
 
