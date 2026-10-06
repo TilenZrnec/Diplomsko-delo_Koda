@@ -1,0 +1,11 @@
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList 
+------------ -------------------- ---------- ---------- ---------- --------------- 
+20132190_0             tfm-subset   00:01:05             COMPLETED           gwn08 
+20132190_0.+                batch   00:01:05   4106840K  COMPLETED           gwn08 
+20132190_0.+               extern   00:01:05             COMPLETED           gwn08 
+20132190_1             tfm-subset   00:00:24             COMPLETED           gwn08 
+20132190_1.+                batch   00:00:24      4692K  COMPLETED           gwn08 
+20132190_1.+               extern   00:00:24             COMPLETED           gwn08 
+20132190_2             tfm-subset   00:00:54             COMPLETED           gwn08 
+20132190_2.+                batch   00:00:54   1147664K  COMPLETED           gwn08 
+20132190_2.+               extern   00:00:54             COMPLETED           gwn08 
