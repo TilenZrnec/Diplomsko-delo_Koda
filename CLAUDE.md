@@ -16,8 +16,8 @@ releases of torch, pandas, scikit-learn, matplotlib, tqdm and the new pin
 TabPFN-3 is gone. `results/runs/cc18_v2/` (6480 rows, previous freeze, TabPFN-3)
 remains the latest complete result set until **`cc18_v3`** — the CC18 re-run on
 the new freeze, with predictions kept — replaces it; then Medic3, then tuning
-and the leakage test. **Blocker before any TabPFN-3.5 run:** the PriorLabs
-account must accept the TabPFN-3.5 licence (see Environment).
+and the leakage test. The TabPFN-3.5 licence is accepted and the weights are
+cached on both local machines (Kremen since 2026-10-06).
 **Clean-up 2026-10-05:** all older runs (`check_refactor_oldenv`,
 `subset_v2_local`, `subset_v2`) and the 2026-08 archive `results/arnes/` were
 deleted; they live in git history, last present in commit `b1b9120` — e.g.
@@ -42,8 +42,8 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
   every algorithm reuses the same fold indices. The optional spec key
   `max_classes: N` (`_limit_classes`) keeps only the rows of the N most frequent
   classes, applied **before** label encoding so the codes stay 0..N-1; it exists
-  because TabPFN-3 capped at 160 classes and Medic3 has 220 (TabPFN-3.5's limit
-  is not measured yet, see Datasets). The returned `class_limit` records how many
+  because TabPFN-3 and TabPFN-3.5 both cap at 160 classes and Medic3 has 220
+  (measured, see Datasets). The returned `class_limit` records how many
   rows that dropped.
 - `src/runner.py` — **the only training loop.** `run_dataset()` runs every
   algorithm on every fold of one dataset with per-fit checkpointing
@@ -212,7 +212,15 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   (Python 3.10, the original 2026-07/08 stack — formerly `tabular`) is kept only
   to reproduce the deleted early runs. Both 3.12 envs were rebuilt from the exact
   `pip freeze` of their predecessors (identical package lists, verified),
-  because `conda create --clone` mixed two pip versions. Run project scripts with
+  because `conda create --clone` mixed two pip versions. On `Kremen` (2026-10-06)
+  both `tabular3` and `tabularOriginal` were rebuilt the same way, freezes
+  identical, and the originals removed. **Trap in `tabularOriginal`:** it has
+  both `nvidia-nccl-cu12` and `nvidia-nccl-cu13`, which write the **same file**
+  `nvidia/nccl/lib/libnccl.so.2`; a freeze rebuild installed cu12 last and torch
+  failed with `undefined symbol: ncclCommResume`. Fix: `pip install
+  --force-reinstall --no-deps nvidia-nccl-cu13==2.29.7` (then the file is
+  byte-identical to the original's). An identical freeze is therefore not
+  enough — also import torch. Run project scripts with
   `conda run -n tabular3.5 python -m src.<module>`.
 - **Laptop = Lenovo IdeaPad 3 (`DESKTOP-0EPDCR8`): no usable GPU in WSL and
   only 7.6 GB RAM for WSL.** `torch.cuda.is_available()` is False (no
@@ -238,7 +246,8 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   `ModelVersion.V3_5` (8.5.0: V3); `softmax_temperature` default `"auto"`
   (checkpoint-declared; 8.5.0: fixed 0.9); TabPFN-3.5 accepts up to 20 000
   features (TabPFN-3: 2000) — the class limit is read from the checkpoint and
-  is not documented; weights `tabpfn-v3.5-20260909.safetensors`, licence
+  is not documented; measured 2026-10-06 it is **160, as in TabPFN-3** (see
+  Datasets); weights `tabpfn-v3.5-20260909.safetensors`, licence
   `tabpfn-3-5-license-v1.0` (non-commercial, allows "testing, evaluation, and
   internal benchmarking"). TabPFN-3.5-Plus/-Thinking are API-only and are not
   used (offline nodes; Medic3 must never go to an API). Model card and the
@@ -246,7 +255,15 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
 - **Measured effects of library changes.** 2026-10-05 freeze vs 2026-09-09
   (local CPU smoke run, 75 shared fits): RandomForest, XGBoost, LightGBM,
   CatBoost bit-identical, TabICL ≤ 1.5e-5 — so in `cc18_v3` only TabPFN changes
-  (different model); confirm on Arnes with `subset_v3` vs `cc18_v2`. History (git
+  (different model); confirm on Arnes with `subset_v3` vs `cc18_v2`. **Local GPU
+  pilot `subset_v3_local`** (2026-10-06, Kremen RTX 3060, 270 fits, 0 errors,
+  0 `raw_error`) vs `cc18_v2` (Arnes H100), 270 shared fits: RandomForest,
+  XGBoost, LightGBM, CatBoost **Δ = 0.0**; TabICL mean 6e-6, max 1.5e-4 (only on
+  sick; credit-g and diabetes Δ 0) — GPU hardware, not the library; TabPFN-3.5
+  vs TabPFN-3 fold-mean ROC-AUC **higher on all three**: credit-g 0.7937 →
+  0.8022 (+0.0086, 14/15 folds up), diabetes 0.8398 → 0.8428 (+0.0030),
+  sick 0.9981 → 0.9989 (+0.0009); max |Δ| 0.0214. `src.stats` and
+  `gen_version_table.py` run on it (weights `tabpfn-v3.5-20260909`). History (git
   `b1b9120`): the 2026-09-09 upgrade left RF/LightGBM/CatBoost bit-identical and
   moved **XGBoost 2.1.1 → 3.4.1 by up to 0.0175** (its defaults changed); the
   2026-09-09 refactor reproduced the July baseline with Δ = 0.0 on 90/90 rows.
@@ -256,13 +273,18 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   license acceptance … no interactive terminal"). Fix (the account owner, once):
   log in at https://ux.priorlabs.ai → Licenses tab → accept the TabPFN-3.5
   licence. tabpfn reads the token from `TABPFN_TOKEN` or
-  `~/.cache/tabpfn/auth_token` (both machines have the latter; Arnes sources
-  `~/.tabpfn_token`), so no token change is needed after accepting. Fresh
+  `~/.cache/tabpfn/auth_token` (Arnes sources `~/.tabpfn_token`), so no token change is needed after accepting. Fresh
   machine without a cached token: interactive first `fit()` opens a browser
   login (needs a real TTY — `conda activate`, not `conda run`), or set
   `TABPFN_TOKEN` from https://ux.priorlabs.ai/account. **Accepted 2026-10-05**:
   afterwards the TabPFN-3.5 weights downloaded on the laptop with the existing
   cached token (`~/.cache/tabpfn/tabpfn-v3.5-20260909.safetensors`, 876 MB).
+  **Kremen had no `auth_token` at all** (only the July v2/v3 weights), so on
+  2026-10-06 the first fit raised `TabPFNLicenseError`; fixed by one interactive
+  fit in a real terminal (`conda activate tabular3.5`, then `make_classifier(0)
+  .fit(...)`): it prints a `ux.priorlabs.ai/login?callback=localhost…` link
+  (in WSL open it in the Windows browser), caches the key, downloads the
+  weights. Both machines now have the token and the 3.5 weights.
 - `src/data.py` sets the OpenML cache with
   `openml.config.set_root_cache_directory()`. **Do not use
   `openml.config.cache_directory = ...`** — removed after `openml` 0.10 and,
@@ -300,10 +322,17 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   `Number of classes 220 exceeds the maximum number of classes 160 officially
   supported` while TabICL succeeds; at 160 classes both succeed. Sample count is
   not a problem — TabPFN-3 handled 73 600 training rows on Devnagari-Script.
-  **TabPFN-3.5's class limit is not measured yet** (licence, see Environment):
-  repeat the same synthetic probe at 160/161/220 classes in `tabular3.5` once the
-  licence is accepted. If 3.5 takes 220 classes it runs on raw Medic3 and
-  `medic3_160` stays only as the supervisor's restricted variant.
+  **TabPFN-3.5 keeps the 160-class cap** — measured 2026-10-06 on Kremen
+  (RTX 3060, `tabular3.5`, classifiers from `make_classifier(0)`, synthetic data,
+  10 rows per class, 5 features): 160 classes OK (1.1 s, 1.5 GiB GPU); 161 and
+  220 raise `TabPFNValidationError: Number of classes `161` exceeds the maximum
+  number of classes `160` officially supported by TabPFN.` The fitted
+  `inference_config_` says `MAX_NUMBER_OF_CLASSES = 160`,
+  `MAX_NUMBER_OF_FEATURES = 20000`, `MAX_NUMBER_OF_SAMPLES = 1 000 000`;
+  defaults resolve to `softmax_temperature_ = 1.0`, `n_estimators_ = 8`. Binary
+  200 × 3072 features (CIFAR_10's width) OK in 4.0 s, 6.8 GiB peak GPU. So on raw
+  `medic3` TabPFN fails soft (15 rows with the reason in `error`, a result, not
+  a bug) and **`medic3_160` is the only variant with all six algorithms**.
 - `medic3_160` = `scripts/medic3_160.json` → the same file with
   `"max_classes": 160`, i.e. the rows of the 160 most frequent classes (ties
   broken by label, so the selection is deterministic). Measured 2026-09-23:
@@ -376,8 +405,9 @@ Done before: Arnes validated against the laptop (2026-09-11, trees Δ 0, TabPFN
 max 3.7e-4); `cc18_v2` finished 2026-09-11/12 (`n_repeats = 3` decided
 2026-09-11: 15 fits per dataset × algorithm, model seed 42 + repeat).
 Order from here (the user's decision): CC18 re-run → Medic3 → tuning → leakage.
-1. **On `Kremen`** (licence accepted 2026-10-05; everything committed and pushed
-   the same day): `git pull` in both repos; build `tabular3.5` from
+1. **Done 2026-10-06 on `Kremen`** (env `tabular3.5` built, CUDA OK on the
+   RTX 3060; Kremen env names fixed to match the laptop; probe and pilot results
+   are under Datasets and Environment → Measured effects). Original plan: `git pull` in both repos; build `tabular3.5` from
    `requirements.txt` (`conda create -n tabular3.5 python=3.12.13`, then
    `pip install -r requirements.txt`; check `torch.cuda.is_available()`). Kremen
    still has the old env names (`tabular`, `tabular2`) — rename them as on the

@@ -22,8 +22,8 @@
 # kontrolnih točk; merge_results.py vse skupaj združi v en results.csv.
 #
 # DVE RAZLIČICI NABORA (spremenljivka DATASET_SET, privzeto medic3):
-#   medic3      - vseh 220 razredov. TabPFN-3 je imel trdo mejo 160 razredov;
-#                 meja TabPFN-3.5 še ni izmerjena. Če je pod 220, TabPFN mehko
+#   medic3      - vseh 220 razredov. TabPFN-3.5 ima (kot TabPFN-3) trdo mejo
+#                 160 razredov (izmerjeno 2026-10-06), zato TabPFN tu mehko
 #                 odpove in ima v results.csv 15 vrstic z razlogom v stolpcu
 #                 error. To je rezultat, ne okvara - ne popravljaj ga.
 #   medic3_160  - samo 160 najpogostejših razredov (scripts/medic3_160.json,

@@ -331,10 +331,11 @@ Da si vzporedna opravila **istega** nabora ne bi prepisovala kontrolnih točk,
 namesto v `<id>.csv`. `merge_results.py` vse skupaj zlepi v en `results.csv`.
 
 Dve različici nabora: `medic3` (vseh 220 razredov) in `medic3_160` (160
-najpogostejših razredov). TabPFN-3 je imel trdo mejo 160 razredov in bi na
-`medic3` mehko odpovedal s 15 vrsticami z razlogom v `error` - to bi bil
-rezultat, ne okvara. Meja TabPFN-3.5 še ni izmerjena (najprej je treba sprejeti
-licenco, glej spodaj); če zmore 220 razredov, steče vseh šest tudi na `medic3`.
+najpogostejših razredov). TabPFN-3.5 ima enako kot TabPFN-3 trdo mejo 160
+razredov (izmerjeno 2026-10-06 na sintetičnih podatkih: 160 razredov uspe, 161 in
+220 sprožita `TabPFNValidationError`), zato na `medic3` mehko odpove s 15
+vrsticami z razlogom v `error` - to je rezultat, ne okvara. Vseh šest steče le
+na `medic3_160`.
 Točni ukazi za oddajo so v glavi skripte, statistika za en sam nabor pa je
 opisana v delu 4.
 
@@ -530,7 +531,7 @@ povzet po Demšarju (2006), parni del po Benavoliju in sod. (2016).
   t-test prepogosto našel »značilno« razliko (popravek variance sta predlagala
   Nadeau in Bengio 2003). Čez vse pare gre spet Holmov popravek, izid je v
   `summary/corrected_ttest_holm.csv`. Algoritem, ki na katerem koli učenju ni
-  uspel (npr. TabPFN, če ne zmore 220 razredov), v primerjavah ne nastopa.
+  uspel (npr. TabPFN na `medic3`, ker ne zmore 220 razredov), v primerjavah ne nastopa.
 
 ### `scripts/gen_version_table.py`
 

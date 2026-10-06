@@ -294,8 +294,8 @@ note over SHM
   taski istega nabora pisali isti .partial in si med
   sabo brisali vrstice. merge_results.py jih združi.
 
-  DATASET_SET=medic3 (220 razredov; TabPFN-3 je imel
-  mejo 160, meja TabPFN-3.5 še ni izmerjena) ali
+  DATASET_SET=medic3 (220 razredov; TabPFN-3.5 ima
+  kot TabPFN-3 mejo 160 in tu mehko odpove) ali
   medic3_160 (160 najpogostejših razredov, steče vseh šest).
 end note
 

@@ -36,10 +36,10 @@ dataset_sets:
   cc18: scripts/cc18_ids.json         # celotna zbirka OpenML-CC18 (72 naborov)
   medic3: scripts/medic3.json         # zaupni lokalni nabor (ni v gitu, glej data.py)
   # Ista datoteka, omejena na 160 najpogostejših razredov (ključ max_classes).
-  # Surovi Medic3 ima 220 razredov; TabPFN-3 je imel trdo mejo 160 in na njem ni
-  # stekel. Meja TabPFN-3.5 še ni izmerjena: če je pod 220, je ta različica edina,
-  # kjer je primerjava vseh šestih mogoča, sicer ostane kot mentorjeva omejena
-  # različica (načrt 2026-08-12).
+  # Surovi Medic3 ima 220 razredov; tako TabPFN-3 kot TabPFN-3.5 imata trdo mejo
+  # 160 razredov (TabPFN-3.5 izmerjeno 2026-10-06: 160 uspe, 161 in 220 odpovesta).
+  # Ta različica je zato edina, kjer je primerjava vseh šestih mogoča (mentorjeva
+  # omejena različica, načrt 2026-08-12).
   medic3_160: scripts/medic3_160.json
 
 # Kam OpenML shrani prenesene nabore (relativno na koren repozitorija).
