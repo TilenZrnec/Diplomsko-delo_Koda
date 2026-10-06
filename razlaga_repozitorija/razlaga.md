@@ -312,7 +312,7 @@ nadaljuje pri prvem nenarejenem učenju. Za štiri največje nabore je to isti
 ukaz kot ob prvi oddaji, vključno z daljšim časom (brez `--time` bi dobili
 privzetih 12 ur in spet presegli čas):
 `ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G
---time=1-12:00:00 scripts/run_cc18.sh`. `ALLOW_SPARSE_ARRAY=1` izklopi
+--time=2-00:00:00 scripts/run_cc18.sh`. `ALLOW_SPARSE_ARRAY=1` izklopi
 varovalko iz točke 5.
 
 ### Korak 2b: Medic3, `scripts/run_medic3.sh`
@@ -408,8 +408,9 @@ git push
 
 Nato polni CC18. Oddaja gre v **dveh poljih z istim `RUN_ID`**: 68 običajnih
 naborov s privzetimi viri in štirje največji (27 mnist_784, 60 Devnagari-Script,
-61 CIFAR_10, 70 Fashion-MNIST) z 240 GB pomnilnika in 36 urami, ker pri treh
-ponovitvah Devnagari-Script potrebuje približno 26 ur. TabPFN-3.5 sprejme do
+61 CIFAR_10, 70 Fashion-MNIST) z 240 GB pomnilnika in 2 dnevoma, ker je
+Devnagari-Script v `cc18_v2` porabil 34 h 54 min od takrat dodeljenih 36 ur
+(particija `gpu` dovoli do 4 dni, `sinfo -p gpu -o "%P %l"`). TabPFN-3.5 sprejme do
 20 000 atributov, zato bo prvič tekel tudi na CIFAR_10 (3072 atributov), kar
 drugemu polju doda nekaj ur. `ALLOW_SPARSE_ARRAY=1` izklopi varovalko, ki sicer
 zahteva polje čez vseh 72 indeksov.
@@ -420,7 +421,7 @@ source ~/.tabpfn_token
 ~/bin/micromamba run -p ~/envs/tabular3.5 python scripts/prestage.py --dataset-set cc18
 du -sh ~                         # kvota 100 GB
 ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
-ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
+ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=2-00:00:00 scripts/run_cc18.sh
 squeue -u $USER
 ```
 

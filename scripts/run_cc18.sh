@@ -14,9 +14,11 @@
 #
 # ODDAJA (iz korena repozitorija) v DVEH poljih z istim RUN_ID, ker štirje
 # največji nabori (indeksi 27 mnist_784, 60 Devnagari-Script, 61 CIFAR_10,
-# 70 Fashion-MNIST) potrebujejo 120-240G pomnilnika in pri n_repeats=3 do ~30 h:
+# 70 Fashion-MNIST) potrebujejo 120-240G pomnilnika in pri n_repeats=3 do ~35 h
+# (Devnagari-Script v cc18_v2: 34 h 54 min od 36 h), zato 2 dni (particija gpu
+# dovoli do 4-00:00:00):
 #     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
-#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=1-12:00:00 scripts/run_cc18.sh
+#     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=2-00:00:00 scripts/run_cc18.sh
 # Rezultati gredo v results/runs/<RUN_ID>/per_dataset/. Brez RUN_ID se oznaka
 # izpelje iz ID-ja polja (cc18_<SLURM_ARRAY_JOB_ID>), a dve polji bi tako dobili
 # različni mapi - zato RUN_ID vedno podaj izrecno.

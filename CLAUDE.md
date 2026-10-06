@@ -15,15 +15,16 @@ releases of torch, pandas, scikit-learn, matplotlib, tqdm and the new pin
 `skrub`. Still **six algorithms**: the config key `tabpfn` now means TabPFN-3.5,
 TabPFN-3 is gone. `results/runs/cc18_v2/` (6480 rows, previous freeze, TabPFN-3)
 remains the latest complete result set until **`cc18_v3`** — the CC18 re-run on
-the new freeze, with predictions kept — replaces it; then Medic3, then tuning
+the new freeze, with predictions kept — replaces it (**submitted to Arnes
+2026-10-06**, jobs `20138834` + `20138836`, see What is next); then Medic3, then tuning
 and the leakage test. The TabPFN-3.5 licence is accepted and the weights are
 cached on both local machines (Kremen since 2026-10-06).
 **Clean-up 2026-10-05:** all older runs (`check_refactor_oldenv`,
 `subset_v2_local`, `subset_v2`) and the 2026-08 archive `results/arnes/` were
 deleted; they live in git history, last present in commit `b1b9120` — e.g.
 `git show b1b9120:results/runs/subset_v2/results.csv` or
-`git checkout b1b9120 -- results/arnes`. Only `cc18_v2` is kept, until
-`cc18_v3` replaces it.
+`git checkout b1b9120 -- results/arnes`. Of the old-freeze runs only `cc18_v2`
+is kept, until `cc18_v3` replaces it.
 
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
@@ -134,8 +135,9 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
   `subset_ids.json`, `cc18_ids.json`.
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
-  `results.csv`, `summary/`). The only run kept is **`cc18_v2`** (until
-  `cc18_v3` replaces it); everything older is in git history (see the state
+  `results.csv`, `summary/`). Kept: **`cc18_v2`** (until `cc18_v3` replaces
+  it) and the two validation runs of the new freeze, `subset_v3_local`
+  (Kremen) and `subset_v3` (Arnes); everything older is in git history (see the state
   note at the top). Rule: keep only the runs the thesis currently uses, delete
   superseded ones in a commit of their own.
 - `data/openml_cache/` — OpenML's local dataset cache (gitignored); the
@@ -263,7 +265,13 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   vs TabPFN-3 fold-mean ROC-AUC **higher on all three**: credit-g 0.7937 →
   0.8022 (+0.0086, 14/15 folds up), diabetes 0.8398 → 0.8428 (+0.0030),
   sick 0.9981 → 0.9989 (+0.0009); max |Δ| 0.0214. `src.stats` and
-  `gen_version_table.py` run on it (weights `tabpfn-v3.5-20260909`). History (git
+  `gen_version_table.py` run on it (weights `tabpfn-v3.5-20260909`). **Arnes
+  `subset_v3`** (2026-10-06, `gwn08`, H100 80GB HBM3, commit `c503f48`, 270 fits,
+  0 errors) **confirms it**: vs `cc18_v2` trees Δ 0.0, TabICL mean 7e-6 / max
+  6.1e-5, TabPFN the same per-dataset gains to 4 decimals; vs `subset_v3_local`
+  trees Δ 0.0, TabICL max 1.2e-4, TabPFN max 2.4e-4 (GPU noise, two orders below
+  the 0.023 between-fold sd). Packages identical to Kremen except pip/setuptools/
+  wheel/packaging. Details in `results/runs/subset_v3/PROVENANCE.md`. History (git
   `b1b9120`): the 2026-09-09 upgrade left RF/LightGBM/CatBoost bit-identical and
   moved **XGBoost 2.1.1 → 3.4.1 by up to 0.0175** (its defaults changed); the
   2026-09-09 refactor reproduced the July baseline with Δ = 0.0 on 90/90 rows.
@@ -343,7 +351,13 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   percentage in the thesis (`run_dataset` logs it from `class_limit`).
 
 ## Arnes HPC
-- SLURM cluster, GPU partition `gpu`, H100 nodes. Env: micromamba prefix
+- SLURM cluster, GPU partition `gpu`, H100 nodes; partition time limit
+  **4-00:00:00** (`sinfo -p gpu -o "%P %l"`, 2026-10-06). `--constraint=h100`
+  matches **two H100 variants**: `cc18_v2` ran entirely on H100 PCIe
+  (`gwn01`, `gwn03`–`gwn06`), `subset_v3` on H100 80GB HBM3 (`gwn08`), so
+  `cc18_v3` may mix them. One dataset = one task = one node, so all six
+  algorithms of a dataset share hardware; the `device` column records the
+  variant per fit. Say so in the thesis next to GPU times. Env: micromamba prefix
   `~/envs/tabular3.5` (Python 3.12, from `requirements.txt`; `~/bin/micromamba`,
   no shell hooks in batch scripts). The batch scripts default to it; override
   with `TABULAR_ENV=/path sbatch ...`. The cluster's older prefixes were not
@@ -359,7 +373,8 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   2026-09-11): the 68 ordinary datasets at the script defaults (`--mem=64G`,
   `--time=12:00:00`, `%4`), and the four big ones (27 mnist_784, 60
   Devnagari-Script, 61 CIFAR_10, 70 Fashion-MNIST) with `--mem=240G
-  --time=1-12:00:00`. Both need `ALLOW_SPARSE_ARRAY=1` because neither array
+  --time=2-00:00:00` (was 36 h until `cc18_v2`, where Devnagari-Script used
+  34 h 54 min of it). Both need `ALLOW_SPARSE_ARRAY=1` because neither array
   spans all 72 indices. Exact commands in `scripts/run_cc18.sh` header and
   `razlaga_repozitorija/razlaga.md`. A task that still hits `--time` is
   re-submitted with the same command; it resumes from its partial.
@@ -372,6 +387,9 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   would exceed `--time` (estimate from CC18: ~60 h, of which CatBoost ~48 h — at
   220 classes it dominates, just as it did on Devnagari-Script's 46 classes).
   CatBoost therefore gets its own job with a longer `--time` and more memory.
+  Its header still says `--time=1-12:00:00` and expects one or two
+  re-submissions; since the partition allows 4 days, decide before Medic3
+  whether to request more instead.
   Exact commands in the header of `scripts/run_medic3.sh`. `prestage.py` is not
   needed (the dataset is not from OpenML), but the TabPFN/TabICL weights must
   already be cached because compute nodes are offline.
@@ -396,7 +414,7 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   TabICL} failed (3072 features > TabPFN-3's 2000 cap; TabICL asked ~378 GB) —
   those rows carry the reason in `error`, no subsampling was or will be added.
   In `cc18_v3` TabPFN-3.5 (20 000-feature limit) should run on CIFAR_10 for the
-  first time; its time and memory there are unknown, the 240G / 36 h array
+  first time; its time and memory there are unknown, the 240G / 2-day array
   covers it. TabICL is unchanged (tabicl 2.2.0) and will fail again.
 - The cluster remote uses SSH (`git@github.com:...`), not HTTPS.
 
@@ -420,7 +438,8 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      subset_v3_local` and `python scripts/compare_results.py cc18_v2
      subset_v3_local` (expect trees Δ 0, TabICL ~1e-5, TabPFN different).
 2. Commit the probe findings and `subset_v3_local`, push.
-3. Arnes: build `~/envs/tabular3.5` from `requirements.txt` (exact commands in
+3. **Done 2026-10-06** (`subset_v3`, see Environment → Measured effects and its
+   `PROVENANCE.md`; all checks passed). Original plan: Arnes: build `~/envs/tabular3.5` from `requirements.txt` (exact commands in
    `razlaga_repozitorija/razlaga.md`, part 3), prestage `cc18`, run
    `RUN_ID=subset_v3 sbatch scripts/run_subset.sh`, then
    `compare_results.py cc18_v2 subset_v3` — `cc18_v2` contains the same three
@@ -428,7 +447,12 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (270 shared fits). Expect trees Δ 0 and TabICL ~1e-5 (as in the local smoke
    run); TabPFN will differ because it is a different model. Write the measured
    effect into this file and the thesis.
-4. `cc18_v3`: two arrays with the same `RUN_ID` (commands in the
+4. `cc18_v3`: **submitted 2026-10-06** from commit `69cc51e` — job `20138834`
+   (68 ordinary datasets, `%4`) and `20138836` (27/60/61/70, `--mem=240G
+   --time=2-00:00:00`); prestage found all 72 datasets, home 30G of 100G.
+   **Do not `git pull` or commit on Arnes until it finishes** (every row
+   records the git commit); at the end commit there, then `git pull --rebase`
+   and push. Two arrays with the same `RUN_ID` (commands in the
    `scripts/run_cc18.sh` header). Expect ~70 h compute (cc18_v2: 69.4 h, CatBoost
    55.1 h) plus TabPFN-3.5 on CIFAR_10. Then merge, summary, stats (both
    variants), version table, `sacct` → `PROVENANCE.md`, and **rsync the

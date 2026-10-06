@@ -251,7 +251,7 @@ note right of SLURM
   ~#SBATCH ~--array=0-71%4  (privzeto: 72 nalog, največ 4 hkrati)
   Oddaja v DVEH poljih z istim RUN_ID: 0-26,28-59,62-69,71%4
   s privzetimi viri in 27,60,61,70 (mnist_784, Devnagari-Script,
-  CIFAR_10, Fashion-MNIST) z ~--mem=240G ~--time=1-12:00:00.
+  CIFAR_10, Fashion-MNIST) z ~--mem=240G ~--time=2-00:00:00.
   ~#SBATCH ~--gres=gpu:1 ~--cpus-per-task=8
   ~#SBATCH ~--mem=64G ~--time=12:00:00
 
