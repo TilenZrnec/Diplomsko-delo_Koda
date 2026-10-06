@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{Povzetek čez vse nabore.}
+\label{tab:overall}
+\begin{tabular}{lrrrrrrrrrr}
+\hline
+algorithm & mean\_roc\_auc\_complete & mean\_roc\_auc\_own & mean\_rank & n\_wins & n\_failed\_datasets & n\_datasets & train\_time\_median\_s & inference\_time\_median\_s & train\_time\_total\_s & inference\_time\_total\_s \\
+\hline
+tabpfn & 0.8813 & 0.8813 & 1.0000 & 3 & 0 & 3 & 0.3149 & 0.5607 & 15.1605 & 50.6320 \\
+tabicl & 0.8777 & 0.8777 & 2.3333 & 0 & 0 & 3 & 0.3665 & 0.4485 & 18.0691 & 25.6776 \\
+catboost & 0.8733 & 0.8733 & 2.6667 & 0 & 0 & 3 & 2.4957 & 0.0023 & 95.1016 & 0.1264 \\
+random\_forest & 0.8677 & 0.8677 & 4.3333 & 0 & 0 & 3 & 0.2348 & 0.0345 & 10.9629 & 1.8287 \\
+lightgbm & 0.8559 & 0.8559 & 5.0000 & 0 & 0 & 3 & 0.0402 & 0.0059 & 2.1732 & 0.2300 \\
+xgboost & 0.8535 & 0.8535 & 5.6667 & 0 & 0 & 3 & 0.0336 & 0.0023 & 1.8066 & 0.1072 \\
+\hline
+\end{tabular}
+\end{table}

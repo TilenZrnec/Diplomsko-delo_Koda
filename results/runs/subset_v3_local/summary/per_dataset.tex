@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+\centering
+\caption{ROC-AUC po naborih in algoritmih.}
+\label{tab:per-dataset}
+\begin{tabular}{lrrrrrrr}
+\hline
+dataset & algorithm & n\_folds & n\_failed & roc\_auc\_mean & roc\_auc\_std & train\_time\_median\_s & inference\_time\_median\_s \\
+\hline
+credit-g & catboost & 15 & 0 & 0.7882 & 0.0382 & 2.4957 & 0.0023 \\
+credit-g & lightgbm & 15 & 0 & 0.7700 & 0.0344 & 0.0402 & 0.0059 \\
+credit-g & random\_forest & 15 & 0 & 0.7811 & 0.0308 & 0.2348 & 0.0345 \\
+credit-g & tabicl & 15 & 0 & 0.7947 & 0.0297 & 0.3644 & 0.4485 \\
+credit-g & tabpfn & 15 & 0 & 0.8022 & 0.0283 & 0.3085 & 0.5607 \\
+credit-g & xgboost & 15 & 0 & 0.7723 & 0.0305 & 0.0329 & 0.0025 \\
+diabetes & catboost & 15 & 0 & 0.8335 & 0.0350 & 0.7443 & 0.0009 \\
+diabetes & lightgbm & 15 & 0 & 0.8001 & 0.0334 & 0.0250 & 0.0010 \\
+diabetes & random\_forest & 15 & 0 & 0.8253 & 0.0357 & 0.2222 & 0.0288 \\
+diabetes & tabicl & 15 & 0 & 0.8405 & 0.0308 & 0.3200 & 0.2932 \\
+diabetes & tabpfn & 15 & 0 & 0.8428 & 0.0313 & 0.2630 & 0.3680 \\
+diabetes & xgboost & 15 & 0 & 0.7916 & 0.0390 & 0.0312 & 0.0016 \\
+sick & catboost & 15 & 0 & 0.9981 & 0.0015 & 3.0947 & 0.0046 \\
+sick & lightgbm & 15 & 0 & 0.9977 & 0.0015 & 0.0734 & 0.0084 \\
+sick & random\_forest & 15 & 0 & 0.9966 & 0.0012 & 0.2683 & 0.0575 \\
+sick & tabicl & 15 & 0 & 0.9979 & 0.0012 & 0.4949 & 0.9517 \\
+sick & tabpfn & 15 & 0 & 0.9989 & 0.0005 & 0.3885 & 2.4080 \\
+sick & xgboost & 15 & 0 & 0.9965 & 0.0042 & 0.0461 & 0.0032 \\
+\hline
+\end{tabular}
+\end{table}

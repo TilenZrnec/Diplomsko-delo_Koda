@@ -1,0 +1,14 @@
+\begin{table}[htbp]
+\centering
+\caption{Povprečni ROC-AUC po naborih.}
+\label{tab:pivot}
+\begin{tabular}{lrrrrrrr}
+\hline
+dataset & catboost & lightgbm & random\_forest & tabicl & tabpfn & xgboost & saturated \\
+\hline
+credit-g & 0.7882 & 0.7700 & 0.7811 & 0.7947 & 0.8022 & 0.7723 & False \\
+diabetes & 0.8335 & 0.8001 & 0.8253 & 0.8405 & 0.8428 & 0.7916 & False \\
+sick & 0.9981 & 0.9977 & 0.9966 & 0.9979 & 0.9989 & 0.9965 & True \\
+\hline
+\end{tabular}
+\end{table}
