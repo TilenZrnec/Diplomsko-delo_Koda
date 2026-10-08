@@ -13,18 +13,19 @@ written in Slovenian.
 `tabular3.5`): `tabpfn` 8.5.0 → 9.1.0, i.e. **TabPFN-3 → TabPFN-3.5**, plus patch
 releases of torch, pandas, scikit-learn, matplotlib, tqdm and the new pin
 `skrub`. Still **six algorithms**: the config key `tabpfn` now means TabPFN-3.5,
-TabPFN-3 is gone. `results/runs/cc18_v2/` (6480 rows, previous freeze, TabPFN-3)
-remains the latest complete result set until **`cc18_v3`** — the CC18 re-run on
-the new freeze, with predictions kept — replaces it (**submitted to Arnes
-2026-10-06**, jobs `20138834` + `20138836`, see What is next); then Medic3, then tuning
-and the leakage test. The TabPFN-3.5 licence is accepted and the weights are
+TabPFN-3 is gone. **`results/runs/cc18_v3/` is the result set of the thesis**
+(finished 2026-10-08: 6480 rows, 0 errors — all six algorithms succeeded on all
+72 datasets; TabPFN-3.5 now ranks first, TabICL second, the reverse of
+`cc18_v2`; see its `PROVENANCE.md`). The previous run `cc18_v2` (TabPFN-3) was
+deleted from the working tree on 2026-10-08 and is read from git history
+(commit `5a14045`) where needed. Next: Medic3, then tuning and the leakage
+test. The TabPFN-3.5 licence is accepted and the weights are
 cached on both local machines (Kremen since 2026-10-06).
 **Clean-up 2026-10-05:** all older runs (`check_refactor_oldenv`,
 `subset_v2_local`, `subset_v2`) and the 2026-08 archive `results/arnes/` were
 deleted; they live in git history, last present in commit `b1b9120` — e.g.
 `git show b1b9120:results/runs/subset_v2/results.csv` or
-`git checkout b1b9120 -- results/arnes`. Of the old-freeze runs only `cc18_v2`
-is kept, until `cc18_v3` replaces it.
+`git checkout b1b9120 -- results/arnes`.
 
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
@@ -135,10 +136,11 @@ is kept, until `cc18_v3` replaces it.
   `subset_ids.json`, `cc18_ids.json`.
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
-  `results.csv`, `summary/`). Kept: **`cc18_v2`** (until `cc18_v3` replaces
-  it) and the two validation runs of the new freeze, `subset_v3_local`
-  (Kremen) and `subset_v3` (Arnes); everything older is in git history (see the state
-  note at the top). Rule: keep only the runs the thesis currently uses, delete
+  `results.csv`, `summary/`). Kept: **`cc18_v3`** (the thesis results) and the
+  two validation runs of its freeze, `subset_v3_local` (Kremen) and
+  `subset_v3` (Arnes); everything older is in git history — `cc18_v2` e.g.
+  `git show 5a14045:results/runs/cc18_v2/results.csv` (the thesis generator
+  reads it that way), the rest in `b1b9120` (see the state note at the top). Rule: keep only the runs the thesis currently uses, delete
   superseded ones in a commit of their own.
 - `data/openml_cache/` — OpenML's local dataset cache (gitignored); the
   library appends `org/openml/www`.
@@ -186,8 +188,16 @@ failed first (`raw_error`).
   bit the first `tabular3` pilot (all 5 `sick` folds failed) and is fixed.
 - **TabPFN / TabICL**: raw input first; only on an exception apply a logged
   minimal fix and retry. With TabPFN-3 (tabpfn 8.5.0) raw input worked on every
-  CC18 dataset; for TabPFN-3.5 `cc18_v3` will show it (the `raw_error` column).
-  The fallbacks stay as safety nets.
+  CC18 dataset, and so it did with TabPFN-3.5 in `cc18_v3` (0 `raw_error` rows
+  for both foundation models). The fallbacks stay as safety nets.
+- **Open question (XGBoost, found 2026-10-08):** in xgboost 3.4.1
+  `enable_categorical` defaults to **True** (it was False in 2.1.1, which the
+  thesis used to justify our own encoding). Our module still ordinal-encodes
+  and casts to float, so XGBoost's native categorical path is never used and
+  `cc18_v3` is valid as run — but whether ordinal codes are still "the minimal
+  preprocessing" when XGBoost, like LightGBM, would accept `category` dtype is
+  a protocol decision for the user/supervisor (`\todo` in the thesis,
+  `sec:xgboost`).
 
 ## Timing
 `train_time_s` and `inference_time_s` are wall-clock around `fit` and
@@ -271,7 +281,14 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   6.1e-5, TabPFN the same per-dataset gains to 4 decimals; vs `subset_v3_local`
   trees Δ 0.0, TabICL max 1.2e-4, TabPFN max 2.4e-4 (GPU noise, two orders below
   the 0.023 between-fold sd). Packages identical to Kremen except pip/setuptools/
-  wheel/packaging. Details in `results/runs/subset_v3/PROVENANCE.md`. History (git
+  wheel/packaging. Details in `results/runs/subset_v3/PROVENANCE.md`. **Full
+  run `cc18_v3` vs `cc18_v2`** (6480 fits): CatBoost, LightGBM, XGBoost Δ 0;
+  RF 31/1080 fits ≤ 2.3e-5 (parallel-prediction nondeterminism, see
+  Conventions); TabICL 147/1065 ≤ 3.7e-3 (largest on adult, which moved from
+  H100 PCIe to HBM3; cause not investigated); TabPFN-3.5 beats TabPFN-3 on
+  56/71 datasets and runs on CIFAR_10. Ranks: TabPFN 1.90 → 1.43, TabICL
+  1.58 → 1.88 (TabICL was significantly better in `cc18_v2`, 47:20, p_Holm
+  0.0046; now TabPFN-3.5 is, 45:23, p_Holm 0.0018). History (git
   `b1b9120`): the 2026-09-09 upgrade left RF/LightGBM/CatBoost bit-identical and
   moved **XGBoost 2.1.1 → 3.4.1 by up to 0.0175** (its defaults changed); the
   2026-09-09 refactor reproduced the July baseline with Δ = 0.0 on 90/90 rows.
@@ -462,42 +479,32 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (270 shared fits). Expect trees Δ 0 and TabICL ~1e-5 (as in the local smoke
    run); TabPFN will differ because it is a different model. Write the measured
    effect into this file and the thesis.
-4. `cc18_v3`: **submitted 2026-10-06** from commit `69cc51e` — job `20138834`
-   (68 ordinary datasets, `%4`) and `20138836` (27/60/61/70, `--mem=240G
-   --time=2-00:00:00`); prestage found all 72 datasets, home 30G of 100G.
-   **CIFAR_10 incident (task 61):** on `gwn08` (512 GB node) it was
-   OOM-killed after 11 h 03 min (`--mem=240G`, MaxRSS 256 GiB, 2026-10-07
-   04:52 UTC), 2.5 min after the last TabPFN fit — i.e. at **TabICL** fold 0.
-   The partial kept 75 fits: the four trees and **all 15 TabPFN-3.5 fits OK**
-   (first time TabPFN runs on CIFAR_10; ROC-AUC 0.913–0.919, mean ≈ 0.916, vs
-   CatBoost 0.910 in `cc18_v2`; ~77 s inference per fit). In `cc18_v2` TabICL's
-   ~378 GB request was refused at once on a 256 GB node → soft error row; on a
-   512 GB node it was evidently not refused, so the cgroup killed the whole
-   job and no row was written. Resubmitted (option A, the user's choice) as
-   job **`20176087`**: `PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3
-   sbatch --array=61 --constraint=sxm --mem=480G --time=2-00:00:00
-   scripts/run_cc18.sh` — TabICL gets a near-full 512 GB node. If it is still
-   queued after ~a day, fallback B: `scancel` it and resubmit with
-   `--exclude=gwn08,gwn09,gwn10 --mem=240G` (256 GB node, reproduces
-   `cc18_v2`'s soft failure). Record all of this in `cc18_v3/PROVENANCE.md`.
-   Logs looked empty because Python block-buffers stdout to a file (the kill
-   discarded the buffer); `PYTHONUNBUFFERED=1` on the resubmit fixes it —
-   consider adding it to the batch scripts after the run. Devnagari-Script
-   (task 60, `gwn04`) is exactly on `cc18_v2`'s pace (CatBoost fold 8/15 at
-   20.3 h), expected to finish ~35 h after start.
-   **Do not `git pull` or commit on Arnes until it finishes** (every row
-   records the git commit); at the end commit there, then `git pull --rebase`
-   and push. Two arrays with the same `RUN_ID` (commands in the
-   `scripts/run_cc18.sh` header). Expect ~70 h compute (cc18_v2: 69.4 h, CatBoost
-   55.1 h) plus TabPFN-3.5 on CIFAR_10. Then merge, summary, stats (both
-   variants), version table, `sacct` → `PROVENANCE.md`, and **rsync the
-   predictions back** (see Arnes HPC). The thesis results chapter is then
-   regenerated from `cc18_v3`: in the thesis repo's
-   `rezultati/generiraj_iz_cc18_v2.py` change the hard-coded
-   `R = 'results/runs/cc18_v2'` and the display name of `tabpfn` (TabPFN →
-   TabPFN-3.5). Once `cc18_v3` is verified, delete `results/runs/cc18_v2` in its
-   own commit (copy its `predictions/` somewhere first if you want to keep them —
-   they are not in git).
+4. **Done 2026-10-08: `cc18_v3`** (commit `69cc51e`; jobs `20138834`,
+   `20138836`, and `20176087` for CIFAR_10). Full story — the CIFAR_10 OOM
+   kill at TabICL on a 512 GB node with `--mem=240G`, the resubmission with
+   `--constraint=sxm --mem=480G` (TabICL then used 394 GiB and succeeded),
+   times, memory, node mix — is in `results/runs/cc18_v3/PROVENANCE.md`.
+   Merged, summarised, stats (both variants), version table, `sacct.txt`,
+   committed from Arnes (`ab56ff3`); predictions copied to Kremen, verified, and
+   archived by the user on USB (see Arnes HPC → Keep the predictions).
+   **Thesis updated the same day** (thesis repo): the generator is now
+   `rezultati/generiraj_iz_cc18_v3.py` (reads `cc18_v3`, makes the dataset
+   counts automatic, copies `summary/razlicice.tex` into the thesis as
+   `tab_razlicice.tex`, and builds `tab_zagona.tex`, the cc18_v2-vs-cc18_v3
+   comparison, reading `cc18_v2` via `git show 5a14045:...`); the Results
+   chapter text was rewritten (TabPFN-3.5 first; no failures; new sections
+   "Neuspela in pomnilniško zahtevna učenja" and "Primerjava s prejšnjim
+   zagonom z modelom TabPFN-3"), and Methods got the new versions, the RF
+   correction and the TabPFN-3.5 paragraph. **Open items left as `\todo` /
+   `% PREVERI` in the thesis:** the XGBoost `enable_categorical` decision (see
+   Preprocessing policy); a verifiable source for TabPFN-3.5 (none in
+   `literatura.bib`, so no properties are claimed); the TabPFN-3 report's
+   "200 atributov" vs the 2000-feature limit tabpfn 8.5.0 enforced; the
+   documentation bib entries still point to the old versions (sklearn 1.5,
+   xgboost 2.1.0, lightgbm 4.6.0) — the default values cited from them were
+   re-checked against the new versions and still hold.
+   `results/runs/cc18_v2` was then deleted from the working tree in its own
+   commit (history: `5a14045`).
 5. **Medic3 (prepared 2026-09-22/23).** Code is ready: the ROC-AUC fix for
    absent classes, `max_classes`, per-algorithm result files,
    `scripts/run_medic3.sh`, the race-free manifest and the single-dataset
@@ -551,8 +558,17 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
   raised, so one failing (dataset, algorithm, fold) doesn't crash a run.
 - All algorithms use **default hyperparameters** — intentional per the thesis
   protocol, not an oversight to "fix". The only non-defaults are compute
-  settings: `RandomForestClassifier(n_jobs=-1)` (bit-identical predictions,
-  verified), `LGBMClassifier(verbosity=-1)`,
+  settings: `RandomForestClassifier(n_jobs=-1)`, `LGBMClassifier(verbosity=-1)`,
   `CatBoostClassifier(verbose=False, allow_writing_files=False)`.
+- **RandomForest with `n_jobs=-1` is not bit-reproducible at prediction
+  time** (found 2026-10-08, correcting an earlier "bit-identical, verified"
+  note): parallel *fits* give bit-identical trees (= serial), but parallel
+  `predict_proba` sums the tree probabilities in thread order, so probabilities
+  differ at rounding level and ROC-AUC by up to ~2e-5 between identical runs
+  (cmc: 5 runs, 3–4 distinct AUCs, in sklearn 1.9.0 and 1.9.1). This, not the
+  library upgrade, explains RF's 31/1080 changed fits between `cc18_v2` and
+  `cc18_v3`. Left as is (negligible, documented in the thesis, `sec:rf`); a
+  fully deterministic variant would predict with `n_jobs=1` — a protocol
+  change, ask the user first.
 - Never merge into or overwrite an existing run's `results.csv` from another
   run; every run has its own directory.

@@ -50,9 +50,13 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
         clf = Pipeline([
             ("preprocess", preprocessor),
             # n_jobs=-1 ni hiperparameter modela, ampak nastavitev računanja:
-            # drevesa so neodvisna, zato so napovedi bitno identične serijskim
-            # (preverjeno), le izračun teče na vseh dodeljenih jedrih. Brez tega
-            # RF kot edini od štirih ansamblov uporablja eno jedro od osmih.
+            # drevesa so neodvisna, zato so naučena drevesa bitno identična
+            # serijskim. Vzporedni predict_proba pa verjetnosti dreves sešteva v
+            # vrstnem redu, ki se med izvedbami razlikuje, zato se ROC-AUC med
+            # ponovljenimi izvedbami lahko razlikuje na peti decimalki
+            # (preverjeno 2026-10-08 na cmc; cc18_v2 proti cc18_v3: 31/1080
+            # učenj, največ 2.3e-5). Brez tega RF kot edini od štirih ansamblov
+            # uporablja eno jedro od osmih.
             ("model", RandomForestClassifier(random_state=random_state, n_jobs=-1)),
         ])
 
