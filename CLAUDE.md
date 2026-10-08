@@ -407,6 +407,15 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   re-running, e.g. from the laptop:
   `rsync -av <user>@<arnes-login>:<repo>/results/runs/cc18_v3/predictions/
   results/runs/cc18_v3/predictions/` (`cc18_v2`'s copy is ~0.5 GB, 6450 files).
+  **Archive = the user's USB drive** (the user's decision, 2026-10-08) — not
+  GitHub: this repo is public and Medic3 predictions are confidential. `cc18_v2`
+  (6450 files) and `cc18_v3` (6480) were copied to Kremen and verified on
+  2026-10-08: every successful fit has its file, and ROC-AUC recomputed from the
+  files matches `results.csv` to ≤ 3.2e-4 (they store float32). `cc18_v2` files
+  predate the `proba_classes` field (columns = classes in order). When
+  predictions are needed and not on the machine, ask the user to plug in the USB
+  drive; never re-run just to regain them. After each new run, remind the user
+  to copy its `predictions/` there.
 - Record the job receipt after every run:
   `sacct -j <jobid> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`
   into a `PROVENANCE.md` inside the run directory.
