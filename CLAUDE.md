@@ -357,7 +357,10 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   (`gwn01`, `gwn03`–`gwn06`), `subset_v3` on H100 80GB HBM3 (`gwn08`), so
   `cc18_v3` may mix them. One dataset = one task = one node, so all six
   algorithms of a dataset share hardware; the `device` column records the
-  variant per fit. Say so in the thesis next to GPU times. Env: micromamba prefix
+  variant per fit. Say so in the thesis next to GPU times. Node memory
+  (`sinfo -p gpu -N -o "%N %m %f"`, 2026-10-07): `gwn01`–`gwn06` H100 PCIe,
+  **256 GB**; `gwn08`–`gwn10` H100 SXM (feature `sxm`), **512 GB**; `wn2xx`
+  V100S, 128 GB (excluded by `--constraint=h100`). Env: micromamba prefix
   `~/envs/tabular3.5` (Python 3.12, from `requirements.txt`; `~/bin/micromamba`,
   no shell hooks in batch scripts). The batch scripts default to it; override
   with `TABULAR_ENV=/path sbatch ...`. The cluster's older prefixes were not
@@ -413,9 +416,12 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   default iterations) took 13 of the 16 total CPU hours. CIFAR_10 × {TabPFN,
   TabICL} failed (3072 features > TabPFN-3's 2000 cap; TabICL asked ~378 GB) —
   those rows carry the reason in `error`, no subsampling was or will be added.
-  In `cc18_v3` TabPFN-3.5 (20 000-feature limit) should run on CIFAR_10 for the
-  first time; its time and memory there are unknown, the 240G / 2-day array
-  covers it. TabICL is unchanged (tabicl 2.2.0) and will fail again.
+  In `cc18_v3` TabPFN-3.5 (20 000-feature limit) ran on CIFAR_10 for the
+  first time (15/15 OK, ~77 s per fit on H100 SXM). TabICL (tabicl 2.2.0)
+  still needs ~378 GB there and **killed the task on a 512 GB node** instead
+  of failing soft — see What is next, step 4. For any task that may contain a
+  huge TabICL fit, either request (nearly) the whole node or keep it on a
+  256 GB node.
 - The cluster remote uses SSH (`git@github.com:...`), not HTTPS.
 
 ## What is next (agreed 2026-10-05)
@@ -450,6 +456,26 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
 4. `cc18_v3`: **submitted 2026-10-06** from commit `69cc51e` — job `20138834`
    (68 ordinary datasets, `%4`) and `20138836` (27/60/61/70, `--mem=240G
    --time=2-00:00:00`); prestage found all 72 datasets, home 30G of 100G.
+   **CIFAR_10 incident (task 61):** on `gwn08` (512 GB node) it was
+   OOM-killed after 11 h 03 min (`--mem=240G`, MaxRSS 256 GiB, 2026-10-07
+   04:52 UTC), 2.5 min after the last TabPFN fit — i.e. at **TabICL** fold 0.
+   The partial kept 75 fits: the four trees and **all 15 TabPFN-3.5 fits OK**
+   (first time TabPFN runs on CIFAR_10; ROC-AUC 0.913–0.919, mean ≈ 0.916, vs
+   CatBoost 0.910 in `cc18_v2`; ~77 s inference per fit). In `cc18_v2` TabICL's
+   ~378 GB request was refused at once on a 256 GB node → soft error row; on a
+   512 GB node it was evidently not refused, so the cgroup killed the whole
+   job and no row was written. Resubmitted (option A, the user's choice) as
+   job **`20176087`**: `PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3
+   sbatch --array=61 --constraint=sxm --mem=480G --time=2-00:00:00
+   scripts/run_cc18.sh` — TabICL gets a near-full 512 GB node. If it is still
+   queued after ~a day, fallback B: `scancel` it and resubmit with
+   `--exclude=gwn08,gwn09,gwn10 --mem=240G` (256 GB node, reproduces
+   `cc18_v2`'s soft failure). Record all of this in `cc18_v3/PROVENANCE.md`.
+   Logs looked empty because Python block-buffers stdout to a file (the kill
+   discarded the buffer); `PYTHONUNBUFFERED=1` on the resubmit fixes it —
+   consider adding it to the batch scripts after the run. Devnagari-Script
+   (task 60, `gwn04`) is exactly on `cc18_v2`'s pace (CatBoost fold 8/15 at
+   20.3 h), expected to finish ~35 h after start.
    **Do not `git pull` or commit on Arnes until it finishes** (every row
    records the git commit); at the end commit there, then `git pull --rebase`
    and push. Two arrays with the same `RUN_ID` (commands in the
