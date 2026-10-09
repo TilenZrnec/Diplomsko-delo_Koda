@@ -432,7 +432,14 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   predate the `proba_classes` field (columns = classes in order). When
   predictions are needed and not on the machine, ask the user to plug in the USB
   drive; never re-run just to regain them. After each new run, remind the user
-  to copy its `predictions/` there.
+  to copy its `predictions/` there. **Second backup:** on 2026-10-09 the user
+  copied the whole `results/runs/` of Kremen to its Windows drive
+  `D:\fri\diplomska_win` (`/mnt/d/fri/diplomska_win` in WSL, **Kremen only**):
+  `cc18_v2`, `cc18_v3`, `check_refactor_oldenv`, `subset_v2_local`,
+  `subset_v3`, `subset_v3_local`. The non-TabPFN-3.5 folders (`cc18_v2`,
+  `check_refactor_oldenv`, `subset_v2_local` — only their gitignored
+  `predictions/` were left) were then deleted from Kremen after checking the
+  backup was byte-for-byte complete; their tracked files are in git history.
 - Record the job receipt after every run:
   `sacct -j <jobid> --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`
   into a `PROVENANCE.md` inside the run directory.
