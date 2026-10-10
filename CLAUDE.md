@@ -550,9 +550,20 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    statistics. CatBoost/TabICL sizing done 2026-10-09 (Arnes HPC → Medic3).
    `data/medic3/Medic3.csv` extracted on Kremen from `../Medic3.csv.zip`,
    sha256 `27b23cbfa0511850c1b030482a0cc08d3c7ea3d7862eee64f18f6b40d2a5c005`.
-   Still to do: copy it to the same relative path on Arnes (folder `chmod
-   700`), check the same sha256 there and record it in each run's
-   `PROVENANCE.md`. Two runs: `medic3_raw` (220
+   **Submitted 2026-10-10 ~10:45** from `hpc-login4` at commit `420bdac`, after
+   copying the file to Arnes (`data/medic3/` is `drwx------`, sha256 identical)
+   and `prestage.py --dataset-set medic3` (OK, same two weights files as
+   `cc18_v3`). Six jobs, three per run (tasks = config index: 0 RF, 1 XGBoost,
+   2 LightGBM, 3 CatBoost, 4 TabPFN, 5 TabICL):
+   `medic3_raw` — `20318167` (0-2, 64G, 1 d), `20318168` (4-5, 160G, 1 d),
+   `20318169` (3, 64G, 3 d); `medic3_160` — `20318170` (0-2), `20318171`
+   (4-5, 160G), `20318172` (3, 2 d). Receipt for each run's `PROVENANCE.md`:
+   `sacct -j 20318167,20318168,20318169,20318170,20318171,20318172
+   --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`; record the sha256
+   there too. Expect 90 rows per run (raw: TabPFN's 15 with the class-limit
+   reason in `error`). The local full-fold confirmation of the probe
+   (`logs/medic3_probe/medic3_fold0.log`, Kremen only) was still running at
+   submission. Two runs: `medic3_raw` (220
    classes) and `medic3_160`; `python -m src.stats medic3_raw` then runs the
    corrected t-tests automatically.
 6. Last: tuning one booster (nested CV, see the 2026-09-29 discussion: XGBoost
