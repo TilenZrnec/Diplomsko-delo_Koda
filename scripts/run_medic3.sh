@@ -34,18 +34,32 @@
 # namesto Friedmana/Nemenyija/Wilcoxona naredi popravljene t-teste za ponovljeno
 # prečno preverjanje (Bouckaert in Frank 2004) s Holmovim popravkom.
 #
-# ODDAJA (iz korena repozitorija). CatBoost gre v svoje opravilo z daljšim
-# časom: pri 220 razredih je po oceni iz CC18 (Devnagari-Script, 46 razredov,
-# 28,5 h) daleč najdražji, ostali skupaj ne dosežejo niti 10 h.
-#     ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch --array=0,1,2,4,5 scripts/run_medic3.sh
-#     ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch --array=3 --time=1-12:00:00 --mem=120G scripts/run_medic3.sh
-# Za različico s 160 razredi isto, le z drugim naborom in RUN_ID:
-#     DATASET_SET=medic3_160 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=0,1,2,4,5 scripts/run_medic3.sh
-#     DATASET_SET=medic3_160 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=3 --time=1-12:00:00 --mem=120G scripts/run_medic3.sh
+# ODDAJA (iz korena repozitorija): TRI oddaje z ISTIM RUN_ID. RUN_ID je obvezen,
+# sicer bi vsaka oddaja dobila svojo mapo zagona (privzeto <nabor>_<job id>).
+#   a) RandomForest, XGBoost, LightGBM (0,1,2): privzeti pomnilnik, 1 dan
+#      (XGBoost je po oceni iz CC18 ~6 h, ostala dva precej manj).
+#   b) TabPFN, TabICL (4,5): --mem=160G. TabICL hrani vmesni izhod velikosti
+#      vrstice x atributi x 2048 B (8 članov ansambla x 128 dimenzij x 2 B), pri
+#      Medic3 ~69 GB. To je več kot pol GPU-ja, zato ga tabicl odloži v RAM; s
+#      privzetimi 64G bi cgroup opravilo ubil, ne da bi nastala vrstica (kot
+#      CIFAR_10 v cc18_v3). TabPFN-3.5 na ~118 000 vrsticah še ni tekel, zato isto.
+#   c) CatBoost (3): dolg --time, privzeti pomnilnik. Lokalna sonda 2026-10-09
+#      (Kremen, fold 0): 6,7 s na iteracijo pri 220 razredih (1000 iteracij =
+#      ~1,9 h na fold), 4,6 s pri 160 razredih, največ 4 GB RAM. Vozlišče H100
+#      PCIe je pri CatBoostu ~1,4-krat počasnejše od Kremna (umerjeno na isolet in
+#      Fashion-MNIST), SXM ~1,6-krat hitrejše od PCIe. 15 foldov torej traja ~40 h
+#      (PCIe) oz. ~25 h (SXM) pri 220 razredih in ~27 h oz. ~17 h pri 160.
+#     PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch --array=0,1,2 --time=1-00:00:00 scripts/run_medic3.sh
+#     PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch --array=4,5 --mem=160G --time=1-00:00:00 scripts/run_medic3.sh
+#     PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch --array=3 --time=3-00:00:00 scripts/run_medic3.sh
+# Za različico s 160 razredi isto, z drugim naborom in RUN_ID ter krajšim časom za CatBoost:
+#     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=0,1,2 --time=1-00:00:00 scripts/run_medic3.sh
+#     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=4,5 --mem=160G --time=1-00:00:00 scripts/run_medic3.sh
+#     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=3 --time=2-00:00:00 scripts/run_medic3.sh
 #
-# PONOVNA ODDAJA po prekoračenem --time: isti ukaz, ISTI RUN_ID. Kontrolne točke
-# so po posameznem učenju, zato CatBoost nadaljuje pri prvem nenarejenem foldu.
-# Računaj, da bo CatBoost verjetno potreboval eno ali dve ponovni oddaji.
+# PONOVNA ODDAJA po prekoračenem --time ali pomnilniku: isti ukaz, ISTI RUN_ID.
+# Kontrolne točke so po posameznem učenju, zato opravilo nadaljuje pri prvem
+# nenarejenem foldu.
 #
 # PODATKI: data/medic3/Medic3.csv glede na koren repozitorija - ISTA relativna
 # pot na vseh strojih in na gruči. Mapa data/ je v .gitignore, zato datoteka

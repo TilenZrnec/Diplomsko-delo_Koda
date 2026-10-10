@@ -189,7 +189,10 @@ failed first (`raw_error`).
 - **TabPFN / TabICL**: raw input first; only on an exception apply a logged
   minimal fix and retry. With TabPFN-3 (tabpfn 8.5.0) raw input worked on every
   CC18 dataset, and so it did with TabPFN-3.5 in `cc18_v3` (0 `raw_error` rows
-  for both foundation models). The fallbacks stay as safety nets.
+  for both foundation models). The fallbacks stay as safety nets. "Raw" means
+  no preprocessing *by us*: internally TabICL mean-imputes numeric NaN without
+  an indicator, TabPFN-3.5 adds NaN indicators before imputing (see Datasets →
+  Medic3, where this matters).
 - **Open question (XGBoost, found 2026-10-08):** in xgboost 3.4.1
   `enable_categorical` defaults to **True** (it was False in 2.1.1, which the
   thesis used to justify our own encoding). Our module still ordinal-encodes
@@ -336,11 +339,20 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
     native categorical handling gives it no advantage here;
   - `Field` alone predicts the class with 25 % accuracy → correctly dropped;
   - **missingness itself is a strong predictor** (e.g. A177 observed in 99.5 %
-    of class C152's rows vs. 0.0 % of C202's). RandomForest is the only
-    algorithm that imputes and therefore destroys this signal — that is exactly
-    the experimental variable the thesis measures, so expect it to fall behind
-    on Medic3 for preprocessing reasons, not model reasons. Say this in the
-    thesis; do not "fix" it. TabPFN-3's hard
+    of class C152's rows vs. 0.0 % of C202's). **Two** algorithms impute and
+    therefore lose this signal (corrected 2026-10-09; this note used to say RF
+    was the only one): RandomForest (our minimal preprocessing, median) and
+    **TabICL, inside its own library** — tabicl 2.2.0 `TransformToNumerical`
+    (`tabicl/_sklearn/preprocessing.py`) runs `SimpleImputer(keep_empty_features
+    =True)`, i.e. the column mean with no missing indicator, on every numeric
+    column before the model sees it. TabPFN-3.5 keeps the signal:
+    `tabpfn/architectures/tabpfn_v3_5.py` builds NaN indicators *before* its own
+    mean imputation ("Indicators need to be computed before imputation") and
+    feeds both to the model; XGBoost, LightGBM and CatBoost handle NaN natively.
+    That is exactly the experimental variable the thesis measures, so expect RF
+    and TabICL to fall behind on Medic3 partly for preprocessing reasons, not
+    model reasons. Say this in the thesis; do not "fix" it (TabICL's imputation
+    is the library default, not our preprocessing). TabPFN-3's hard
   cap was 160 classes, so it would fail-soft on Medic3 as agreed with the
   supervisor; TabICL handles 220 classes. Both verified empirically on
   2026-09-22 with synthetic data in `tabular3`: at 220 classes TabPFN-3 raises
@@ -406,13 +418,33 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   one dataset, because it is a single dataset and all six algorithms in series
   would exceed `--time` (estimate from CC18: ~60 h, of which CatBoost ~48 h — at
   220 classes it dominates, just as it did on Devnagari-Script's 46 classes).
-  CatBoost therefore gets its own job with a longer `--time` and more memory.
-  Its header still says `--time=1-12:00:00` and expects one or two
-  re-submissions; since the partition allows 4 days, decide before Medic3
-  whether to request more instead.
-  Exact commands in the header of `scripts/run_medic3.sh`. `prestage.py` is not
-  needed (the dataset is not from OpenML), but the TabPFN/TabICL weights must
-  already be cached because compute nodes are offline.
+  **Sizing measured 2026-10-09** → three submissions per run, same `RUN_ID`:
+  - RF/XGBoost/LightGBM (0,1,2) at default memory, `--time=1-00:00:00`.
+  - TabPFN/TabICL (4,5) with **`--mem=160G`**: TabICL (default `offload="auto"`)
+    keeps a column-embedding output of rows × features × 2048 B (8 ensemble
+    members × 128 dims × 2 B — reproduces CIFAR_10's "~378 GB" exactly), i.e.
+    ~69 GB for Medic3. That is over half the H100, so tabicl puts it in RAM if it
+    fits 0.85 × the cgroup headroom; otherwise (no disk dir set) it allocates
+    anyway and the cgroup kills the task with no row — at the old 64G default it
+    would have died at fold 0. TabPFN-3.5 joins it because it never ran on ~118k
+    rows.
+  - CatBoost (3) with a long `--time` (3 days raw, 2 days `medic3_160`) and
+    default memory. Local probe on Kremen (Ryzen 5 5600, 12 threads, fold 0,
+    `catboost_model` code path): **6.72 s/iteration at 220 classes (1000
+    iterations ≈ 1.9 h/fold), 4.58 s at 160 classes, peak RSS ≤ 4.1 GiB**.
+    Calibration on fold 0 of two CC18 sets (ROC-AUC bit-identical to Arnes, so
+    same folds/seed/model): isolet 443.9 s Kremen vs 627.6 s `gwn03` (PCIe),
+    Fashion-MNIST 594.7 s vs 802.2 s `gwn05` (PCIe, `cc18_v2`) → **PCIe ≈ 1.35–1.41
+    × Kremen**. From `cc18_v2` (all PCIe) vs `cc18_v3` (CatBoost bit-identical):
+    **PCIe ≈ 1.6 × SXM** on 15 datasets from 0.7 s to 3400 s per fold (1.5–1.87);
+    the outlier Fashion-MNIST (1.15) shared `gwn08` with mnist and CIFAR_10 in
+    `cc18_v3`, so a shared node can cost ~35 %. Estimate for 15 folds: raw ~40 h
+    PCIe / ~25 h SXM, `medic3_160` ~27 h / ~17 h. Probe script and raw numbers:
+    `logs/medic3_probe/` on Kremen (gitignored).
+  Exact commands in the header of `scripts/run_medic3.sh`. `prestage.py
+  --dataset-set medic3` is optional: it loads the CSV (checks the path) and
+  re-checks the cached TabPFN/TabICL weights, which must be there because
+  compute nodes are offline.
 - Merge and analyse: `python scripts/merge_results.py cc18_v3`, then
   `python -m src.summary cc18_v3`, `python -m src.stats cc18_v3` (and
   `--no-saturated`), `python scripts/gen_version_table.py cc18_v3`. Expect
@@ -515,9 +547,12 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
 5. **Medic3 (prepared 2026-09-22/23).** Code is ready: the ROC-AUC fix for
    absent classes, `max_classes`, per-algorithm result files,
    `scripts/run_medic3.sh`, the race-free manifest and the single-dataset
-   statistics. Still to do: copy `data/medic3/Medic3.csv` to the same relative
-   path on Arnes and record its `sha256` in the run's `PROVENANCE.md`; a local
-   one-fold timing probe for the CatBoost sizing. Two runs: `medic3_raw` (220
+   statistics. CatBoost/TabICL sizing done 2026-10-09 (Arnes HPC → Medic3).
+   `data/medic3/Medic3.csv` extracted on Kremen from `../Medic3.csv.zip`,
+   sha256 `27b23cbfa0511850c1b030482a0cc08d3c7ea3d7862eee64f18f6b40d2a5c005`.
+   Still to do: copy it to the same relative path on Arnes (folder `chmod
+   700`), check the same sha256 there and record it in each run's
+   `PROVENANCE.md`. Two runs: `medic3_raw` (220
    classes) and `medic3_160`; `python -m src.stats medic3_raw` then runs the
    corrected t-tests automatically.
 6. Last: tuning one booster (nested CV, see the 2026-09-29 discussion: XGBoost

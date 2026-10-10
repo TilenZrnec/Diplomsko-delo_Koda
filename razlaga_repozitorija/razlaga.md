@@ -318,7 +318,7 @@ varovalko iz točke 5.
 ### Korak 2b: Medic3, `scripts/run_medic3.sh`
 
 Medic3 je **en sam** nabor, zato bi shema »en nabor na opravilo« vseh šest
-algoritmov pognala zaporedno. Ocena po CC18 je ~60 h, od tega CatBoost ~48 h
+algoritmov pognala zaporedno. Lokalna sonda (2026-10-09) da samo za CatBoost ~25–40 h
 (pri 220 razredih je daleč najdražji), kar je čez mejo `--time`. Zato tu en
 **algoritem** na opravilo; indeks polja je mesto algoritma v `config.yaml`:
 
