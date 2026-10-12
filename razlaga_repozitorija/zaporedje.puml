@@ -267,15 +267,12 @@ end note
 
 == Korak 2b: Medic3 - polje po ALGORITMIH, ne po naborih ==
 
-U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw
-sbatch ~--array=0,1,2,4,5 scripts/run_medic3.sh
-U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw
-sbatch ~--array=3 ~--time=1-12:00:00 ~--mem=120G scripts/run_medic3.sh
+U -> SLURM : ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw sbatch\n~--array=0,1,2 ~--time=1-00:00:00 scripts/run_medic3.sh
+U -> SLURM : ... sbatch ~--array=4,5 ~--mem=160G ~--time=1-00:00:00\nscripts/run_medic3.sh (TabICL odloži ~69 GB v RAM)
+U -> SLURM : ... sbatch ~--array=3 ~--time=3-00:00:00 scripts/run_medic3.sh\n(CatBoost; pri medic3_160 ~--time=2-00:00:00)
 activate SHM
-SHM -> CFGPY : N_ALGOS = len(load_config()["algorithms"])
-ALGO = algorithms[$SLURM_ARRAY_TASK_ID]
-SHM -> ONE : python -m src.run_one_dataset ~--dataset-set $DATASET_SET
-~--index 0 ~--run-id $RUN_ID ~--algorithms $ALGO
+SHM -> CFGPY : N_ALGOS = len(load_config()["algorithms"])\nALGO = algorithms[$SLURM_ARRAY_TASK_ID]
+SHM -> ONE : python -m src.run_one_dataset ~--dataset-set $DATASET_SET\n~--index 0 ~--run-id $RUN_ID ~--algorithms $ALGO
 ONE -> RUN : run_dataset(spec, ..., algorithms=[ALGO])
 RUN -> PD : piše v <nabor>~__<algoritem>.csv (ne <id>.csv)
 deactivate SHM
@@ -376,6 +373,7 @@ participant "src/stats.py" as STAT
 participant "scripts/gen_version_table.py" as VER
 participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
+participant "scripts/diagnose_lightgbm_medic3.py" as DIAG
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -460,12 +458,34 @@ note over MED
   v config.yaml kaže na scripts/medic3.json, ki ga
   src/data.py naloži kot CSV; oddaja je v diagramu 3.
 
-  Posebnost analize: pri 220 razredih stratificirana
-  delitev redkega razreda ne more dati v vsak fold,
-  zato je ROC-AUC makro povprečje le čez razrede,
-  prisotne v testnem foldu (src/utils.py,
-  scored_class_indices). Stolpec n_classes_scored pove,
+  Posebnost analize: ROC-AUC je makro povprečje le čez
+  razrede, prisotne v testnem foldu (src/utils.py,
+  scored_class_indices). Pri Medic3 je to varovalka, ne
+  nujnost: najmanjši razred ima 50 vrstic, zato je vsak
+  razred v vsakem foldu. Stolpec n_classes_scored pove,
   po koliko razredih je bilo povprečje izračunano.
+end note
+
+== Stranska veja: diagnostika LightGBM na Medic3 ==
+
+U -> DIAG : python scripts/diagnose_lightgbm_medic3.py\n[~--dataset-set medic3_160] [~--part independent / benchmark]
+activate DIAG
+DIAG -> M3 : neodvisna pot BREZ naše kode: pandas.read_csv, np.unique,\nsklearn RepeatedStratifiedKFold -> isti fold 0 kot zagon
+DIAG -> DIAG : lgb.train na foldu 0: privzeto, reg_lambda=1, min_child_weight=1\n-> učna in testna multi_logloss ter največji |list| po iteracijah
+DIAG -> DIAG : pot benchmarka: src/data.py + src/models/lightgbm_model.py na foldu 0
+DIAG -> RES : ROC-AUC folda 0 primerja z vrstico v results.csv zagona
+DIAG -> RES : diagnostics/lightgbm_<v>_independent.csv, _curve.csv,\n_benchmark.csv, _info.json (le metrike, brez podatkov)
+deactivate DIAG
+
+note over DIAG
+  Zakaj: LightGBM je s privzetimi nastavitvami na obeh
+  različicah Medic3 dosegel ROC-AUC ~0,5. Učna izguba po
+  prvi iteraciji raste, listi dobijo ogromne vrednosti
+  (privzeto reg_lambda = 0 in min_child_weight = 1e-3).
+  Ena sama privzeta vrednost XGBoost (1) učenje ustali.
+  Neodvisna pot brez naše kode da isti model kot zagon,
+  napaka torej ni v naši kodi. Diploma poroča privzeti
+  rezultat; skript je vir številk za razlago.
 end note
 
 @enduml

@@ -1,0 +1,42 @@
+{
+  "provenance": {
+    "git_commit": "4df56e5",
+    "git_dirty": true,
+    "script_sha256": "9e278c3292759195a351c1b3ef99d1750bb4b006d2cde339ab33d74b2aae9fa7",
+    "hostname": "DESKTOP-0EPDCR8",
+    "python": "3.10.20",
+    "lightgbm": "4.6.0",
+    "sklearn": "1.5.1",
+    "pandas": "2.2.2",
+    "numpy": "1.26.4",
+    "omp_num_threads": "8",
+    "timestamp": "2026-10-12T12:54:27+02:00"
+  },
+  "defaults": {
+    "lightgbm": {
+      "version": "4.6.0",
+      "reg_lambda": 0.0,
+      "min_child_weight": 0.001
+    },
+    "xgboost": {
+      "version": "2.1.1",
+      "lambda": 1.0,
+      "min_child_weight": 1.0
+    },
+    "catboost": {
+      "version": "1.2.7",
+      "l2_leaf_reg": 3
+    }
+  },
+  "settings": {
+    "default": {}
+  },
+  "n_rounds": 100,
+  "dataset_set": "medic3_160",
+  "warnings": {
+    "default": {
+      "No further splits with positive gain, best gain: -inf": 12237,
+      "Stopped training because there are no more leaves that meet the split requirements": 67
+    }
+  }
+}

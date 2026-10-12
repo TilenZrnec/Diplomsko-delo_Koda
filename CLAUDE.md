@@ -18,8 +18,10 @@ TabPFN-3 is gone. **`results/runs/cc18_v3/` is the result set of the thesis**
 72 datasets; TabPFN-3.5 now ranks first, TabICL second, the reverse of
 `cc18_v2`; see its `PROVENANCE.md`). The previous run `cc18_v2` (TabPFN-3) was
 deleted from the working tree on 2026-10-08 and is read from git history
-(commit `5a14045`) where needed. Next: Medic3, then tuning and the leakage
-test. The TabPFN-3.5 licence is accepted and the weights are
+(commit `5a14045`) where needed. **Medic3 finished 2026-10-11**: runs
+`medic3_raw` and `medic3_160` (see Datasets → Medic3 results); LightGBM collapses
+there at its default settings (ROC-AUC ~0.50), verified not to be our code.
+Next: tuning, then the leakage test. The TabPFN-3.5 licence is accepted and the weights are
 cached on both local machines (Kremen since 2026-10-06).
 **Clean-up 2026-10-05:** all older runs (`check_refactor_oldenv`,
 `subset_v2_local`, `subset_v2`) and the 2026-08 archive `results/arnes/` were
@@ -131,14 +133,21 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
   `merge_results.py <run>`, `compare_results.py <run A> <run B>`,
   `gen_version_table.py <run>` (LaTeX table of versions from the manifest; adds
   the weights file from `model_checkpoints` to the TabPFN/TabICL rows),
-  `profile_medic3.py` (data card, stdlib only), `medic3.json` /
+  `profile_medic3.py` (data card, stdlib only), `diagnose_lightgbm_medic3.py`
+  (why LightGBM collapses on Medic3: fold 0 through our code and through plain
+  pandas/sklearn/LightGBM, defaults vs `reg_lambda=1` vs `min_child_weight=1`,
+  training loss and largest leaf per iteration; writes
+  `results/runs/<run>/diagnostics/`; CPU only, ~35 min on the laptop, the
+  independent part also runs in `tabularOriginal`), `medic3.json` /
   `medic3_160.json` (Medic3 specs, raw and capped at 160 classes),
   `subset_ids.json`, `cc18_ids.json`.
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
-  `results.csv`, `summary/`). Kept: **`cc18_v3`** (the thesis results) and the
-  two validation runs of its freeze, `subset_v3_local` (Kremen) and
-  `subset_v3` (Arnes); everything older is in git history — `cc18_v2` e.g.
+  `results.csv`, `summary/`, `diagnostics/` [checks made by a script after the
+  run]). Kept: **`cc18_v3`** (the thesis results), the Medic3 runs
+  **`medic3_raw`** and **`medic3_160`**, and the two validation runs of the
+  freeze, `subset_v3_local` (Kremen) and `subset_v3` (Arnes); everything older
+  is in git history — `cc18_v2` e.g.
   `git show 5a14045:results/runs/cc18_v2/results.csv` (the thesis generator
   reads it that way), the rest in `b1b9120` (see the state note at the top). Rule: keep only the runs the thesis currently uses, delete
   superseded ones in a commit of their own.
@@ -378,6 +387,32 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   rest of the rows are **dropped**, not merged into an "other" class — that
   would be 161 classes and TabPFN would fail again. Report the dropped-row
   percentage in the thesis (`run_dataset` logs it from `class_limit`).
+- **Medic3 results (2026-10-11, commit `420bdac`; SLURM receipts, sha256 and
+  details in each run's `PROVENANCE.md`).** `medic3_160` (all six): TabPFN-3.5
+  0.9614, CatBoost 0.9599, TabICL 0.9543, XGBoost 0.9400, RF 0.8530, LightGBM
+  0.5057; all 15 pairs significant (corrected t-test + Holm), the weakest
+  TabPFN-3.5 vs CatBoost (−0.0015, TabPFN better on 15/15 folds, p_Holm 0.005).
+  `medic3_raw` (TabPFN fails soft on the class limit, as expected): CatBoost
+  0.9551, TabICL 0.9499, XGBoost 0.9306, RF 0.8149, LightGBM 0.5028; all 10
+  pairs significant.
+  **LightGBM collapses on all 30 folds (0.499–0.519) at its defaults, and it is
+  not our code** (`scripts/diagnose_lightgbm_medic3.py`, outputs in each run's
+  `diagnostics/`): plain LightGBM with none of our code collapses the same way;
+  its own training loss rises (4.9 → ~32.5 raw, 3.9 → ~32.5 at 160) while the
+  largest leaf value grows from ~10² to ~10⁶ and predictions become ~100 %
+  confident and wrong; our pipeline equals the plain path for the first ~10
+  iterations; one brake fixes it on the same fold (`reg_lambda=1` → 0.938 raw /
+  0.948 at 160, `min_child_weight=1` → 0.938 / 0.945). Those are XGBoost 3.4.1's
+  defaults (`lambda` 1, `min_child_weight` 1; CatBoost 1.2.10 `l2_leaf_reg` 3),
+  while LightGBM 4.7.0 has `reg_lambda` 0.0 and `min_child_weight` 1e-3;
+  LightGBM 4.6.0 collapses the same way. Mechanism (our reading): leaf value
+  −G/(H+λ) with per-row hessians p(1−p) ≈ 0 for rare classes. LightGBM raises no
+  error and only warns "Stopped training because there are no more leaves…"
+  (hidden by our `verbosity=-1`, which does not change the model). **Decision
+  2026-10-12 (user): report the default result as is (option A)**; the braked
+  numbers are diagnostics, never LightGBM's result. The exact digits of a
+  collapsed LightGBM are **not reproducible** (two identical calls on one
+  machine differ; Arnes fold 0 0.5000 vs local ~0.50); the collapse is.
 
 ## Arnes HPC
 - SLURM cluster, GPU partition `gpu`, H100 nodes; partition time limit
@@ -441,6 +476,12 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
     `cc18_v3`, so a shared node can cost ~35 %. Estimate for 15 folds: raw ~40 h
     PCIe / ~25 h SXM, `medic3_160` ~27 h / ~17 h. Probe script and raw numbers:
     `logs/medic3_probe/` on Kremen (gitignored).
+  **Measured in the run (2026-10-10/11, no resubmissions):** TabICL MaxRSS
+  99.4 GiB (raw) / 92.3 GiB (160), so the 160G request was needed; CatBoost
+  2.26 h per fold on `gwn08` (SXM, shared with most other tasks; 33 h 48 min in
+  all) and 1.54 h on `gwn09` (23 h 08 min), ~40 % slower than the probe-based
+  SXM estimate; XGBoost only ~2.5 min per fold; TabPFN-3.5 on ~94k training
+  rows 74 s per fold, MaxRSS 5.9 GiB.
   Exact commands in the header of `scripts/run_medic3.sh`. `prestage.py
   --dataset-set medic3` is optional: it loads the CSV (checks the path) and
   re-checks the cached TabPFN/TabICL weights, which must be there because
@@ -488,6 +529,15 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   huge TabICL fit, either request (nearly) the whole node or keep it on a
   256 GB node.
 - The cluster remote uses SSH (`git@github.com:...`), not HTTPS.
+- **Progress checker (not in the repo):** `~/preveri_medic3.py` on Arnes (copy on
+  the laptop at `~/fri/diplomska/preveri_medic3.py`), stdlib only, read-only:
+  folds done per algorithm, errors (the expected TabPFN class limit is tagged),
+  time per fold and ETA vs the job's time left, current RAM, alarms in the logs,
+  `sacct` states. Run it in the repo root with the env's Python:
+  `~/bin/micromamba run -p ~/envs/tabular3.5 python ~/preveri_medic3.py`.
+- **Copying from Arnes:** `scp`/`rsync` run on the machine that RECEIVES the
+  files (laptop or Kremen); run on Arnes they try to log in to Arnes itself and
+  fail with "Permission denied (publickey)".
 
 ## What is next (agreed 2026-10-05)
 Done before: Arnes validated against the laptop (2026-09-11, trees Δ 0, TabPFN
@@ -544,32 +594,20 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    re-checked against the new versions and still hold.
    `results/runs/cc18_v2` was then deleted from the working tree in its own
    commit (history: `5a14045`).
-5. **Medic3 (prepared 2026-09-22/23).** Code is ready: the ROC-AUC fix for
-   absent classes, `max_classes`, per-algorithm result files,
-   `scripts/run_medic3.sh`, the race-free manifest and the single-dataset
-   statistics. CatBoost/TabICL sizing done 2026-10-09 (Arnes HPC → Medic3).
-   `data/medic3/Medic3.csv` extracted on Kremen from `../Medic3.csv.zip`,
-   sha256 `27b23cbfa0511850c1b030482a0cc08d3c7ea3d7862eee64f18f6b40d2a5c005`.
-   **Submitted 2026-10-10 ~10:45** from `hpc-login4` at commit `420bdac`, after
-   copying the file to Arnes (`data/medic3/` is `drwx------`, sha256 identical)
-   and `prestage.py --dataset-set medic3` (OK, same two weights files as
-   `cc18_v3`). Six jobs, three per run (tasks = config index: 0 RF, 1 XGBoost,
-   2 LightGBM, 3 CatBoost, 4 TabPFN, 5 TabICL):
-   `medic3_raw` — `20318167` (0-2, 64G, 1 d), `20318168` (4-5, 160G, 1 d),
-   `20318169` (3, 64G, 3 d); `medic3_160` — `20318170` (0-2), `20318171`
-   (4-5, 160G), `20318172` (3, 2 d). Receipt for each run's `PROVENANCE.md`:
-   `sacct -j 20318167,20318168,20318169,20318170,20318171,20318172
-   --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList`; record the sha256
-   there too. Expect 90 rows per run (raw: TabPFN's 15 with the class-limit
-   reason in `error`). The local full-fold confirmation of the probe
-   (`logs/medic3_probe/medic3_fold0.log`, Kremen only) was still running at
-   submission. Two runs: `medic3_raw` (220
-   classes) and `medic3_160`; `python -m src.stats medic3_raw` then runs the
-   corrected t-tests automatically.
+5. **Done 2026-10-11: Medic3.** Submitted 2026-10-10 ~10:45 from `hpc-login4`
+   at `420bdac` as three submissions per run (jobs `20318167`–`20318172`), all
+   COMPLETED, no resubmissions; merged, summarised and tested on Arnes and
+   committed from there (`4df56e5`). Predictions copied to the laptop and the
+   USB drive (2026-10-12) — **Kremen not yet**. Results and the LightGBM
+   collapse: Datasets → Medic3 results; receipts in each run's `PROVENANCE.md`.
 6. Last: tuning one booster (nested CV, see the 2026-09-29 discussion: XGBoost
    or LightGBM, not CatBoost) and the CC18 leakage test (design to be agreed
    with the supervisor first); CC18 with injected NULLs is still on the
-   supervisor's list.
+   supervisor's list. Open choices for tuning (user, 2026-10-10): booster
+   (XGBoost recommended), grid (from Probst et al. 2019), datasets (the 37
+   non-saturated of `cc18_v3` recommended: XGBoost ×49 ≈ 61 CPU-h, CIFAR_10 alone
+   ~59 h), inner CV (3 folds). For the supervisor: leakage design, tuning
+   choices, injected NULLs, XGBoost `enable_categorical`, the LightGBM finding.
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
@@ -625,3 +663,11 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
   change, ask the user first.
 - Never merge into or overwrite an existing run's `results.csv` from another
   run; every run has its own directory.
+- **Fail-soft catches exceptions only.** A model that trains "successfully" but
+  is broken (LightGBM on Medic3) leaves ordinary rows with no `error`. After
+  every run, check per-fold ROC-AUC: anything near 0.5 on a dataset where the
+  others score high is a red flag to investigate before writing.
+- **LightGBM is not bit-reproducible by default** (`deterministic=false`):
+  invisible in stable training (CC18: Δ 0 across runs and machines), visible
+  once training diverges (Medic3). Changing it would be a protocol change; ask
+  the user first.

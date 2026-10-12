@@ -8,11 +8,15 @@ zgodovini. Nič v tej mapi se ne ureja na roko, vse nastane iz zagona.
 
 | `run_id` | Kaj | Okolje |
 |---|---|---|
-| `cc18_v2` | celoten CC18, 6480 vrstic, zamrznitev 2026-09-09 (TabPFN-3); trenutni rezultat diplome | lokalno `tabular3`, na Arnesu `~/envs/tabular2`, H100 |
+| `cc18_v3` | celoten CC18, 6480 vrstic, zamrznitev 2026-10-05 (TabPFN-3.5); rezultat diplome | Arnes `~/envs/tabular3.5`, H100 |
+| `medic3_raw` | zaupni Medic3, vseh 220 razredov, 90 vrstic (TabPFN-3.5: 15 × meja 160 razredov) | Arnes `~/envs/tabular3.5`, H100 |
+| `medic3_160` | Medic3, 160 najpogostejših razredov, 90 vrstic, vseh šest algoritmov | Arnes `~/envs/tabular3.5`, H100 |
+| `subset_v3_local` | validacija zamrznitve 2026-10-05 na trojici credit-g, diabetes, sick | Kremen `tabular3.5`, RTX 3060 |
+| `subset_v3` | ista validacija na gruči | Arnes `~/envs/tabular3.5`, H100 |
 
-Naslednja zagona z zamrznitvijo 2026-10-05 (okolje `tabular3.5`, tabpfn 9.1.0 =
-TabPFN-3.5): `subset_v3` (hitra validacija na Arnesu, primerjava s `cc18_v2`) in
-`cc18_v3`, ki nadomesti `cc18_v2`; takrat `cc18_v2` zbrišemo.
+`cc18_v2` (zamrznitev 2026-09-09, TabPFN-3) je bil po `cc18_v3` zbrisan
+2026-10-08; v gitu je zadnjič v commitu `5a14045`, npr.
+`git show 5a14045:results/runs/cc18_v2/results.csv`.
 
 Starejši zagoni (`check_refactor_oldenv`, `subset_v2_local`, `subset_v2`) in arhiv
 `arnes/cc18/` iz avgusta 2026 so bili zbrisani 2026-10-05. Zadnjič so v commitu
@@ -29,6 +33,7 @@ Starejši zagoni (`check_refactor_oldenv`, `subset_v2_local`, `subset_v2`) in ar
 | `predictions/<id>/<algoritem>_r<rep>_f<fold>.npz` | `predict_proba`, `y_test`, `test_idx`, `classes`, `proba_classes` vsakega učenja — za poljubno metriko brez ponovnega zagona; po zagonu na Arnesu jih prekopiraj domov (`rsync`, glej `razlaga_repozitorija/razlaga.md`) | ne (velike) |
 | `results.csv` | združeni `per_dataset/*.csv` (`scripts/merge_results.py` ali samodejno lokalno) | da |
 | `summary/` | tabele (CSV + LaTeX), diagram kritične razdalje, `friedman.csv` (chi2_F in Iman-Davenportova F_F), `razlicice.tex`; pri zagonu z enim naborom namesto testov čez nabore `corrected_ttest_holm.csv/.tex` — iz `src/summary.py`, `src/stats.py`, `scripts/gen_version_table.py` | da |
+| `diagnostics/` | dodatne preverbe posameznega zagona, ki jih naredi skript (ne zagon sam), npr. `lightgbm_<različica>_*.csv/.json` iz `scripts/diagnose_lightgbm_medic3.py` — le metrike, nobenih podatkov | da |
 | `PROVENANCE.md`, `sacct.txt` | ročni zapis tega, česar skript ne ve: SLURM opravila, ponovne oddaje, težave | da |
 
 Stolpci `results.csv`: `run_id, dataset, dataset_id, algorithm, repeat, fold,

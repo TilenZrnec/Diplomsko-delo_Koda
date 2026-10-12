@@ -1,0 +1,22 @@
+# sacct -j 20318170,20318171,20318172 --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList
+# (izpis 2026-10-12 na hpc-login3; vrstice zagona medic3_160 iz skupnega izpisa obeh zagonov)
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList
+------------ -------------------- ---------- ---------- ---------- ---------------
+20318170_0             tfm-medic3   00:03:31             COMPLETED           gwn08
+20318170_0.+                batch   00:03:31  11650288K  COMPLETED           gwn08
+20318170_0.+               extern   00:03:31             COMPLETED           gwn08
+20318170_1             tfm-medic3   00:39:27             COMPLETED           gwn05
+20318170_1.+                batch   00:39:27   2202928K  COMPLETED           gwn05
+20318170_1.+               extern   00:39:27             COMPLETED           gwn05
+20318170_2             tfm-medic3   00:13:16             COMPLETED           gwn09
+20318170_2.+                batch   00:13:16   2094492K  COMPLETED           gwn09
+20318170_2.+               extern   00:13:16             COMPLETED           gwn09
+20318171_4             tfm-medic3   00:19:41             COMPLETED           gwn08
+20318171_4.+                batch   00:19:41   6213712K  COMPLETED           gwn08
+20318171_4.+               extern   00:19:41             COMPLETED           gwn08
+20318171_5             tfm-medic3   00:22:44             COMPLETED           gwn08
+20318171_5.+                batch   00:22:44  96781596K  COMPLETED           gwn08
+20318171_5.+               extern   00:22:44             COMPLETED           gwn08
+20318172_3             tfm-medic3   23:08:17             COMPLETED           gwn09
+20318172_3.+                batch   23:08:17   4065456K  COMPLETED           gwn09
+20318172_3.+               extern   23:08:17             COMPLETED           gwn09
