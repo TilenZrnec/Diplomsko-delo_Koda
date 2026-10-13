@@ -45,15 +45,16 @@ kjer so uspeli vsi); številke so v `summary/per_dataset.csv`.
 
 LightGBM je propadel v **vseh 15 učenjih (ROC-AUC 0.4994–0.5125)**, brez napake
 ali izjeme. Vzrok je preverjen s `scripts/diagnose_lightgbm_medic3.py` na foldu 0
-(rezultati v `diagnostics/`, prenosnik, 8 niti; datoteke `lightgbm_4.7.0_*`
-so 2026-10-12 nastale iz commita `a5a2197`, datoteke `lightgbm_4.6.0_*` isti dan z
-delovno različico skripta pred tem commitom — del brez naše kode je v obeh enak;
-kaj je naredilo katero datoteko, piše v `*_info.json`):
+(rezultati v `diagnostics/`, 8 niti, čisto delovno drevo; datoteke
+`lightgbm_4.7.0_*` so 2026-10-12 nastale na prenosniku iz commita `a5a2197`,
+datoteke `lightgbm_4.6.0_*` 2026-10-13 na Kremnu iz commita `79e1d26` — skript je
+v obeh commitih isti, sha256 `e438f529…`; kaj je naredilo katero datoteko, piše v
+`*_info.json`):
 
 - **Neodvisna pot brez naše kode** (pandas, sklearnov `RepeatedStratifiedKFold`,
   nativni `lgb.train` s privzetimi parametri, `sklearn.roc_auc_score`) da isti
   propad: učna izguba (multi_logloss, računa jo LightGBM sam) **raste** od 4.91 po
-  prvi iteraciji do ~32.5; največja absolutna vrednost lista naraste s 129 v prvi
+  prvi iteraciji do 32.6; največja absolutna vrednost lista naraste s 129 v prvi
   iteraciji na red velikosti 10^6; napovedi so skoraj gotove (povprečna največja
   verjetnost 0.99999) in napačne (točnost ~0.057 ≈ delež največjega razreda
   0.061); ROC-AUC ~0.50. Po nekaj deset iteracijah učenje obstane (ni več
@@ -76,8 +77,8 @@ kaj je naredilo katero datoteko, piše v `*_info.json`):
   ≤ 14. To sta privzeti vrednosti XGBoost 3.4.1 (`lambda` 1, `min_child_weight` 1);
   CatBoost 1.2.10 ima `l2_leaf_reg` 3; LightGBM 4.7.0 ima `reg_lambda` 0.0 in
   `min_child_weight` 0.001 (prebrano iz nameščenih knjižnic, `lightgbm_*_info.json`).
-- **LightGBM 4.6.0** (okolje `tabularOriginal`) se obnaša enako (ROC-AUC ~0.50,
-  izguba 4.91 → ~32.5): ne gre za napako zadnje različice.
+- **LightGBM 4.6.0** (okolje `tabularOriginal`) se obnaša enako (ROC-AUC 0.500,
+  izguba 4.91 → 33.0, točnost 0.043): ne gre za napako zadnje različice.
 - Mehanizem (naša razlaga, skladna z meritvami): vrednost lista je −G/(H+λ);
   pri softmaxu z 220 razredi je hessian vrstice p(1−p) za redke razrede blizu 0,
   zato z λ = 0 in minimalno vsoto hessiana 10⁻³ listi z malo vrsticami dobijo
@@ -106,7 +107,10 @@ Celotni izpis: `sacct.txt`. Brez ponovnih oddaj.
 prenosnik (preverjeno 2026-10-12: vsako uspelo učenje ima datoteko; ROC-AUC iz
 datotek se z `results.csv` ujema na ≤ 5.5e-9 pri vseh algoritmih razen LightGBM,
 kjer je razlika ≤ 7.5e-4, ker so njegove verjetnosti v float32 skoraj vse točno 0
-in vezi spremenijo vrstni red) in uporabnikov USB-ključ (2026-10-12). Kremen: še ne.
+in vezi spremenijo vrstni red), uporabnikov USB-ključ (2026-10-12) in Kremen (z
+USB-ključa, preverjeno 2026-10-13 z enakim izidom: 75 datotek, nobene odvečne,
+razlike ≤ 5.55e-9 oz. ≤ 7.50e-4 pri LightGBM; testni foldi vsake ponovitve
+razdelijo vseh 122 093 vrstic, vsi algoritmi imajo na istem foldu iste vrstice).
 
 ## Opombe za ponovitev
 

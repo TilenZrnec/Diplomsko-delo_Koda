@@ -1,16 +1,16 @@
 {
   "provenance": {
-    "git_commit": "4df56e5",
-    "git_dirty": true,
-    "script_sha256": "9e278c3292759195a351c1b3ef99d1750bb4b006d2cde339ab33d74b2aae9fa7",
-    "hostname": "DESKTOP-0EPDCR8",
+    "git_commit": "79e1d26",
+    "git_dirty": false,
+    "script_sha256": "e438f52947c6d8226c2c5d7df3d57c0aadb6659360ad80bf17bcae7189742b9e",
+    "hostname": "Kremen",
     "python": "3.10.20",
     "lightgbm": "4.6.0",
     "sklearn": "1.5.1",
     "pandas": "2.2.2",
     "numpy": "1.26.4",
     "omp_num_threads": "8",
-    "timestamp": "2026-10-12T12:54:27+02:00"
+    "timestamp": "2026-10-13T12:48:08+02:00"
   },
   "defaults": {
     "lightgbm": {
@@ -35,8 +35,8 @@
   "dataset_set": "medic3_160",
   "warnings": {
     "default": {
-      "No further splits with positive gain, best gain: -inf": 12237,
-      "Stopped training because there are no more leaves that meet the split requirements": 67
+      "No further splits with positive gain, best gain: -inf": 12547,
+      "Stopped training because there are no more leaves that meet the split requirements": 75
     }
   }
 }

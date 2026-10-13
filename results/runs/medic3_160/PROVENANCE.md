@@ -44,20 +44,29 @@ Frank priporočata 10 × 10 za boljšo ponovljivost — to v nalogi navedemo.
 ## LightGBM: privzete nastavitve divergirajo (ni napaka naše kode)
 
 Propad v **vseh 15 učenjih (ROC-AUC 0.4999–0.5193)**, brez izjeme. Diagnostika
-na foldu 0 (`scripts/diagnose_lightgbm_medic3.py`, `diagnostics/`, 2026-10-12,
-z delovno različico skripta pred commitom `a5a2197`; ponovna izdelava iz commita je
-bila prekinjena, del brez naše kode je v obeh enak — glej `*_info.json`) pokaže
-isto kot pri `medic3_raw`:
+na foldu 0 (`scripts/diagnose_lightgbm_medic3.py`, `diagnostics/`; vse datoteke
+2026-10-13 na Kremnu iz commita `79e1d26`, čisto delovno drevo, 8 niti —
+`lightgbm_4.7.0_*` v `tabular3.5`, `lightgbm_4.6.0_*` v `tabularOriginal`; skript
+je isti kot v `a5a2197`, glej `*_info.json`) pokaže isto kot pri `medic3_raw`:
 
 - neodvisna pot brez naše kode: učna izguba raste od 3.91 po prvi iteraciji do
-  ~32.5, največji list s 73 na red velikosti 10^6, točnost ~0.059 ≈ delež
-  največjega razreda 0.063, ROC-AUC ~0.50;
-- naša pot je neodvisni enaka v prvih iteracijah (razlika ≤ 1e-12), nato se zaradi
-  neponovljivosti LightGBM (`deterministic = false`) in ojačanja divergence
-  razideta; Arnes je na foldu 0 dal 0.5168, lokalni poskusi ~0.50;
+  32.7, največji list s 73 (v 2. iteraciji že 1894) na 4.4·10^6, točnost 0.050
+  (pod deležem največjega razreda 0.063), ROC-AUC 0.511;
+- naša pot je neodvisni enaka v prvih dveh iteracijah (razlika ≤ 1e-12), nato se
+  zaradi neponovljivosti LightGBM (`deterministic = false`) in ojačanja divergence
+  razideta; ROC-AUC na foldu 0: Arnes 0.5168, Kremen 0.5154 (modul) in 0.5010
+  (ponovitev z istimi klici);
 - `reg_lambda=1` → ROC-AUC 0.948, `min_child_weight=1` → 0.945 (privzeti vrednosti
   XGBoost), učna izguba pada, največji list pod 20;
-- LightGBM 4.6.0 se obnaša enako.
+- LightGBM 4.6.0 se obnaša enako (ROC-AUC 0.500, izguba 3.91 → 32.9, točnost
+  0.049).
+
+Primerjava s prvo izdelavo na prenosniku (2026-10-12, delovna različica skripta
+pred `a5a2197`, datoteke zamenjane): vrednosti z zavoro se med strojema ujemajo
+(točnost in največji list enaka, ROC-AUC razlika ≤ 3.7e-8, učna izguba ≤ 1.7e-13),
+prav tako učna izguba prve iteracije; propadli privzeti model pa se razlikuje
+(4.7.0: ROC-AUC 0.5054 → 0.5111, največji list 2.1·10^6 → 4.4·10^6; 4.6.0: 0.4998
+→ 0.5001), naša pot je bila neodvisni enaka 10 iteracij namesto 2.
 
 Diploma poroča privzeti rezultat; vrednosti z zavoro so le diagnostika.
 
@@ -80,7 +89,10 @@ Celotni izpis: `sacct.txt`. Brez ponovnih oddaj.
 (zaupno). Kopije: Arnes, prenosnik (preverjeno 2026-10-12: vsako učenje ima
 datoteko; ROC-AUC iz datotek se z `results.csv` ujema na ≤ 3.8e-9 pri vseh
 algoritmih razen LightGBM, ≤ 7.1e-4, ker so njegove verjetnosti v float32 skoraj
-vse točno 0) in uporabnikov USB-ključ (2026-10-12). Kremen: še ne.
+vse točno 0), uporabnikov USB-ključ (2026-10-12) in Kremen (z USB-ključa,
+preverjeno 2026-10-13 z enakim izidom: 90 datotek, nobene odvečne, razlike
+≤ 3.76e-9 oz. ≤ 7.06e-4 pri LightGBM; testni foldi vsake ponovitve razdelijo vseh
+117 825 vrstic, vsi algoritmi imajo na istem foldu iste vrstice).
 
 ## Opombe za ponovitev
 

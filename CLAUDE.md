@@ -398,11 +398,11 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   **LightGBM collapses on all 30 folds (0.499–0.519) at its defaults, and it is
   not our code** (`scripts/diagnose_lightgbm_medic3.py`, outputs in each run's
   `diagnostics/`): plain LightGBM with none of our code collapses the same way;
-  its own training loss rises (4.9 → ~32.5 raw, 3.9 → ~32.5 at 160) while the
+  its own training loss rises (4.9 → 32.6–33.0 raw, 3.9 → 32.7–32.9 at 160) while the
   largest leaf value grows from ~10² to ~10⁶ and predictions become ~100 %
   confident and wrong; our pipeline equals the plain path until the leaves
-  explode (8–10 iterations in the first run, only 2 in a rerun; the largest leaf
-  is already ~2000 at iteration 2); one brake fixes it on the same fold (`reg_lambda=1` → 0.938 raw /
+  explode (8–10 iterations in the first laptop runs, only 2 in the reruns from the
+  commit; the largest leaf is already ~2000 at iteration 2); one brake fixes it on the same fold (`reg_lambda=1` → 0.938 raw /
   0.948 at 160, `min_child_weight=1` → 0.938 / 0.945). Those are XGBoost 3.4.1's
   defaults (`lambda` 1, `min_child_weight` 1; CatBoost 1.2.10 `l2_leaf_reg` 3),
   while LightGBM 4.7.0 has `reg_lambda` 0.0 and `min_child_weight` 1e-3;
@@ -413,14 +413,17 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   2026-10-12 (user): report the default result as is (option A)**; the braked
   numbers are diagnostics, never LightGBM's result. The exact digits of a
   collapsed LightGBM are **not reproducible** (two identical calls on one
-  machine differ; Arnes fold 0 0.5000 vs local ~0.50); the collapse is. The
-  braked numbers and the first-iteration losses DO repeat to the last digit.
-  Diagnostics provenance: `medic3_raw/diagnostics/lightgbm_4.7.0_*` regenerated
-  from `a5a2197` (clean); `medic3_160` and all `lightgbm_4.6.0_*` files come from
-  the pre-commit working copy (same independent code); their regeneration was
-  interrupted on 2026-10-12 — optional to redo on Kremen with
-  `python scripts/diagnose_lightgbm_medic3.py --dataset-set medic3_160` (+ the
-  `--part independent --settings default` run in `tabularOriginal`).
+  machine differ; fold 0 raw: Arnes 0.5000 vs local 0.500–0.510; at 160: Arnes
+  0.5168 vs local 0.500–0.515); the collapse is. The braked numbers and the
+  first-iteration losses DO repeat, also across machines (`medic3_160`, laptop
+  vs Kremen: accuracy and largest leaf identical, ROC-AUC within 3.7e-8, losses
+  within 2e-13) — identical to every digit we report, not bit-identical.
+  Diagnostics provenance (each file's `*_info.json` has commit, host, versions):
+  `medic3_raw/diagnostics/lightgbm_4.7.0_*` on the laptop from `a5a2197`
+  (2026-10-12); `medic3_160/diagnostics/*` and `medic3_raw/diagnostics/lightgbm_4.6.0_*`
+  on Kremen from `79e1d26` (2026-10-13; 4.7.0 in `tabular3.5`, 4.6.0 in
+  `tabularOriginal`). All from a clean tree with the same script (sha256
+  `e438f529…`); the earlier pre-commit laptop files were replaced.
 
 ## Arnes HPC
 - SLURM cluster, GPU partition `gpu`, H100 nodes; partition time limit
@@ -606,7 +609,9 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    at `420bdac` as three submissions per run (jobs `20318167`–`20318172`), all
    COMPLETED, no resubmissions; merged, summarised and tested on Arnes and
    committed from there (`4df56e5`). Predictions copied to the laptop and the
-   USB drive (2026-10-12) — **Kremen not yet**. Results and the LightGBM
+   USB drive (2026-10-12) and from USB to Kremen (2026-10-13), verified on both
+   (every successful fit has its file, ROC-AUC from the files matches
+   `results.csv`; see each run's `PROVENANCE.md`). Results and the LightGBM
    collapse: Datasets → Medic3 results; receipts in each run's `PROVENANCE.md`.
 6. Last: tuning one booster (nested CV, see the 2026-09-29 discussion: XGBoost
    or LightGBM, not CatBoost) and the CC18 leakage test (design to be agreed
