@@ -44,8 +44,10 @@ Frank priporočata 10 × 10 za boljšo ponovljivost — to v nalogi navedemo.
 ## LightGBM: privzete nastavitve divergirajo (ni napaka naše kode)
 
 Propad v **vseh 15 učenjih (ROC-AUC 0.4999–0.5193)**, brez izjeme. Diagnostika
-na foldu 0 (`scripts/diagnose_lightgbm_medic3.py`, `diagnostics/`, 2026-10-12)
-pokaže isto kot pri `medic3_raw`:
+na foldu 0 (`scripts/diagnose_lightgbm_medic3.py`, `diagnostics/`, 2026-10-12,
+z delovno različico skripta pred commitom `a5a2197`; ponovna izdelava iz commita je
+bila prekinjena, del brez naše kode je v obeh enak — glej `*_info.json`) pokaže
+isto kot pri `medic3_raw`:
 
 - neodvisna pot brez naše kode: učna izguba raste od 3.91 po prvi iteraciji do
   ~32.5, največji list s 73 na red velikosti 10^6, točnost ~0.059 ≈ delež

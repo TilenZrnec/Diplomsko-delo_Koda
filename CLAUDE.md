@@ -400,8 +400,9 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   `diagnostics/`): plain LightGBM with none of our code collapses the same way;
   its own training loss rises (4.9 → ~32.5 raw, 3.9 → ~32.5 at 160) while the
   largest leaf value grows from ~10² to ~10⁶ and predictions become ~100 %
-  confident and wrong; our pipeline equals the plain path for the first ~10
-  iterations; one brake fixes it on the same fold (`reg_lambda=1` → 0.938 raw /
+  confident and wrong; our pipeline equals the plain path until the leaves
+  explode (8–10 iterations in the first run, only 2 in a rerun; the largest leaf
+  is already ~2000 at iteration 2); one brake fixes it on the same fold (`reg_lambda=1` → 0.938 raw /
   0.948 at 160, `min_child_weight=1` → 0.938 / 0.945). Those are XGBoost 3.4.1's
   defaults (`lambda` 1, `min_child_weight` 1; CatBoost 1.2.10 `l2_leaf_reg` 3),
   while LightGBM 4.7.0 has `reg_lambda` 0.0 and `min_child_weight` 1e-3;
@@ -412,7 +413,14 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   2026-10-12 (user): report the default result as is (option A)**; the braked
   numbers are diagnostics, never LightGBM's result. The exact digits of a
   collapsed LightGBM are **not reproducible** (two identical calls on one
-  machine differ; Arnes fold 0 0.5000 vs local ~0.50); the collapse is.
+  machine differ; Arnes fold 0 0.5000 vs local ~0.50); the collapse is. The
+  braked numbers and the first-iteration losses DO repeat to the last digit.
+  Diagnostics provenance: `medic3_raw/diagnostics/lightgbm_4.7.0_*` regenerated
+  from `a5a2197` (clean); `medic3_160` and all `lightgbm_4.6.0_*` files come from
+  the pre-commit working copy (same independent code); their regeneration was
+  interrupted on 2026-10-12 — optional to redo on Kremen with
+  `python scripts/diagnose_lightgbm_medic3.py --dataset-set medic3_160` (+ the
+  `--part independent --settings default` run in `tabularOriginal`).
 
 ## Arnes HPC
 - SLURM cluster, GPU partition `gpu`, H100 nodes; partition time limit

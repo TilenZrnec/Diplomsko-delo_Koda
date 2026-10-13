@@ -45,7 +45,10 @@ kjer so uspeli vsi); številke so v `summary/per_dataset.csv`.
 
 LightGBM je propadel v **vseh 15 učenjih (ROC-AUC 0.4994–0.5125)**, brez napake
 ali izjeme. Vzrok je preverjen s `scripts/diagnose_lightgbm_medic3.py` na foldu 0
-(rezultati v `diagnostics/`, 2026-10-12, prenosnik, 8 niti):
+(rezultati v `diagnostics/`, prenosnik, 8 niti; datoteke `lightgbm_4.7.0_*`
+so 2026-10-12 nastale iz commita `a5a2197`, datoteke `lightgbm_4.6.0_*` isti dan z
+delovno različico skripta pred tem commitom — del brez naše kode je v obeh enak;
+kaj je naredilo katero datoteko, piše v `*_info.json`):
 
 - **Neodvisna pot brez naše kode** (pandas, sklearnov `RepeatedStratifiedKFold`,
   nativni `lgb.train` s privzetimi parametri, `sklearn.roc_auc_score`) da isti
@@ -58,7 +61,9 @@ ali izjeme. Vzrok je preverjen s `scripts/diagnose_lightgbm_medic3.py` na foldu 
   positive gain` in `Stopped training because there are no more leaves that meet
   the split requirements` — o naraščajoči izgubi ne poroča.
 - **Ista pot kot zagon** (`src.models.lightgbm_model.run`): učna izguba je **enaka
-  neodvisni poti v prvih iteracijah** (razlika ≤ 1e-12; stolpec
+  neodvisni poti v prvih iteracijah**, dokler se listi ne razletijo (razlika ≤ 1e-12;
+  v prvem poskusu 8 iteracij, v ponovitvi iz commita le 2 — največji list je že v
+  2. iteraciji ~2000; stolpec
   `identical_iterations_vs_independent` v `diagnostics/lightgbm_4.7.0_benchmark.csv`),
   potem se poti razideta. Modela sta torej ista; razhajanje po eksploziji je
   numerično: LightGBM privzeto ni bitno ponovljiv (`deterministic = false`),
