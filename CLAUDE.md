@@ -620,9 +620,19 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    leakage test (design to be agreed with the supervisor first); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
    2026-10-14):**
-   - **XGBoost**, with exactly the `cc18_v3` preprocessing (ordinal codes, no
-     native `enable_categorical`), so `cc18_v3`'s XGBoost rows are the default
-     arm and only the hyperparameters differ.
+   - **XGBoost**, with exactly the `cc18_v3` preprocessing (ordinal codes), so
+     `cc18_v3`'s XGBoost rows are the default arm and only the hyperparameters
+     differ. `cc18_v3` stays the main result.
+   - **Extra arm, native categories (user, 2026-10-14):** the same tuning with
+     categorical columns passed as pandas `category` (OpenML already delivers
+     them so; xgboost 3.4.1 defaults to `enable_categorical=True`, verified in
+     the installed source, so this is XGBoost's own out-of-the-box path; object
+     dtype is rejected). Run only on datasets with categorical columns (13 of
+     the 36, 23 of the 68; elsewhere the input is identical), plus native at
+     defaults on all 23 categorical CC18 sets. Test-fold categories aligned to
+     the training fold's (as in `lightgbm_model`). Measured 2026-10-14 at
+     defaults, 15 folds: credit-g native 0.761 vs ordinal 0.772 (3/15 folds
+     better), cmc 0.700 vs 0.705 (2/15); ordinal reproduced `cc18_v3` exactly.
    - **Nested CV:** outer = the 15 folds of `cc18_v3`; inner = 3-fold
      stratified CV on the outer training part only; best mean inner ROC-AUC
      wins, is refit on the whole training part, scored once on the test part.
@@ -645,7 +655,8 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      `subsample` 0.8, test 0.734 vs default 0.701. Explainer page for the user:
      https://claude.ai/artifact/GF5XYzKoUrpT6srp7AmTND.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
-   and that XGBoost keeps ordinal codes (`enable_categorical` not used).
+   and that the main XGBoost keeps ordinal codes although xgboost 3.4.1
+   defaults to native categories (the native arm measures the difference).
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
@@ -681,6 +692,27 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
   (formula checked in the paper, §3.3; for best replicability they recommend
   10 × 10-fold CV — our 3 × 5 is valid but less replicable, say so for Medic3);
   Nadeau & Bengio 2003, Machine Learning 52:239–281, doi:10.1023/A:1024068626366.
+- **Tuning — sources (verified 2026-10-14 from the full texts).** Probst,
+  Boulesteix & Bischl 2019, JMLR 20(53):1–32 (Tables 1–3: XGBoost tunability
+  per HP, tuning ranges q0.05–q0.95; 38 binary OpenML100 sets; package default
+  nrounds 500). Nested CV: Cawley & Talbot 2010, JMLR 11(70):2079–2107 —
+  p. 2080 "model selection must be treated as an integral part of the model
+  fitting process and performed afresh every time a model is fitted to a new
+  sample of data", compare "learning algorithm/model selection procedure
+  combinations", "nested cross-validation or 'double cross' (Stone, 1974)";
+  pp. 2102–2103 tuning outside the CV ("external protocol") is optimistically
+  biased on all 13 benchmarks, "should not be used in practice"; p. 2103
+  model selection "conducted independently in each trial". Varma & Simon 2006,
+  BMC Bioinformatics 7:91, doi:10.1186/1471-2105-7-91 (abstract: the CV
+  estimate of a CV-tuned classifier is substantially biased — on null data
+  error < 30 % for 18.5 % / 38 % of sets while true error is chance; nested CV
+  "provides an almost unbiased estimate"). Bischl et al. 2023, WIREs Data
+  Mining Knowl. Discov. 13(2):e1484, doi:10.1002/widm.1484 (Crossref; quotes
+  from arXiv 2107.05847v3): §4.4 pp. 22–24 reporting the tuned score is
+  "optimistically biased"; nested resampling; per-fold winners are "temporary
+  objects", for a final model tune once more on the complete data; §4.2.1
+  p. 9 random search often beats grid search (Bergstra & Bengio 2012, not yet
+  verified) — grid search is the supervisor's choice; say so as a limitation.
 
 ## Conventions
 - Each model module fails soft: exceptions go to `result["error"]`, never
