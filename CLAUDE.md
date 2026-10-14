@@ -516,7 +516,10 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   predate the `proba_classes` field (columns = classes in order). When
   predictions are needed and not on the machine, ask the user to plug in the USB
   drive; never re-run just to regain them. After each new run, remind the user
-  to copy its `predictions/` there. **Second backup:** on 2026-10-09 the user
+  to copy its `predictions/` there. **Policy (user, 2026-10-13):** archive = USB
+  drive, working copies = the WSL partitions of the laptop and Kremen; the `D:`
+  copy below was a one-off for the older runs, not part of the policy.
+  **One-off backup:** on 2026-10-09 the user
   copied the whole `results/runs/` of Kremen to its Windows drive
   `D:\fri\diplomska_win` (`/mnt/d/fri/diplomska_win` in WSL, **Kremen only**):
   `cc18_v2`, `cc18_v3`, `check_refactor_oldenv`, `subset_v2_local`,
@@ -613,14 +616,36 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (every successful fit has its file, ROC-AUC from the files matches
    `results.csv`; see each run's `PROVENANCE.md`). Results and the LightGBM
    collapse: Datasets → Medic3 results; receipts in each run's `PROVENANCE.md`.
-6. Last: tuning one booster (nested CV, see the 2026-09-29 discussion: XGBoost
-   or LightGBM, not CatBoost) and the CC18 leakage test (design to be agreed
-   with the supervisor first); CC18 with injected NULLs is still on the
-   supervisor's list. Open choices for tuning (user, 2026-10-10): booster
-   (XGBoost recommended), grid (from Probst et al. 2019), datasets (the 37
-   non-saturated of `cc18_v3` recommended: XGBoost ×49 ≈ 61 CPU-h, CIFAR_10 alone
-   ~59 h), inner CV (3 folds). For the supervisor: leakage design, tuning
-   choices, injected NULLs, XGBoost `enable_categorical`, the LightGBM finding.
+6. Next: tuning one booster by grid search with nested CV, then the CC18
+   leakage test (design to be agreed with the supervisor first); CC18 with
+   injected NULLs is still on the supervisor's list. **Tuning decisions (user,
+   2026-10-14):**
+   - **XGBoost**, with exactly the `cc18_v3` preprocessing (ordinal codes, no
+     native `enable_categorical`), so `cc18_v3`'s XGBoost rows are the default
+     arm and only the hyperparameters differ.
+   - **Nested CV:** outer = the 15 folds of `cc18_v3`; inner = 3-fold
+     stratified CV on the outer training part only; best mean inner ROC-AUC
+     wins, is refit on the whole training part, scored once on the test part.
+   - **Grid** (Probst, Boulesteix & Bischl 2019, JMLR 20(53):1–32, Table 3,
+     verified 2026-10-13): `learning_rate` {0.3, 0.1, 0.03} × `n_estimators`
+     {100, 200, 500, 1000} × `min_child_weight` {1, 4} × `colsample_bylevel`
+     {1, 0.5} × `subsample` {1, 0.8} = 96 configs, defaults included;
+     `max_depth` not tuned (lowest tunability). One fit to 1000 rounds per
+     config; the tree counts are read with `iteration_range` (verified
+     2026-10-13 identical to separate fits, also with subsampling). Non-default
+     values lie inside Probst's tuning ranges except 200/500 trees (their
+     range ~920–4550); in the pilot, check how often winners sit at 1000 trees.
+   - **Datasets:** one pinned list of 68 (CC18 minus Devnagari-Script,
+     CIFAR_10, Fashion-MNIST, mnist_784, excluded on cost). Run the 36
+     non-saturated first, the other 32 later under the same `RUN_ID` and the
+     same commit (finished datasets are skipped). Upper bound 26 h / 124 h of
+     8-core compute; pilot on Kremen first.
+   - Worked example (cmc, fold 0): the default config reproduces `cc18_v3`
+     exactly; winner lr 0.03 / 100 trees / `colsample_bylevel` 0.5 /
+     `subsample` 0.8, test 0.734 vs default 0.701. Explainer page for the user:
+     https://claude.ai/artifact/GF5XYzKoUrpT6srp7AmTND.
+   For the supervisor: leakage design, injected NULLs, the LightGBM finding,
+   and that XGBoost keeps ordinal codes (`enable_categorical` not used).
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
