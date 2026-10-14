@@ -129,7 +129,9 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
 - `scripts/` — `gen_cc18_ids.py` (pins the 72 CC18 IDs), `profile_datasets.py
   --dataset-set X [--from-cache]`, `prestage.py --dataset-set X` (Arnes login
   node), `run_cc18.sh` / `run_subset.sh` / `run_medic3.sh` (SLURM, take
-  `RUN_ID`),
+  `RUN_ID`; `run_cc18.sh` also `ALGORITHMS="a b"` for a subset of algorithms),
+  `audit_defaults.py` (proves every algorithm runs out of the box, see
+  Preprocessing policy; GPU for TabPFN/TabICL, a few minutes on Kremen),
   `merge_results.py <run>`, `compare_results.py <run A> <run B>`,
   `gen_version_table.py <run>` (LaTeX table of versions from the manifest; adds
   the weights file from `model_checkpoints` to the TabPFN/TabICL rows),
@@ -146,7 +148,9 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
   `results.csv`, `summary/`, `diagnostics/` [checks made by a script after the
   run]). Kept: **`cc18_v3`** (the thesis results), the Medic3 runs
   **`medic3_raw`** and **`medic3_160`**, and the two validation runs of the
-  freeze, `subset_v3_local` (Kremen) and `subset_v3` (Arnes); everything older
+  freeze, `subset_v3_local` (Kremen) and `subset_v3` (Arnes), plus
+  `subset_v4_local` (Kremen, RF + XGBoost only: local validation of the
+  2026-10-14 out-of-the-box fix before `cc18_v4`); everything older
   is in git history — `cc18_v2` e.g.
   `git show 5a14045:results/runs/cc18_v2/results.csv` (the thesis generator
   reads it that way), the rest in `b1b9120` (see the state note at the top). Rule: keep only the runs the thesis currently uses, delete
@@ -177,59 +181,76 @@ Render with `java -jar plantuml.jar -tpng razlaga_repozitorija/zaporedje.puml`
 or the VS Code PlantUML extension (`Alt+D`).
 
 ## Preprocessing policy (per algorithm — a deliberate experimental variable)
-The protocol is "the *minimal* preprocessing an algorithm needs to accept the
-input", not the best preprocessing. Each row of `results.csv` records what was
-applied (`preprocessing`) and, for the foundation models, whether the raw input
-failed first (`raw_error`).
-- **RandomForest**: no native NaN/categorical support → median imputation
-  (numeric) + most-frequent imputation & ordinal encoding (categorical), fit on
-  the train fold only.
-- **XGBoost**: native NaN handling; categorical columns ordinal-encoded to
-  numeric codes with NaN preserved. Ordinal codes impose an artificial order
-  on nominal categories — that is part of what is measured.
-- **LightGBM**: native NaN handling; categorical columns cast to pandas
-  `category` dtype; non-categorical columns explicitly cast to float.
+**Rule (user, 2026-10-14): every algorithm runs out of the box** — library
+default hyperparameters and only the preprocessing without which the library
+rejects the input. Not the best preprocessing. Each row of `results.csv`
+records what was applied (`preprocessing`) and, for the foundation models,
+whether the raw input failed first (`raw_error`). **`scripts/audit_defaults.py`
+proves it** (run it after every library upgrade; exit code 1 on any breach):
+it intercepts each library's `fit` while running our module on `sick` fold 0,
+compares the parameters with the class defaults, repeats with unordered
+categories, and tests on synthetic data that every preprocessing step we do is
+one the library needs. Result 2026-10-14: all six pass (see Audit below).
+- **RandomForest** (sklearn 1.9.1): **native NaN** (since sklearn 1.4); it
+  rejects strings and has no categorical parameter, so categorical columns are
+  ordinal-encoded (NaN stays NaN, unseen category → -1), fit on the train fold
+  only; numeric columns cast to float (object columns). Column order numeric
+  then categorical, as in `cc18_v3`, so sets without NaN reproduce `cc18_v3`.
+  **Until 2026-10-14 (`cc18_v3`, `medic3_raw`, `medic3_160`) it imputed
+  (median / most frequent)** on the wrong belief that RF has no NaN support.
+- **XGBoost** (3.4.1): **native NaN and native categories** —
+  `enable_categorical=True` is the 3.x default; categorical columns go in as
+  pandas `category` (test fold aligned to the train fold's categories, a no-op
+  for OpenML), numeric columns cast to float (it rejects object dtype).
+  `xgboost_model.prepare()` is the shared step (also for tuning). **Until
+  2026-10-14 (`cc18_v3`) it got ordinal codes**, which were minimal only in
+  xgboost 2.1.1 (default False).
+- **LightGBM**: native NaN; categorical columns cast to pandas `category` and
+  named in `categorical_feature`; non-categorical columns cast to float (it
+  rejects object dtype). Why the explicit list: the default `'auto'` takes only
+  *unordered* categoricals, and openml-python marks every nominal attribute
+  `ordered=True`; a plain `fit(X, y)` on the loader's frame would silently
+  treat them as integer codes. Our list equals plain `fit(X, y)` on correctly
+  typed (unordered) columns — max |Δproba| 0.0 on credit-g and sick, checked by
+  the audit. So `cc18_v3`'s LightGBM is out of the box and stays.
 - **CatBoost**: native NaN (numeric) + native categorical via `cat_features`;
   categorical columns mapped element-wise to strings with NaN → the string
-  `'nan'` (its own category, not an imputation). **pandas 3.0 note:**
-  `astype(str)` no longer turns NaN into `'nan'`, it keeps it missing and
-  CatBoost rejects it; hence the explicit `map` in `catboost_model.py`. This
-  bit the first `tabular3` pilot (all 5 `sick` folds failed) and is fixed.
+  `'nan'` (its own category, not an imputation). Both steps are required: it
+  rejects a `category` column not in `cat_features` and NaN inside a
+  categorical feature. **pandas 3.0 note:** `astype(str)` no longer turns NaN
+  into `'nan'`, it keeps it missing and CatBoost rejects it; hence the explicit
+  `map` in `catboost_model.py`. This bit the first `tabular3` pilot (all 5
+  `sick` folds failed) and is fixed.
 - **TabPFN / TabICL**: raw input first; only on an exception apply a logged
   minimal fix and retry. With TabPFN-3 (tabpfn 8.5.0) raw input worked on every
   CC18 dataset, and so it did with TabPFN-3.5 in `cc18_v3` (0 `raw_error` rows
   for both foundation models). The fallbacks stay as safety nets. "Raw" means
   no preprocessing *by us*: internally TabICL mean-imputes numeric NaN without
   an indicator, TabPFN-3.5 adds NaN indicators before imputing (see Datasets →
-  Medic3, where this matters).
-- **Audit 2026-10-14 — two modules preprocess more than their library needs**
-  (installed libraries of the 2026-10-05 freeze, tested on synthetic data):
-  - **XGBoost 3.4.1:** `enable_categorical=True` by default (verified in the
-    installed source; False in 2.1.1, which the thesis used to justify our
-    encoding) and it accepts pandas `category` columns, which OpenML already
-    delivers. So our ordinal codes are **not minimal**. It rejects object
-    dtype, so the float cast of numeric columns stays.
-  - **RandomForest (scikit-learn 1.9.1):** accepts NaN natively (support since
-    sklearn 1.4, so also in the old 1.5.1 env), so the median / most-frequent
-    imputation is **not minimal** and the RandomForest line above is wrong
-    about NaN. It rejects string categories and has no categorical parameter,
-    so ordinal codes stay (NaN kept as NaN).
-  - Minimal as they are: LightGBM (category dtype native; the float cast of
-    object columns is required, it errors otherwise), CatBoost (`cat_features`
-    and NaN → `'nan'` both required, it errors otherwise), TabPFN/TabICL (raw
-    input). All hyperparameters are defaults; the only non-defaults are the
-    compute settings listed under Conventions.
-  - Affected results: XGBoost on the 23 CC18 sets with categorical columns
-    (Medic3 is all numeric, so unaffected); RandomForest on the 9 CC18 sets
-    with missing values (adult, sick, MiceProtein, cylinder-bands,
-    dresses-sales, eucalyptus, credit-approval, jm1, breast-w; OpenML counts)
-    and on both Medic3 runs (82 % missing — the data-card note that RF loses
-    the missingness signal is an artefact of our imputation).
-  - **Decision (user, 2026-10-14): every algorithm runs out of the box —
-    library defaults and only the preprocessing the library needs to accept
-    the input.** Rerun scope recommended: only XGBoost and RandomForest, on all
-    72 CC18 sets (the unaffected sets double as a check against `cc18_v3`) and
-    RandomForest on `medic3_raw` / `medic3_160`; to be confirmed by the user.
+  Medic3, where this matters). TabPFN's explicit `model_path` (version pinning,
+  see Structure) is the very file the default `'auto'` resolves to
+  (`tabpfn-v3.5-20260909.safetensors`; the audit recomputes it).
+- **The `ordered=True` flag** that openml-python puts on all categorical
+  columns changes nothing in any of our six modules (max |Δproba| 0.0, all six,
+  credit-g and sick; the audit repeats it every run).
+- **Audit 2026-10-14 (the finding behind the rule).** Two modules preprocessed
+  more than their library needs: XGBoost (ordinal codes; 3.x handles
+  categories by default) and RandomForest (imputation; sklearn ≥ 1.4 handles
+  NaN). Hyperparameters were defaults everywhere; the only non-defaults are
+  the seed and the compute/logging settings listed under Conventions. Affected
+  results: XGBoost on the 23 CC18 sets with categorical columns (Medic3 is all
+  numeric, so XGBoost there is unaffected); RandomForest on the 9 CC18 sets
+  with missing values (adult, sick, MiceProtein, cylinder-bands,
+  dresses-sales, eucalyptus, credit-approval, jm1, breast-w; OpenML counts)
+  and on both Medic3 runs (82 % missing). **Partial rerun (user, 2026-10-14):**
+  XGBoost + RandomForest on all 72 CC18 sets as `cc18_v4` (the unaffected sets
+  double as a check against `cc18_v3`) and RandomForest on Medic3 as
+  `medic3_raw_v2` / `medic3_160_v2`; LightGBM, CatBoost, TabPFN, TabICL stay
+  from `cc18_v3` / `medic3_raw` / `medic3_160` (code unchanged). Local
+  validation `subset_v4_local` (Kremen, 90 fits, 0 errors) vs `cc18_v3`:
+  diabetes RF and XGBoost Δ 0; credit-g RF Δ 0, XGBoost changed (mean 0.7723 →
+  0.7610); sick (the only one with NaN) both changed (RF 0.9966 → 0.9968,
+  XGBoost 0.9965 → 0.9971).
 
 ## Timing
 `train_time_s` and `inference_time_s` are wall-clock around `fit` and
@@ -368,18 +389,19 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
     native categorical handling gives it no advantage here;
   - `Field` alone predicts the class with 25 % accuracy → correctly dropped;
   - **missingness itself is a strong predictor** (e.g. A177 observed in 99.5 %
-    of class C152's rows vs. 0.0 % of C202's). **Two** algorithms impute and
-    therefore lose this signal (corrected 2026-10-09; this note used to say RF
-    was the only one): RandomForest (our minimal preprocessing, median) and
-    **TabICL, inside its own library** — tabicl 2.2.0 `TransformToNumerical`
+    of class C152's rows vs. 0.0 % of C202's). **Only TabICL loses this signal,
+    inside its own library** (until 2026-10-14 RandomForest did too, through
+    *our* median imputation, which was not minimal — removed, RF now takes NaN
+    natively; `medic3_raw` / `medic3_160` RF rows are superseded by
+    `medic3_raw_v2` / `medic3_160_v2`) — tabicl 2.2.0 `TransformToNumerical`
     (`tabicl/_sklearn/preprocessing.py`) runs `SimpleImputer(keep_empty_features
     =True)`, i.e. the column mean with no missing indicator, on every numeric
     column before the model sees it. TabPFN-3.5 keeps the signal:
     `tabpfn/architectures/tabpfn_v3_5.py` builds NaN indicators *before* its own
     mean imputation ("Indicators need to be computed before imputation") and
     feeds both to the model; XGBoost, LightGBM and CatBoost handle NaN natively.
-    That is exactly the experimental variable the thesis measures, so expect RF
-    and TabICL to fall behind on Medic3 partly for preprocessing reasons, not
+    That is exactly the experimental variable the thesis measures, so expect
+    TabICL to fall behind on Medic3 partly for preprocessing reasons, not
     model reasons. Say this in the thesis; do not "fix" it (TabICL's imputation
     is the library default, not our preprocessing). TabPFN-3's hard
   cap was 160 classes, so it would fail-soft on Medic3 as agreed with the
@@ -636,7 +658,37 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (every successful fit has its file, ROC-AUC from the files matches
    `results.csv`; see each run's `PROVENANCE.md`). Results and the LightGBM
    collapse: Datasets → Medic3 results; receipts in each run's `PROVENANCE.md`.
-6. Next: tuning one booster by grid search with nested CV, then the CC18
+6. **Next (2026-10-14): partial out-of-the-box rerun** (Preprocessing policy →
+   Audit). Code fixed and validated on Kremen: `scripts/audit_defaults.py`
+   passes for all six; `subset_v4_local` behaves as expected; Medic3 fold 0:
+   XGBoost old and new module identical on Kremen
+   (Δproba 0 — so the change cannot touch all-numeric data; Kremen vs the
+   stored Arnes value differs by 6.2e-4 raw / 4.6e-4 at 160, hardware rounding,
+   see Conventions), RandomForest with native NaN raw 0.8138 → 0.8348 and 160
+   0.8489 → 0.8717, still ~11–14 s per fold. On Arnes, after `git pull` (no new packages; Medic3.csv
+   and the CC18 OpenML cache are already there), from the repo root:
+       ALGORITHMS="random_forest xgboost" ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v4 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
+       ALGORITHMS="random_forest xgboost" ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v4 sbatch --array=27,60,61,70 --mem=120G --time=1-00:00:00 scripts/run_cc18.sh
+       PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw_v2 sbatch --array=0,1 scripts/run_medic3.sh
+       DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160_v2 sbatch --array=0,1 scripts/run_medic3.sh
+   (`--array=0,1` = RandomForest and XGBoost; XGBoost on Medic3 is rerun only
+   as a check — identical input, expected Δ 0 to `medic3_raw` / `medic3_160` on
+   Arnes — and so that RF and XGBoost come from the reruns everywhere.)
+   The scripts still request one H100 per task although RF and XGBoost do not
+   use it: same node pool as `cc18_v3`, so their train times stay comparable
+   with the other four algorithms'. Afterwards: `merge_results.py` for each
+   run, `sacct` into each run's PROVENANCE.md, commit from Arnes; copy the three
+   `predictions/` folders to the laptop, Kremen and the USB drive.
+   Checks after the run: `compare_results.py cc18_v3 cc18_v4` → XGBoost Δ 0 on
+   the 49 sets without categorical columns, RF Δ ≤ ~2e-5 on the 63 without
+   NaN, changes only on the 23 / 9 affected sets; Medic3 XGBoost is not rerun
+   (all numeric, identical input) beyond that check. Then the thesis result set = `cc18_v3`'s
+   LightGBM, CatBoost, TabPFN, TabICL + `cc18_v4`'s RF and XGBoost (a combine
+   script writes it into a subfolder of `cc18_v4`, never into `cc18_v3`);
+   regenerate summary/stats and the thesis tables; update Methods (RF and
+   XGBoost preprocessing, the `\todo` in `sec:xgboost`) and the Medic3
+   discussion (only TabICL imputes now).
+7. Then: tuning one booster by grid search with nested CV, then the CC18
    leakage test (design to be agreed with the supervisor first); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
    2026-10-14):**
@@ -734,9 +786,12 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
 - Each model module fails soft: exceptions go to `result["error"]`, never
   raised, so one failing (dataset, algorithm, fold) doesn't crash a run.
 - All algorithms use **default hyperparameters** — intentional per the thesis
-  protocol, not an oversight to "fix". The only non-defaults are compute
-  settings: `RandomForestClassifier(n_jobs=-1)`, `LGBMClassifier(verbosity=-1)`,
-  `CatBoostClassifier(verbose=False, allow_writing_files=False)`.
+  protocol, not an oversight to "fix". The only non-defaults are the seed
+  (`random_state`) and compute/logging settings:
+  `RandomForestClassifier(n_jobs=-1)`, `LGBMClassifier(verbosity=-1)`,
+  `CatBoostClassifier(verbose=False, allow_writing_files=False)`; TabPFN's
+  explicit `model_path` is the file the default `'auto'` picks. Verified by
+  `scripts/audit_defaults.py` (2026-10-14: all six pass).
 - **RandomForest with `n_jobs=-1` is not bit-reproducible at prediction
   time** (found 2026-10-08, correcting an earlier "bit-identical, verified"
   note): parallel *fits* give bit-identical trees (= serial), but parallel
@@ -753,6 +808,13 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
   is broken (LightGBM on Medic3) leaves ordinary rows with no `error`. After
   every run, check per-fold ROC-AUC: anything near 0.5 on a dataset where the
   others score high is a red flag to investigate before writing.
+- **XGBoost is deterministic on one machine and across Arnes nodes**
+  (`cc18_v2` vs `cc18_v3`: Δ 0 on all 72 sets, PCIe and SXM nodes), **but not
+  between Kremen and Arnes on large data**: Medic3 fold 0 differs by 6.2e-4
+  (raw) / 4.6e-4 (160) although the old and the new module give identical
+  predictions on Kremen (2026-10-14); small CC18 sets showed Δ 0 Kremen vs
+  Arnes. Hardware floating point, not the code: compare XGBoost numbers within
+  one machine pool, and treat Kremen pilots as approximate.
 - **LightGBM is not bit-reproducible by default** (`deterministic=false`):
   invisible in stable training (CC18: Δ 0 across runs and machines), visible
   once training diverges (Medic3). Changing it would be a protocol change; ask

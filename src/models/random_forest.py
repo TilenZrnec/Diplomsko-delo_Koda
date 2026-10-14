@@ -1,15 +1,22 @@
-"""RandomForest (sklearn, privzeti hiperparametri).
+"""RandomForest (sklearn, privzeti hiperparametri, privzeta obravnava vhoda).
 
-Nima nativne podpore za manjkajoče vrednosti ali kategorične spremenljivke,
-zato: median imputacija (numerične), most-frequent imputacija + ordinalno
-kodiranje (kategorične). Predobdelava se prilega samo na train fold.
+scikit-learn od različice 1.4 manjkajoče vrednosti v RandomForest obravnava sam
+(pri vsaki delitvi se nauči, v katero vejo gredo vrstice z NaN), zato jih ne
+nadomeščamo. Nizov (kategorij) pa ne sprejme in nima parametra za kategorične
+stolpce, zato kategorične stolpce ordinalno kodiramo; NaN ostane NaN. Kodirnik
+se prilega samo na učni fold.
+
+Do 2026-10-14 (zagon cc18_v3) smo manjkajoče vrednosti nadomeščali z mediano
+oz. najpogostejšo vrednostjo, ker smo napačno domnevali, da RandomForest NaN ne
+podpira. To ni bila najmanjša predobdelava in je na Medic3 (82 % manjkajočih)
+modelu odvzelo informacijo o tem, kaj manjka (CLAUDE.md, Preprocessing policy ->
+Audit).
 """
 
 import time
 
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OrdinalEncoder
 
@@ -19,8 +26,9 @@ from src.utils import compute_roc_auc, describe_device
 USES_GPU = False
 
 PREPROCESSING = (
-    "median imputacija (numerične) + most-frequent imputacija in ordinalno "
-    "kodiranje (kategorične); RandomForest nima nativne podpore za NaN/kategorije"
+    "nativna obravnava NaN (scikit-learn >= 1.4); kategorične stolpce ordinalno "
+    "kodiramo, ker RandomForest nizov ne sprejme (NaN ostane NaN, neznana "
+    "kategorija -> -1); numerične pretvorimo v float"
 )
 
 
@@ -39,13 +47,20 @@ def run(X_train, y_train, X_test, y_test, categorical_cols, random_state):
     }
     try:
         numeric_cols = [c for c in X_train.columns if c not in categorical_cols]
+        # V float le zaradi numeričnih OpenML stolpcev, ki se naložijo kot object;
+        # pri stolpcih, ki so že števila, se vrednosti ne spremenijo.
+        X_train = X_train.copy()
+        X_test = X_test.copy()
+        X_train[numeric_cols] = X_train[numeric_cols].astype(float)
+        X_test[numeric_cols] = X_test[numeric_cols].astype(float)
 
+        # Vrstni red stolpcev (najprej numerični, nato kategorični) je enak kot v
+        # cc18_v3, zato so rezultati na naborih brez manjkajočih vrednosti enaki
+        # prejšnjim (RandomForest izbira atribute naključno po njihovem mestu).
         preprocessor = ColumnTransformer([
-            ("num", SimpleImputer(strategy="median"), numeric_cols),
-            ("cat", Pipeline([
-                ("impute", SimpleImputer(strategy="most_frequent")),
-                ("encode", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)),
-            ]), categorical_cols),
+            ("num", "passthrough", numeric_cols),
+            ("cat", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1),
+             categorical_cols),
         ])
         clf = Pipeline([
             ("preprocess", preprocessor),

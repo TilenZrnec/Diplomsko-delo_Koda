@@ -57,6 +57,13 @@
 #     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=4,5 --mem=160G --time=1-00:00:00 scripts/run_medic3.sh
 #     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160 sbatch --array=3 --time=2-00:00:00 scripts/run_medic3.sh
 #
+# DELNI PONOVNI ZAGON 2026-10-14 (popravek "kot iz škatle", CLAUDE.md ->
+# Preprocessing policy -> Audit): RandomForest (0) zdaj sam obravnava NaN;
+# XGBoost (1) ima enak vhod kot prej (Medic3 nima kategoričnih stolpcev) in
+# teče le kot preverba, da Arnes ponovi medic3_raw / medic3_160 (pričakovano Δ 0).
+#     PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_raw_v2 sbatch --array=0,1 scripts/run_medic3.sh
+#     DATASET_SET=medic3_160 PYTHONUNBUFFERED=1 ALLOW_SPARSE_ARRAY=1 RUN_ID=medic3_160_v2 sbatch --array=0,1 scripts/run_medic3.sh
+#
 # PONOVNA ODDAJA po prekoračenem --time ali pomnilniku: isti ukaz, ISTI RUN_ID.
 # Kontrolne točke so po posameznem učenju, zato opravilo nadaljuje pri prvem
 # nenarejenem foldu.

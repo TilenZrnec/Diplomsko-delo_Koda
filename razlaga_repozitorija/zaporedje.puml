@@ -174,8 +174,8 @@ deactivate BENCH
 
 note over MODEL
   Šest modulov z **identičnim podpisom** run(..., random_state):
-  src/models/random_forest.py   - imputacija + ordinalno kodiranje
-  src/models/xgboost_model.py   - nativni NaN, kategorične -> kode
+  src/models/random_forest.py   - nativni NaN, kategorične -> kode
+  src/models/xgboost_model.py   - nativni NaN + 'category' dtype
   src/models/lightgbm_model.py  - nativni NaN + 'category' dtype
   src/models/catboost_model.py  - nativni NaN + cat_features
   src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU);
@@ -374,6 +374,7 @@ participant "scripts/gen_version_table.py" as VER
 participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
 participant "scripts/diagnose_lightgbm_medic3.py" as DIAG
+participant "scripts/audit_defaults.py" as AUD
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -486,6 +487,25 @@ note over DIAG
   Neodvisna pot brez naše kode da isti model kot zagon,
   napaka torej ni v naši kodi. Diploma poroča privzeti
   rezultat; skript je vir številk za razlago.
+end note
+
+== Stranska veja: revizija "kot iz škatle" ==
+U -> AUD : python scripts/audit_defaults.py [~--dataset 38] [~--algorithms ...]
+activate AUD
+AUD -> AUD : run() vsakega modula na foldu 0 (sick: kategorije + NaN);\nprestreže fit(): parametri, argumenti, vhod
+AUD -> AUD : parametri proti privzetim knjižnice; dovoljeni le seme,\njedra, izpis; pot uteži TabPFN = 'auto'
+AUD -> AUD : ponovi z neurejenimi kategorijami (OpenML: ordered=True);\nLightGBM izrecni seznam = privzeti fit(X, y)
+AUD -> AUD : sintetični podatki: knjižnica brez našega koraka\nvhod zavrne, kar zna sama, sprejme
+AUD --> U : tabela; izhodna koda 1 ob kateremkoli odstopanju
+deactivate AUD
+
+note over AUD
+  Zakaj: diploma trdi, da vsi algoritmi tečejo s
+  privzetimi nastavitvami in le s predobdelavo, brez
+  katere knjižnica vhoda ne sprejme. Revizija 2026-10-14
+  je pokazala, da XGBoost (privzeto nativne kategorije)
+  in RandomForest (sklearn >= 1.4 sprejme NaN) dobita
+  preveč predobdelave; popravljeno, zagon cc18_v4.
 end note
 
 @enduml

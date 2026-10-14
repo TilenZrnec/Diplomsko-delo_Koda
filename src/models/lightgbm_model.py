@@ -3,6 +3,14 @@
 Nativno obravnava manjkajoče vrednosti. Kategorične spremenljivke se
 pretvorijo v pandas 'category' dtype, kar LightGBM prepozna kot nativne
 kategorične stolpce (brez ročnega kodiranja).
+
+Zakaj kategorične stolpce naštejemo izrecno (categorical_feature), čeprav je
+privzeto 'auto': 'auto' upošteva le NEurejene pandas kategorične stolpce,
+openml-python pa vse nominalne atribute označi kot urejene (ordered=True), čeprav
+vrstnega reda nimajo. Privzeti klic na takem vhodu bi jih tiho obravnaval kot
+številske kode. Izrecni seznam da natanko isto kot privzeti klic fit(X, y) na
+pravilno označenih (neurejenih) stolpcih - preverjeno 2026-10-14 (razlika
+napovedi 0), preverja ga scripts/audit_defaults.py.
 """
 
 import time

@@ -204,17 +204,25 @@ z njimi ravna enako in ne ve, kateri algoritem kliče. Vsaka `run()`:
 
 Predobdelave po algoritmih:
 
-- **RandomForest** ne zna manjkajočih vrednosti (NaN) niti kategorij. Zato
-  **imputacija**: manjkajoče številske vrednosti nadomesti mediana, manjkajoče
-  kategorične najpogostejša vrednost; kategorije se **ordinalno kodirajo**,
-  vsaka dobi celo število. Imputer se **prilega samo na učni del** (`fit` na
+- **RandomForest** (scikit-learn 1.9) zna manjkajoče vrednosti sam: pri vsaki
+  delitvi se nauči, v katero vejo gredo vrstice z NaN (od različice 1.4). Ne zna
+  pa nizov, zato se kategorije **ordinalno kodirajo** (vsaka dobi celo število,
+  NaN ostane NaN). Kodirnik se **prilega samo na učni del** (`fit` na
   `X_train`, `transform` na obeh), sicer bi testni podatki vplivali na učenje.
-- **XGBoost** zna NaN, ne zna nizov. Kategorije ordinalno kodira, NaN ostane
-  NaN. Ordinalno kodiranje kategorijam vsili umeten vrstni red, kar mu lahko
-  škodi; to je namerno del meritve.
+  Do 2026-10-14 smo NaN nadomeščali z mediano oz. najpogostejšo vrednostjo, ker
+  smo napačno mislili, da RandomForest NaN ne zna; to je popravljeno (zagon
+  `cc18_v4`).
+- **XGBoost** (3.4) zna NaN in kategorije sam: privzeto (`enable_categorical=True`)
+  obravnava stolpce pandas tipa `category`. Kategorij zato ne kodiramo; numerične
+  stolpce le pretvorimo v `float`, ker stolpcev tipa `object` ne sprejme. Do
+  2026-10-14 smo kategorije ordinalno kodirali, kar je bilo potrebno le v
+  starejšem XGBoost 2.1 (popravljeno, zagon `cc18_v4`).
 - **LightGBM** zna NaN in kategorije, če so stolpci pandas tipa `category`.
   Ostale stolpce pretvori v `float`, ker OpenML kak povsem prazen stolpec
-  naloži kot `object`.
+  naloži kot `object`. Kategorične stolpce mu naštejemo izrecno, ker jih
+  openml-python označi kot *urejene*, privzeta nastavitev LightGBM (`'auto'`)
+  pa upošteva le neurejene; izrecni seznam da natanko isto kot privzeti klic na
+  pravilno označenih stolpcih (preverja `scripts/audit_defaults.py`).
 - **CatBoost** zna NaN v številskih stolpcih in kategorije prek
   `cat_features`, a v kategoričnih stolpcih ne dovoli NaN; zato se vsaka
   vrednost pretvori v niz in NaN v niz `'nan'`, ki postane lastna kategorija.

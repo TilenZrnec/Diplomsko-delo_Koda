@@ -19,6 +19,17 @@
 # dovoli do 4-00:00:00):
 #     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
 #     ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v3 sbatch --array=27,60,61,70 --mem=240G --time=2-00:00:00 scripts/run_cc18.sh
+#
+# DELNI PONOVNI ZAGON - le nekateri algoritmi (spremenljivka ALGORITHMS, imena iz
+# config.yaml, ločena s presledkom). Tako je nastal cc18_v4 (2026-10-14): XGBoost
+# in RandomForest po popravku "kot iz škatle" (CLAUDE.md, Preprocessing policy ->
+# Audit); ostali štirje algoritmi ostanejo iz cc18_v3. Brez TabPFN/TabICL štirje
+# veliki nabori ne potrebujejo 240G (to je bil TabICL); XGBoost na
+# Devnagari-Script traja ~3,6 h na 15 učenj.
+#     ALGORITHMS="random_forest xgboost" ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v4 sbatch --array=0-26,28-59,62-69,71%4 scripts/run_cc18.sh
+#     ALGORITHMS="random_forest xgboost" ALLOW_SPARSE_ARRAY=1 RUN_ID=cc18_v4 sbatch --array=27,60,61,70 --mem=120G --time=1-00:00:00 scripts/run_cc18.sh
+# Runner pri izrecnih algoritmih piše v per_dataset/<id>__<algoritmi>.csv.
+#
 # Rezultati gredo v results/runs/<RUN_ID>/per_dataset/. Brez RUN_ID se oznaka
 # izpelje iz ID-ja polja (cc18_<SLURM_ARRAY_JOB_ID>), a dve polji bi tako dobili
 # različni mapi - zato RUN_ID vedno podaj izrecno.
@@ -58,7 +69,15 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 RUN_ID="${RUN_ID:-${DATASET_SET}_${SLURM_ARRAY_JOB_ID}}"
-echo "RUN_ID=$RUN_ID  (task $SLURM_ARRAY_TASK_ID, nabor $DATASET_SET)"
+echo "RUN_ID=$RUN_ID  (task $SLURM_ARRAY_TASK_ID, nabor $DATASET_SET, algoritmi: ${ALGORITHMS:-vsi iz config.yaml})"
+
+# Neobvezna podmnožica algoritmov. Prazen seznam pod set -u razširimo z idiomom
+# ${ARR[@]+...}, ker starejši bash prazno polje sicer šteje za nedefinirano.
+ALGO_ARGS=()
+if [ -n "${ALGORITHMS:-}" ]; then
+    read -r -a ALGO_LIST <<< "$ALGORITHMS"
+    ALGO_ARGS=(--algorithms "${ALGO_LIST[@]}")
+fi
 
 mkdir -p logs
 
@@ -79,4 +98,5 @@ if [ "$SLURM_ARRAY_TASK_ID" -ge "$N_IDS" ]; then
 fi
 
 $MAMBA python -m src.run_one_dataset \
-    --dataset-set "$DATASET_SET" --index "$SLURM_ARRAY_TASK_ID" --run-id "$RUN_ID"
+    --dataset-set "$DATASET_SET" --index "$SLURM_ARRAY_TASK_ID" --run-id "$RUN_ID" \
+    ${ALGO_ARGS[@]+"${ALGO_ARGS[@]}"}
