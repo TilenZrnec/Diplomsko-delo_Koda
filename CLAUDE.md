@@ -202,14 +202,34 @@ failed first (`raw_error`).
   no preprocessing *by us*: internally TabICL mean-imputes numeric NaN without
   an indicator, TabPFN-3.5 adds NaN indicators before imputing (see Datasets →
   Medic3, where this matters).
-- **Open question (XGBoost, found 2026-10-08):** in xgboost 3.4.1
-  `enable_categorical` defaults to **True** (it was False in 2.1.1, which the
-  thesis used to justify our own encoding). Our module still ordinal-encodes
-  and casts to float, so XGBoost's native categorical path is never used and
-  `cc18_v3` is valid as run — but whether ordinal codes are still "the minimal
-  preprocessing" when XGBoost, like LightGBM, would accept `category` dtype is
-  a protocol decision for the user/supervisor (`\todo` in the thesis,
-  `sec:xgboost`).
+- **Audit 2026-10-14 — two modules preprocess more than their library needs**
+  (installed libraries of the 2026-10-05 freeze, tested on synthetic data):
+  - **XGBoost 3.4.1:** `enable_categorical=True` by default (verified in the
+    installed source; False in 2.1.1, which the thesis used to justify our
+    encoding) and it accepts pandas `category` columns, which OpenML already
+    delivers. So our ordinal codes are **not minimal**. It rejects object
+    dtype, so the float cast of numeric columns stays.
+  - **RandomForest (scikit-learn 1.9.1):** accepts NaN natively (support since
+    sklearn 1.4, so also in the old 1.5.1 env), so the median / most-frequent
+    imputation is **not minimal** and the RandomForest line above is wrong
+    about NaN. It rejects string categories and has no categorical parameter,
+    so ordinal codes stay (NaN kept as NaN).
+  - Minimal as they are: LightGBM (category dtype native; the float cast of
+    object columns is required, it errors otherwise), CatBoost (`cat_features`
+    and NaN → `'nan'` both required, it errors otherwise), TabPFN/TabICL (raw
+    input). All hyperparameters are defaults; the only non-defaults are the
+    compute settings listed under Conventions.
+  - Affected results: XGBoost on the 23 CC18 sets with categorical columns
+    (Medic3 is all numeric, so unaffected); RandomForest on the 9 CC18 sets
+    with missing values (adult, sick, MiceProtein, cylinder-bands,
+    dresses-sales, eucalyptus, credit-approval, jm1, breast-w; OpenML counts)
+    and on both Medic3 runs (82 % missing — the data-card note that RF loses
+    the missingness signal is an artefact of our imputation).
+  - **Decision (user, 2026-10-14): every algorithm runs out of the box —
+    library defaults and only the preprocessing the library needs to accept
+    the input.** Rerun scope recommended: only XGBoost and RandomForest, on all
+    72 CC18 sets (the unaffected sets double as a check against `cc18_v3`) and
+    RandomForest on `medic3_raw` / `medic3_160`; to be confirmed by the user.
 
 ## Timing
 `train_time_s` and `inference_time_s` are wall-clock around `fit` and
@@ -620,19 +640,16 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    leakage test (design to be agreed with the supervisor first); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
    2026-10-14):**
-   - **XGBoost**, with exactly the `cc18_v3` preprocessing (ordinal codes), so
-     `cc18_v3`'s XGBoost rows are the default arm and only the hyperparameters
-     differ. `cc18_v3` stays the main result.
-   - **Extra arm, native categories (user, 2026-10-14):** the same tuning with
-     categorical columns passed as pandas `category` (OpenML already delivers
-     them so; xgboost 3.4.1 defaults to `enable_categorical=True`, verified in
-     the installed source, so this is XGBoost's own out-of-the-box path; object
-     dtype is rejected). Run only on datasets with categorical columns (13 of
-     the 36, 23 of the 68; elsewhere the input is identical), plus native at
-     defaults on all 23 categorical CC18 sets. Test-fold categories aligned to
-     the training fold's (as in `lightgbm_model`). Measured 2026-10-14 at
-     defaults, 15 folds: credit-g native 0.761 vs ordinal 0.772 (3/15 folds
-     better), cmc 0.700 vs 0.705 (2/15); ordinal reproduced `cc18_v3` exactly.
+   - **XGBoost**, with the same out-of-the-box preprocessing as the default
+     XGBoost after the 2026-10-14 correction (native categories, see
+     Preprocessing policy → Audit), so the rerun's default XGBoost rows are the
+     default arm and only the hyperparameters differ.
+   - **Extra arm, native categories (user, 2026-10-14) — superseded the same
+     day** by the out-of-the-box decision (Preprocessing policy → Audit): the
+     default XGBoost itself now takes native categories, so the tuned arm does
+     too, and ordinal vs native at defaults is simply `cc18_v3` vs the rerun.
+     Measured at defaults, 15 folds: credit-g native 0.761 vs ordinal 0.772
+     (3/15 folds better), cmc 0.700 vs 0.705 (2/15).
    - **Nested CV:** outer = the 15 folds of `cc18_v3`; inner = 3-fold
      stratified CV on the outer training part only; best mean inner ROC-AUC
      wins, is refit on the whole training part, scored once on the test part.
@@ -655,8 +672,7 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      `subsample` 0.8, test 0.734 vs default 0.701. Explainer page for the user:
      https://claude.ai/artifact/GF5XYzKoUrpT6srp7AmTND.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
-   and that the main XGBoost keeps ordinal codes although xgboost 3.4.1
-   defaults to native categories (the native arm measures the difference).
+   and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
