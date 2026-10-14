@@ -1,0 +1,59 @@
+1. NASTAVITVE IN VHOD - sick (OpenML 38), fold 0: 3017 učnih vrstic, 29 atributov (22 kategoričnih), 6064 manjkajočih vrednosti v naboru
+
+[random_forest] sklearn.ensemble._forest.RandomForestClassifier   ROC-AUC 0.9955387257006194
+    predobdelava: nativna obravnava NaN (scikit-learn >= 1.4); kategorične stolpce ordinalno kodiramo, ker RandomForest nizov ne sprejme (NaN ostane NaN, neznana kategorija -> -1); numerične pretvorimo v float
+    odstopanje n_jobs = -1 (privzeto None) -> število jeder (RandomForest); drevesa so enaka kot serijsko
+    odstopanje random_state = 42 (privzeto None) -> seme (ponovljivost), ne hiperparameter
+    vhod modela: {'type': 'ndarray', 'shape': (3017, 29), 'dtypes': {'float64': 29}, 'n_nan': 4826}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+
+[xgboost] xgboost.sklearn.XGBClassifier   ROC-AUC 0.9969338320966457
+    predobdelava: nativna obravnava NaN in kategoričnih stolpcev (xgboost 3: privzeto enable_categorical=True); kategorične stolpce podamo kot pandas 'category' (testni fold z istimi kategorijami kot učni), numerične pretvorimo v float
+    odstopanje random_state = 42 (privzeto None) -> seme (ponovljivost), ne hiperparameter
+    vhod modela: {'type': 'DataFrame', 'shape': (3017, 29), 'dtypes': {'category': 22, 'float64': 7}, 'n_nan': 4826}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+
+[lightgbm] lightgbm.sklearn.LGBMClassifier   ROC-AUC 0.9978230207886184
+    predobdelava: nativna obravnava NaN; kategorične stolpce pretvorimo v pandas 'category' dtype za nativno kategorično podporo LightGBM; preostale stolpce eksplicitno pretvorimo v float (nekateri numerični OpenML atributi se zaradi manjkajočih vrednosti naložijo kot object dtype)
+    odstopanje random_state = 42 (privzeto None) -> seme (ponovljivost), ne hiperparameter
+    odstopanje verbosity = -1 (privzeto '<ni nastavljen>') -> izpis (LightGBM)
+    argumenti fit: {'categorical_feature': ['sex', 'on_thyroxine', 'query_on_thyroxine', 'on_antithyroid_medication', 'sick', 'pregnant', 'thyroid_surgery', 'I131_treatment', 'query_hypothyroid', 'query_hyperthyroid', 'lithium', 'goitre', 'tumor', 'hypopituitary', 'psych', 'TSH_measured', 'T3_measured', 'TT4_measured', 'T4U_measured', 'FTI_measured', 'TBG_measured', 'referral_source']}
+    vhod modela: {'type': 'DataFrame', 'shape': (3017, 29), 'dtypes': {'category': 22, 'float64': 7}, 'n_nan': 4826}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+    enako privzetemu klicu fit(X, y) na neurejenih kategoričnih stolpcih: da
+
+[catboost] catboost.core.CatBoostClassifier   ROC-AUC 0.9980683142208868
+    predobdelava: nativna obravnava NaN (numerične); kategorične stolpce pretvorimo v string (NaN -> 'nan' kot lastna kategorija) in podamo kot cat_features
+    odstopanje allow_writing_files = False (privzeto '<ni nastavljen>') -> pisanje pomožnih datotek na disk (CatBoost)
+    odstopanje random_state = 42 (privzeto '<ni nastavljen>') -> seme (ponovljivost), ne hiperparameter
+    odstopanje verbose = False (privzeto '<ni nastavljen>') -> izpis (CatBoost)
+    argumenti fit: {'cat_features': ['sex', 'on_thyroxine', 'query_on_thyroxine', 'on_antithyroid_medication', 'sick', 'pregnant', 'thyroid_surgery', 'I131_treatment', 'query_hypothyroid', 'query_hyperthyroid', 'lithium', 'goitre', 'tumor', 'hypopituitary', 'psych', 'TSH_measured', 'T3_measured', 'TT4_measured', 'T4U_measured', 'FTI_measured', 'TBG_measured', 'referral_source']}
+    vhod modela: {'type': 'DataFrame', 'shape': (3017, 29), 'dtypes': {'str': 22, 'float64': 6, 'object': 1}, 'n_nan': 4710}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+
+[tabpfn] tabpfn.classifier.TabPFNClassifier   ROC-AUC 0.9992947813822286
+    predobdelava: raw (brez predobdelave)
+    odstopanje model_path = '/home/tilen/.cache/tabpfn/tabpfn-v3.5-20260909.safetensors' (privzeto 'auto') -> izrecno izbrane privzete uteži: 'auto' v tem okolju izbere isto datoteko (tabpfn-v3.5-20260909.safetensors)
+    odstopanje random_state = 42 (privzeto 0) -> seme (ponovljivost), ne hiperparameter
+    vhod modela: {'type': 'DataFrame', 'shape': (3017, 29), 'dtypes': {'category': 22, 'float64': 6, 'object': 1}, 'n_nan': 4826}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+
+[tabicl] tabicl._sklearn.classifier.TabICLClassifier   ROC-AUC 0.9981602992579873
+    predobdelava: raw (brez predobdelave)
+    vsi parametri privzeti
+    vhod modela: {'type': 'DataFrame', 'shape': (3017, 29), 'dtypes': {'category': 22, 'float64': 6, 'object': 1}, 'n_nan': 4826}
+    oznaka ordered iz OpenML spremeni napovedi: ne
+
+2. NUJNOST PREDOBDELAVE (sintetični podatki)
+
+    sprejme  RandomForest sprejme NaN -> ne nadomeščamo: ustreza
+    zavrne   RandomForest zavrne kategorije (nize) -> ordinalno kodiramo: ustreza (ValueError: could not convert string to float: 'b')
+    sprejme  XGBoost sprejme 'category' z NaN -> ne kodiramo: ustreza
+    zavrne   XGBoost zavrne numerični stolpec tipa object -> float: ustreza (ValueError: DataFrame.dtypes for data must be int, float, bool or category. When categorical type is s)
+    sprejme  LightGBM sprejme 'category' z NaN -> ne kodiramo: ustreza
+    zavrne   LightGBM zavrne numerični stolpec tipa object -> float: ustreza (ValueError: pandas dtypes must be int, float or bool.)
+    zavrne   CatBoost zavrne 'category' brez cat_features -> podamo cat_features: ustreza (CatBoostError: features data: pandas.DataFrame column 'cat' has dtype 'category' but is not in  cat_featu)
+    zavrne   CatBoost zavrne NaN v kategoričnem stolpcu -> NaN v niz 'nan': ustreza (CatBoostError: Invalid type for cat_feature[object_idx=0,feature_idx=1]=NaN : cat_features must be intege)
+    sprejme  CatBoost sprejme NaN v numeričnem stolpcu -> ne nadomeščamo: ustreza
+
+REZULTAT: vse ustreza
