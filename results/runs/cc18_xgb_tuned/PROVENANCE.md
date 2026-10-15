@@ -121,4 +121,4 @@ pot enaka kot v `f7d8366`):
 
       RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --partition=long --time=4-00:00:00 scripts/run_tuning.sh
 
-  job ID: (vpišemo ob prejemu).
+  job `20511665` (sprejet).

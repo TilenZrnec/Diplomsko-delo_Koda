@@ -894,10 +894,11 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      (Arnes at `785257b`, training path = `f7d8366`): job `20511472`
      (`--array=36-48,50-53,55-67%8`, default partition `all`, 12 h). For
      49/54 sbatch rejected `--time=3-00:00:00` (`all` allows 2 days, see Arnes
-     HPC), so they go to the `long` partition (7 days) with the command above
-     (`--partition=long --time=4-00:00:00`); fallback if `long` refuses: `all`
-     with `--time=2-00:00:00`, then resubmit `--array=49` after a TIMEOUT (it
-     resumes at the last finished fold). The `3-00:00:00` in the
+     HPC), so they went to the `long` partition (7 days) with the command above
+     (`--partition=long --time=4-00:00:00`): job `20511665`. Had `long` refused,
+     the fallback was `all` with `--time=2-00:00:00` and a resubmission of
+     `--array=49` after a TIMEOUT (it resumes at the last finished fold). The
+     `3-00:00:00` in the
      `scripts/run_tuning.sh` header gets corrected after part 2 (left alone so
      the training-path diff stays empty while the run is in progress).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
