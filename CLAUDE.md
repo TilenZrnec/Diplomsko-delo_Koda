@@ -70,9 +70,10 @@ rerun plus the earlier run.
 | `cc18_v2` (deleted; git `5a14045`) | CC18, all six, older freeze 2026-09-09 with **TabPFN-3** | read from git only for the thesis table "TabPFN-3 vs TabPFN-3.5" |
 | older runs (git `b1b9120`) | pre-September runs and the August archive | history only |
 
-**Thesis status:** the thesis text and tables still show the `cc18_v3`
-numbers (old RF/XGBoost) until its generator reads `cc18_v4/combined/`
-(pending, What is next step 6).
+**Thesis status (2026-10-15, thesis commit `76bf380`):** the Results chapter
+reads `cc18_v4/combined/` and the two Medic3 `combined/` folders through
+`rezultati/generiraj_rezultate.py` (thesis repo); the TabPFN-3 comparison
+still uses `cc18_v3` vs `cc18_v2` on purpose (same code, only TabPFN differs).
 
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
@@ -771,12 +772,13 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    order unchanged. Predictions (2160 + 30 + 30 files) copied to Kremen, the
    laptop and the USB drive (2026-10-15) and verified on Kremen (every fit has
    its file, ROC-AUC from the files matches; see each PROVENANCE.md).
-   **Pending:** point the
-   thesis generator at `cc18_v4/combined` (and Medic3 `combined/`), regenerate
-   the tables, rewrite the affected Results sentences (the two Wilcoxon pairs,
-   RF/XGBoost ranks on the non-saturated subset), Methods (RF and XGBoost
-   preprocessing, the `\todo` in `sec:xgboost`) and the Medic3 discussion
-   (only TabICL imputes).
+   **Thesis updated 2026-10-15** (thesis commit `76bf380`): Results chapter on
+   the combined sets, new sections "Popravek predobdelave" and "Podatkovni
+   nabor Medic3", Methods text for RF / XGBoost / LightGBM preprocessing
+   corrected, Bouckaert & Frank 2004 and Nadeau & Bengio 2003 added to
+   `literatura.bib` (Crossref). Still open in the thesis: the Discussion
+   (LightGBM mechanism, only TabICL imputes on Medic3), Materiali (CC18 and
+   Medic3 descriptions), Protokol / Predobdelava / Okolje / Ponovljivost.
 7. Then: tuning one booster by grid search with nested CV, then the CC18
    leakage test (design to be agreed with the supervisor first); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
@@ -839,9 +841,17 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      0–4: with lr 0.01 the best tree count is 200–500 in 12/15 folds (inside
      the grid), gain over the lr-0.03 best −0.003…+0.006. Hence lr 0.01 (inside
      Probst's range 0.002–0.355, brackets their optimal default 0.018 with
-     0.03). The pilot is rerun with the final 128-config grid under the same
-     name (the 96-config one was discarded uncommitted).
-   - **Arnes run `cc18_xgb_tuned`** (from the repo root, after `git pull`):
+     0.03). **Final pilot** with the 128-config grid, from `f7d8366` (the
+     Arnes commit), same name (the 96-config one was discarded uncommitted):
+     45 folds, 0 errors, default = `cc18_v4` to 1.1e-16; tuned − default:
+     credit-g +0.0234 (13/15 folds better), diabetes +0.0414 (15/15), sick
+     +0.0005 (8/15); winners by (lr, trees): low corner (0.01, 100) 6/45, at
+     1000 trees 4/45, lr 0.01 wins 29/45 — the grid now brackets the optimum;
+     tuning time 626–713 × one default fit.
+   - **Arnes run `cc18_xgb_tuned` — first 36 submitted 2026-10-15** from
+     `hpc-login4` at `f7d8366`, job `20494570` (`--array=0-35%8`); with no
+     partition given it ran on the default CPU partition `all` (nodes `wn…`),
+     no GPU reserved. Commands (from the repo root, after `git pull`):
          RUN_ID=cc18_xgb_tuned sbatch --array=0-35%8 scripts/run_tuning.sh
      Estimate (default XGBoost time in `cc18_v4` × ratio 450–800 × 4/3 for lr
      0.01): ~28–49 h of 8-core compute, longest task Bioresponse ≤ ~5 h, ~4–7 h
