@@ -772,10 +772,12 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    order unchanged. Predictions (2160 + 30 + 30 files) copied to Kremen, the
    laptop and the USB drive (2026-10-15) and verified on Kremen (every fit has
    its file, ROC-AUC from the files matches; see each PROVENANCE.md).
-   **Thesis updated 2026-10-15** (thesis commit `76bf380`): Results chapter on
-   the combined sets, new sections "Popravek predobdelave" and "Podatkovni
-   nabor Medic3", Methods text for RF / XGBoost / LightGBM preprocessing
-   corrected, Bouckaert & Frank 2004 and Nadeau & Bengio 2003 added to
+   **Thesis updated 2026-10-15** (thesis commits `76bf380`, `2ef9c62`): Results
+   chapter on the combined sets as one result set — **the rerun is not
+   mentioned in the thesis (user's decision)**, provenance only in LaTeX
+   comments; new section "Podatkovni nabor Medic3"; tree-ensemble Methods
+   sections cut to ~half a page each (supervisor: ~50 pages, known methods
+   brief); RF / XGBoost / LightGBM preprocessing text corrected, Bouckaert & Frank 2004 and Nadeau & Bengio 2003 added to
    `literatura.bib` (Crossref). Still open in the thesis: the Discussion
    (LightGBM mechanism, only TabICL imputes on Medic3), Materiali (CC18 and
    Medic3 descriptions), Protokol / Predobdelava / Okolje / Ponovljivost.
