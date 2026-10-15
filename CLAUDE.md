@@ -62,7 +62,7 @@ rerun plus the earlier run.
 | **`medic3_160_v2/combined/`** | Medic3 (160 classes), all six algorithms | **THE Medic3-160 thesis results** (the only Medic3 variant where all six run) |
 | `medic3_160_v2` | Medic3 (160), **RF (fixed) + XGBoost (check, identical)** (Arnes, 2026-10-15) | source of RF and XGBoost |
 | `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
-| `cc18_xgb_tuned` (on Arnes from 2026-10-15) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — the 36 non-saturated CC18 sets first, the other 32 later; `tuning/` = all 128 inner scores per fold | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
+| `cc18_xgb_tuned` (Arnes, CPU only) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — part 1 = the 36 non-saturated CC18 sets (done 2026-10-15, job `20494570`, 540 rows), part 2 = the other 32 (next); `tuning/` = all 128 inner scores per fold | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
 | `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
 | `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
@@ -867,6 +867,29 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      `sacct` → `sacct.txt`, `git pull`, commit `results/runs/cc18_xgb_tuned`
      (incl. `tuning/`; `predictions/` stays out), push; copy `predictions/` to
      Kremen, laptop, USB.
+   - **Part 1 checked 2026-10-15 on Kremen** (receipts and every number in
+     `results/runs/cc18_xgb_tuned/PROVENANCE.md`): job `20494570`, 36 tasks
+     COMPLETED on 13 CPU nodes `wn…`, 540 rows, 0 errors, all from `f7d8366`,
+     clean tree, committed from Arnes as `785257b`; 4 h 50 min wall, 26.9 h of
+     8-core compute (longest madelon 4 h 04 min), MaxRSS ≤ 0.97 GiB. Checks:
+     in-run default = `cc18_v4` on 415/540 folds, the rest within 1.1e-16
+     (rounding, same prediction order); `tuning/` tables match `results.csv`
+     on 540/540 (read with `float_precision="round_trip"` — pandas' default
+     parser can be 1 ulp off); Arnes = the Kremen pilot on credit-g and
+     diabetes (same winner and ROC-AUC, 30/30). On the 36: tuned beats default
+     on 33 (mean +0.0141, Wilcoxon p 1.9e-8), ties default CatBoost (15:21,
+     p_Holm 0.67), loses to TabPFN-3.5 on 36/36 and TabICL on 33/36, closes
+     39 % of the mean gap to TabPFN-3.5. The low corner (0.01, 100) won
+     73/540 folds, almost only on small noisy sets (kc2, analcatdata_dmft,
+     dresses-sales, cmc, blood-transfusion, numerai28.6), by a median inner
+     margin of 0.0016, while TabPFN-3.5 leads there by 0.009–0.030. **The grid
+     stays unchanged for part 2**: it was fixed before the run, and changing it
+     now would choose the grid after seeing results; the thesis names it as a
+     limitation. Part 2 estimate (`cc18_v4` default time × measured ratio
+     340–1194): isolet 20–69 h, har 7–24 h, the other 30 together 14–50 h
+     (letter ≤ 6.3 h), so the 12 h default and 3 days for 49/54 hold. Submit
+     with the two commands above **without `git pull`** (Arnes is at
+     `785257b`, training path = `f7d8366`).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 
