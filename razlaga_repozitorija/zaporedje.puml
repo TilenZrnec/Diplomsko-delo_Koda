@@ -375,6 +375,7 @@ participant "scripts/compare_results.py" as CMP
 participant "scripts/profile_medic3.py" as MED
 participant "scripts/diagnose_lightgbm_medic3.py" as DIAG
 participant "scripts/audit_defaults.py" as AUD
+participant "scripts/combine_runs.py" as COMB
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -392,6 +393,19 @@ SUM -> SUM : overall_table: povprečje na naborih, kjer so uspeli VSI;\nposebej 
 SUM -> SUMOUT : overall, overall_nonsaturated, per_dataset,\npivot, ranks (.csv + .tex)
 SUM --> U : tabele + seznam neuspelih učenj
 deactivate SUM
+
+== Delni ponovni zagon: sestavljen nabor rezultatov ==
+U -> COMB : python scripts/combine_runs.py cc18_v4 ~--base cc18_v3
+activate COMB
+COMB -> RES : bere oba results.csv in manifest.json
+COMB -> COMB : preveri enake nastavitve delitev, nabore\nin velikosti foldov
+COMB -> RES : <nov>/combined/results.csv (nov zagon + manjkajoči\nalgoritmi iz starega) in sources.json
+deactivate COMB
+note right of COMB
+  Po popravku "kot iz škatle" (2026-10-14) sta ponovno
+  tekla le RandomForest in XGBoost; summary in stats
+  nato tečeta na combined/results.csv.
+end note
 
 == Statistična značilnost (Demšar 2006) ==
 
