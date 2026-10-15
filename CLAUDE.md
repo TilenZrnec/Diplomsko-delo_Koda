@@ -35,6 +35,44 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
 `git show b1b9120:results/runs/subset_v2/results.csv` or
 `git checkout b1b9120 -- results/arnes`.
 
+## Run registry — what every run IS (read this before talking about runs)
+**The user asked for this explicitly (2026-10-15): there are many run names and
+they get confusing.** Whenever you mention a run to the user, say what it is in
+plain words, e.g. "`cc18_v4` (the RandomForest + XGBoost rerun)", never the bare
+name. Update this table in the same commit as any new, deleted or re-purposed
+run, and keep `results/README.md` (Slovenian, same table) in sync.
+
+Name parts: `cc18` = the 72 OpenML-CC18 datasets; `medic3_raw` = the
+confidential hospital dataset Medic3 with all 220 classes; `medic3_160` =
+Medic3 limited to its 160 most frequent classes (TabPFN's class limit);
+`subset` = three small CC18 datasets (credit-g, diabetes, sick) for quick
+checks; `_v2`/`_v3`/`_v4` = version of that result set (new library freeze or
+protocol fix); `_local` = run on Kremen instead of Arnes; **`combined/`** = the
+full six-algorithm table assembled by `scripts/combine_runs.py` from a partial
+rerun plus the earlier run.
+
+| Run | What it is | Role now |
+|---|---|---|
+| **`cc18_v4/combined/`** | CC18, all six algorithms, 15 folds each: RF + XGBoost from `cc18_v4`, the other four from `cc18_v3` | **THE CC18 thesis results** |
+| `cc18_v4` | CC18, **only RandomForest + XGBoost**, rerun after the out-of-the-box fix (Arnes, 2026-10-14/15) | source of RF and XGBoost |
+| `cc18_v3` | CC18, all six algorithms, library freeze 2026-10-05 with TabPFN-3.5 (Arnes, 2026-10-06/08) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; **its RF and XGBoost rows are superseded** (old preprocessing) — never cite them |
+| **`medic3_raw_v2/combined/`** | Medic3 (220 classes), all six algorithms | **THE Medic3-220 thesis results** (TabPFN fails on the class limit, LightGBM collapses) |
+| `medic3_raw_v2` | Medic3 (220), **RF (fixed) + XGBoost (check, identical to before)** (Arnes, 2026-10-15) | source of RF and XGBoost |
+| `medic3_raw` | Medic3 (220), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
+| **`medic3_160_v2/combined/`** | Medic3 (160 classes), all six algorithms | **THE Medic3-160 thesis results** (the only Medic3 variant where all six run) |
+| `medic3_160_v2` | Medic3 (160), **RF (fixed) + XGBoost (check, identical)** (Arnes, 2026-10-15) | source of RF and XGBoost |
+| `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
+| `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
+| `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
+| `subset_v3` | the same check on Arnes | evidence only |
+| `cc18_v2` (deleted; git `5a14045`) | CC18, all six, older freeze 2026-09-09 with **TabPFN-3** | read from git only for the thesis table "TabPFN-3 vs TabPFN-3.5" |
+| older runs (git `b1b9120`) | pre-September runs and the August archive | history only |
+
+**Thesis status:** the thesis text and tables still show the `cc18_v3`
+numbers (old RF/XGBoost) until its generator reads `cc18_v4/combined/`
+(pending, What is next step 6). **Next run:** the XGBoost tuning experiment —
+give it a name that says what it is (e.g. `cc18_xgb_tuned`) and add it here.
+
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
   `random_state`, `n_splits`, `n_repeats`, `algorithms`, `dataset_sets`
@@ -718,8 +756,10 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    no longer significant (p_Holm 0.042 → 0.057), LightGBM vs XGBoost (37
    non-saturated) now significant (0.082 → 0.026); on the 37 RF and XGBoost
    swap mean ranks (4.95 vs 4.97). Medic3: all 10 / 15 pairs still significant,
-   order unchanged. **Pending:** copy the three `predictions/` folders from
-   Arnes to the laptop, Kremen and the USB drive and verify them; point the
+   order unchanged. Predictions (2160 + 30 + 30 files) copied to Kremen, the
+   laptop and the USB drive (2026-10-15) and verified on Kremen (every fit has
+   its file, ROC-AUC from the files matches; see each PROVENANCE.md).
+   **Pending:** point the
    thesis generator at `cc18_v4/combined` (and Medic3 `combined/`), regenerate
    the tables, rewrite the affected Results sentences (the two Wilcoxon pairs,
    RF/XGBoost ranks on the non-saturated subset), Methods (RF and XGBoost

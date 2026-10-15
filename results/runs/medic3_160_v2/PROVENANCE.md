@@ -42,8 +42,11 @@ TabPFN-3.5, p_Holm 5,0e-03).
 
 ## Napovedi
 
-`predictions/` (30 datotek `.npz`) ni v gitu in ne sme biti (zaupno). Kopije:
-Arnes; prenesti na prenosnik, Kremen in USB-ključ.
+`predictions/` (30 datotek `.npz`) ni v gitu in ne sme biti (zaupno). Kopije: Arnes,
+Kremen, prenosnik in USB-ključ (2026-10-15). Preverjeno na Kremnu: vsako učenje
+ima datoteko, nobene odvečne, foldi vsake ponovitve razdelijo vse vrstice,
+vsi algoritmi imajo na istem foldu iste vrstice, ROC-AUC iz datotek se z
+`results.csv` ujema (XGBoost ≤ 1e-16, RandomForest ≤ 6,1e-9).
 
 ## Opravila SLURM
 

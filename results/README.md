@@ -6,22 +6,41 @@ zgodovini. Nič v tej mapi se ne ureja na roko, vse nastane iz zagona.
 
 ## Kaj je zdaj tukaj
 
-| `run_id` | Kaj | Okolje |
+Deli imen: `cc18` = 72 naborov OpenML-CC18; `medic3_raw` = zaupni Medic3 z vsemi
+220 razredi; `medic3_160` = Medic3, omejen na 160 najpogostejših razredov (meja
+TabPFN); `subset` = trije majhni nabori (credit-g, diabetes, sick) za hitre
+preverbe; `_v2`/`_v3`/`_v4` = različica tega nabora rezultatov (nova zamrznitev
+knjižnic ali popravek protokola); `_local` = zagon na Kremnu namesto na Arnesu;
+**`combined/`** = celotna tabela vseh šestih algoritmov, ki jo
+`scripts/combine_runs.py` sestavi iz delnega ponovnega zagona in prejšnjega
+zagona (`sources.json` pove, od kod je kateri algoritem).
+
+**Rezultati diplome**
+
+| Mapa | Kaj je |
+|---|---|
+| `cc18_v4/combined/` | CC18, vseh šest algoritmov: RandomForest in XGBoost iz `cc18_v4`, ostali štirje iz `cc18_v3` |
+| `medic3_raw_v2/combined/` | Medic3 (220 razredov), vseh šest: RandomForest in XGBoost iz `medic3_raw_v2`, ostali iz `medic3_raw` |
+| `medic3_160_v2/combined/` | Medic3 (160 razredov), vseh šest: RandomForest in XGBoost iz `medic3_160_v2`, ostali iz `medic3_160` |
+
+**Zagoni, iz katerih so sestavljeni**
+
+| `run_id` | Kaj je | Vloga | Okolje |
+|---|---|---|---|
+| `cc18_v4` | CC18, **le RandomForest + XGBoost**, ponovljena po popravku "kot iz škatle" (2026-10-14/15), 2160 vrstic | vir RF in XGBoost | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
+| `cc18_v3` | CC18, vseh šest, zamrznitev 2026-10-05 (TabPFN-3.5), 6480 vrstic | vir LightGBM, CatBoost, TabPFN, TabICL; **njegove vrstice RF in XGBoost so nadomeščene** (stara predobdelava) | Arnes `~/envs/tabular3.5`, H100 |
+| `medic3_raw_v2` | Medic3 (220), RandomForest (popravljen) + XGBoost (preverba, enak kot prej), 30 vrstic | vir RF in XGBoost | Arnes, H100 (le CPU) |
+| `medic3_raw` | Medic3 (220), vseh šest, 90 vrstic (TabPFN-3.5: 15 × meja 160 razredov; LightGBM propade) | vir LightGBM, CatBoost, TabPFN, TabICL; RF nadomeščen; `diagnostics/` = analiza propada LightGBM | Arnes, H100 |
+| `medic3_160_v2` | Medic3 (160), RandomForest (popravljen) + XGBoost (preverba), 30 vrstic | vir RF in XGBoost | Arnes, H100 (le CPU) |
+| `medic3_160` | Medic3 (160), vseh šest, 90 vrstic | vir LightGBM, CatBoost, TabPFN-3.5, TabICL; RF nadomeščen; `diagnostics/` = analiza propada LightGBM | Arnes, H100 |
+
+**Le preverbe (niso rezultati diplome)**
+
+| `run_id` | Kaj je | Okolje |
 |---|---|---|
-| `cc18_v3` | celoten CC18, 6480 vrstic, zamrznitev 2026-10-05 (TabPFN-3.5); rezultat diplome za LightGBM, CatBoost, TabPFN, TabICL (RandomForest in XGBoost nadomesti `cc18_v4`) | Arnes `~/envs/tabular3.5`, H100 |
-| `medic3_raw` | zaupni Medic3, vseh 220 razredov, 90 vrstic (TabPFN-3.5: 15 × meja 160 razredov); RandomForest nadomesti `medic3_raw_v2` | Arnes `~/envs/tabular3.5`, H100 |
-| `medic3_160` | Medic3, 160 najpogostejših razredov, 90 vrstic, vseh šest algoritmov; RandomForest nadomesti `medic3_160_v2` | Arnes `~/envs/tabular3.5`, H100 |
-| `subset_v3_local` | validacija zamrznitve 2026-10-05 na trojici credit-g, diabetes, sick | Kremen `tabular3.5`, RTX 3060 |
-| `subset_v3` | ista validacija na gruči | Arnes `~/envs/tabular3.5`, H100 |
-| `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" (2026-10-14) na trojici credit-g, diabetes, sick; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
-
-| `cc18_v4` | RandomForest + XGBoost "kot iz škatle" na vseh 72 naborih, 2160 vrstic (2026-10-14/15); **`combined/` = rezultat diplome** (ostali štirje iz `cc18_v3`) | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
-| `medic3_raw_v2` | RandomForest + XGBoost (preverba) na Medic3, 30 vrstic; `combined/` = rezultat za diplomo | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
-| `medic3_160_v2` | isto za 160 razredov; `combined/` = rezultat za diplomo | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
-
-`combined/` sestavi `scripts/combine_runs.py <nov> --base <star>`: vse vrstice
-novega zagona + vrstice starega za algoritme, ki jih novi nima (LightGBM,
-CatBoost, TabPFN, TabICL, katerih koda se ni spremenila); `sources.json` pove vir.
+| `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" na trojici; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
+| `subset_v3_local` | vseh šest na trojici: deluje zamrznitev 2026-10-05 | Kremen `tabular3.5`, RTX 3060 |
+| `subset_v3` | ista preverba na gruči | Arnes `~/envs/tabular3.5`, H100 |
 
 `cc18_v2` (zamrznitev 2026-09-09, TabPFN-3) je bil po `cc18_v3` zbrisan
 2026-10-08; v gitu je zadnjič v commitu `5a14045`, npr.

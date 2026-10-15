@@ -67,8 +67,11 @@ XGBoost še vedno pred (0,8516 proti 0,8511).
 
 ## Napovedi
 
-`predictions/` (2160 datotek `.npz`) ni v gitu. Kopije: Arnes; prenesti na
-prenosnik, Kremen in USB-ključ (CLAUDE.md, Arnes HPC → Keep the predictions).
+`predictions/` (2160 datotek `.npz`) ni v gitu. Kopije: Arnes,
+Kremen, prenosnik in USB-ključ (2026-10-15). Preverjeno na Kremnu: vsako učenje
+ima datoteko, nobene odvečne, foldi vsake ponovitve razdelijo vse vrstice,
+vsi algoritmi imajo na istem foldu iste vrstice, ROC-AUC iz datotek se z
+`results.csv` ujema (XGBoost ≤ 1e-16, RandomForest ≤ 3,2e-4 — datoteke hranijo float32).
 
 ## Opravila SLURM
 
