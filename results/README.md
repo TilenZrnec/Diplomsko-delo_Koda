@@ -34,11 +34,18 @@ zagona (`sources.json` pove, od kod je kateri algoritem).
 | `medic3_160_v2` | Medic3 (160), RandomForest (popravljen) + XGBoost (preverba), 30 vrstic | vir RF in XGBoost | Arnes, H100 (le CPU) |
 | `medic3_160` | Medic3 (160), vseh šest, 90 vrstic | vir LightGBM, CatBoost, TabPFN-3.5, TabICL; RF nadomeščen; `diagnostics/` = analiza propada LightGBM | Arnes, H100 |
 
+**Poskus uglaševanja (poskus 4)**
+
+| `run_id` | Kaj je | Okolje |
+|---|---|---|
+| `cc18_xgb_tuned` | le `xgboost_tuned` (XGBoost, uglašen z iskanjem po mreži in gnezdenim prečnim preverjanjem) na 68 naborih `cc18_tuning`: najprej 36 nenasičenih, nato 32 nasičenih; `tuning/` = vseh 128 notranjih rezultatov na fold; primerja se s `cc18_v4/combined` | Arnes `~/envs/tabular3.5`, le CPU |
+
 **Le preverbe (niso rezultati diplome)**
 
 | `run_id` | Kaj je | Okolje |
 |---|---|---|
 | `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" na trojici; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
+| `subset_xgb_tuned_local` | pilot poskusa uglaševanja (`xgboost_tuned`) na trojici pred zagonom na Arnesu | Kremen `tabular3.5` |
 | `subset_v3_local` | vseh šest na trojici: deluje zamrznitev 2026-10-05 | Kremen `tabular3.5`, RTX 3060 |
 | `subset_v3` | ista preverba na gruči | Arnes `~/envs/tabular3.5`, H100 |
 

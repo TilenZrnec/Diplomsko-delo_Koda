@@ -62,7 +62,9 @@ rerun plus the earlier run.
 | **`medic3_160_v2/combined/`** | Medic3 (160 classes), all six algorithms | **THE Medic3-160 thesis results** (the only Medic3 variant where all six run) |
 | `medic3_160_v2` | Medic3 (160), **RF (fixed) + XGBoost (check, identical)** (Arnes, 2026-10-15) | source of RF and XGBoost |
 | `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
+| `cc18_xgb_tuned` (on Arnes from 2026-10-15) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — the 36 non-saturated CC18 sets first, the other 32 later; `tuning/` = all 128 inner scores per fold | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
 | `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
+| `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
 | `subset_v3` | the same check on Arnes | evidence only |
 | `cc18_v2` (deleted; git `5a14045`) | CC18, all six, older freeze 2026-09-09 with **TabPFN-3** | read from git only for the thesis table "TabPFN-3 vs TabPFN-3.5" |
@@ -70,15 +72,16 @@ rerun plus the earlier run.
 
 **Thesis status:** the thesis text and tables still show the `cc18_v3`
 numbers (old RF/XGBoost) until its generator reads `cc18_v4/combined/`
-(pending, What is next step 6). **Next run:** the XGBoost tuning experiment —
-give it a name that says what it is (e.g. `cc18_xgb_tuned`) and add it here.
+(pending, What is next step 6).
 
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
   `random_state`, `n_splits`, `n_repeats`, `algorithms`, `dataset_sets`
   (name → JSON file of dataset specs), `cache_dir`, `results_dir`,
-  `save_predictions`, `saturation_threshold`, `alpha`. `dataset_sets` also has
-  `medic3_160` (Medic3 capped at 160 classes). Nothing is hardcoded
+  `save_predictions`, `saturation_threshold`, `alpha`, and `tuning` (inner
+  folds, `n_estimators` list, grid — only for `xgboost_tuned`). `dataset_sets`
+  also has `medic3_160` (Medic3 capped at 160 classes) and `cc18_tuning` (the
+  68 sets of the tuning experiment). Nothing is hardcoded
   elsewhere; every script reads it through `src/config.py`.
 - `src/config.py` — `load_config()` (resolves paths to absolute),
   `dataset_specs(config, set_name)`, `spec_id(spec)`.
@@ -100,7 +103,9 @@ give it a name that says what it is (e.g. `cc18_xgb_tuned`) and add it here.
   on the **same** dataset do not overwrite each other's checkpoints — this is
   how Medic3 is split by algorithm), GPU warm-up, saved
   predictions, and a row per fit with `preprocessing`, `raw_error`, `error`,
-  `device`, `git_commit`, `hostname`, `timestamp`. Also `write_manifest()`
+  `device`, `git_commit`, `hostname`, `timestamp`, `hyperparameters` (JSON, only
+  for tuned algorithms; empty otherwise). A result with a `tuning_table` is also
+  saved as `tuning/<id>/<algo>_r<r>_f<f>.csv` (metrics only, committed). Also `write_manifest()`
   (git commit, host, GPU, config snapshot, pip freeze, and `model_checkpoints` —
   the weights file of each foundation model, because `pip freeze` only gives the
   package version) and `merge_run()`. The manifest is written through a temp
@@ -118,6 +123,10 @@ give it a name that says what it is (e.g. `cc18_xgb_tuned`) and add it here.
   preprocessing, raw_error, device, proba, classes` and a module flag
   `USES_GPU`. `classes` is `model.classes_` (label per `proba` column).
   `src/models/__init__.py` exposes `REGISTRY` mapping config names to modules.
+  `xgboost_tuned` (`src/models/xgboost_tuned.py`) is registered but **not** in
+  `config.yaml` `algorithms`: the tuning experiment, run with `--algorithms
+  xgboost_tuned` (see What is next, step 7). It uses `xgboost_model.prepare()`,
+  so its input is identical to the default XGBoost's.
   The two foundation-model modules also expose `checkpoint_name()` (weights file,
   read without loading the model). `tabpfn_model.make_classifier(random_state)`
   is the **only** place a TabPFN classifier is built:
@@ -176,6 +185,9 @@ give it a name that says what it is (e.g. `cc18_xgb_tuned`) and add it here.
   `RUN_ID`; `run_cc18.sh` also `ALGORITHMS="a b"` for a subset of algorithms),
   `audit_defaults.py` (proves every algorithm runs out of the box, see
   Preprocessing policy; GPU for TabPFN/TabICL, a few minutes on Kremen),
+  `gen_tuning_ids.py` (rebuilds `cc18_tuning_ids.json` from `cc18_v4/combined`:
+  68 sets, the 36 non-saturated first), `run_tuning.sh` (SLURM, tuning
+  experiment, CPU only, one dataset per task, takes `RUN_ID`),
   `combine_runs.py <new> --base <old>` (full result set from a partial rerun:
   all rows of the new run + the old run's rows for the algorithms the new one
   lacks, into `<new>/combined/` with `sources.json`; refuses if seeds, folds or
@@ -783,9 +795,10 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      stratified CV on the outer training part only; best mean inner ROC-AUC
      wins, is refit on the whole training part, scored once on the test part.
    - **Grid** (Probst, Boulesteix & Bischl 2019, JMLR 20(53):1–32, Table 3,
-     verified 2026-10-13): `learning_rate` {0.3, 0.1, 0.03} × `n_estimators`
-     {100, 200, 500, 1000} × `min_child_weight` {1, 4} × `colsample_bylevel`
-     {1, 0.5} × `subsample` {1, 0.8} = 96 configs, defaults included;
+     verified 2026-10-13): `learning_rate` {0.3, 0.1, 0.03, 0.01} ×
+     `n_estimators` {100, 200, 500, 1000} × `min_child_weight` {1, 4} ×
+     `colsample_bylevel` {1, 0.5} × `subsample` {1, 0.8} = **128 configs**
+     (0.01 added 2026-10-15 after the pilot, see below), defaults included;
      `max_depth` not tuned (lowest tunability). One fit to 1000 rounds per
      config; the tree counts are read with `iteration_range` (verified
      2026-10-13 identical to separate fits, also with subsampling). Non-default
@@ -800,6 +813,48 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      exactly; winner lr 0.03 / 100 trees / `colsample_bylevel` 0.5 /
      `subsample` 0.8, test 0.734 vs default 0.701. Explainer page for the user:
      https://claude.ai/artifact/GF5XYzKoUrpT6srp7AmTND.
+   - **Implemented 2026-10-15** (`9e94dbc`): `src/models/xgboost_tuned.py`
+     (registry name `xgboost_tuned`), grid in `config.yaml` (`tuning`),
+     `scripts/cc18_tuning_ids.json` (68 sets: indices 0-35 = the 36
+     non-saturated, 36-67 = the 32 saturated; rebuilt by
+     `scripts/gen_tuning_ids.py` from `cc18_v4/combined`), `scripts/run_tuning.sh`
+     (CPU only, no partition = cluster default; fallback `--partition=gpu
+     --gres=gpu:1 --constraint=h100`). Ties go to the earlier grid point
+     (defaults first, fewer trees first). Every outer fold also fits the
+     default XGBoost in the same process: `default_test_roc_auc` in the
+     `hyperparameters` JSON must equal `cc18_v4` (check) and
+     `default_train_time_s` is the same-node time baseline (cost ratio).
+     Unit check (Kremen, cmc fold 0): default equals `cc18_v4` exactly, winner
+     lr 0.03 / 100 trees / `colsample_bylevel` 0.5 / `subsample` 0.8, test 0.732
+     vs default 0.695, search 55 s (~790 × one default fit).
+   - **Pilot `subset_xgb_tuned_local`** (Kremen, credit-g / diabetes / sick,
+     first with the 96-config grid, from `9e94dbc`): 45 folds, 0 errors;
+     default inside the module = `cc18_v4` to 1.1e-16 on every fold; tuned
+     better than default on credit-g (+0.023, 13/15 folds), diabetes (+0.040,
+     15/15), sick (+0.0004, 8/15); tuning time 425–520 × one default fit on the
+     same machine; winners at 1000 trees 1/45 (upper edge fine) but **32/45 in
+     the low corner** (lr 0.03, 100 trees) — on diabetes the inner score fell
+     with every step of more learning, so the optimum lay below the grid.
+     Probe on inner scores only (no test folds), credit-g/diabetes/cmc folds
+     0–4: with lr 0.01 the best tree count is 200–500 in 12/15 folds (inside
+     the grid), gain over the lr-0.03 best −0.003…+0.006. Hence lr 0.01 (inside
+     Probst's range 0.002–0.355, brackets their optimal default 0.018 with
+     0.03). The pilot is rerun with the final 128-config grid under the same
+     name (the 96-config one was discarded uncommitted).
+   - **Arnes run `cc18_xgb_tuned`** (from the repo root, after `git pull`):
+         RUN_ID=cc18_xgb_tuned sbatch --array=0-35%8 scripts/run_tuning.sh
+     Estimate (default XGBoost time in `cc18_v4` × ratio 450–800 × 4/3 for lr
+     0.01): ~28–49 h of 8-core compute, longest task Bioresponse ≤ ~5 h, ~4–7 h
+     wall with 8 at a time. The other 32 later, same `RUN_ID` (isolet ≤ ~62 h,
+     har ≤ ~21 h):
+         RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
+         RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --time=3-00:00:00 scripts/run_tuning.sh
+     Rows record the commit of each submission; `src/`, `scripts/` and
+     `config.yaml` must not change between the two halves (check with `git
+     diff <c1> <c2> -- src scripts config.yaml`). After each half: merge,
+     `sacct` → `sacct.txt`, `git pull`, commit `results/runs/cc18_xgb_tuned`
+     (incl. `tuning/`; `predictions/` stays out), push; copy `predictions/` to
+     Kremen, laptop, USB.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 

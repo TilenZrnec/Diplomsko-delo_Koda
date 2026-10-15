@@ -188,7 +188,7 @@ note over MODEL
   src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU);
                                   TabPFN-3.5 izrecno prek make_classifier()
   src/models/tabicl_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
-  src/models/xgboost_tuned.py   - poskus uglaševanja: mreža 96 nastavitev,
+  src/models/xgboost_tuned.py   - poskus uglaševanja: mreža 128 nastavitev,
                                   gnezdeno PP na učnem delu; le z ~--algorithms
 
   Vsi so oviti v try/except: izjema se zapiše v
@@ -347,7 +347,7 @@ U -> SLURM : RUN_ID=cc18_xgb_tuned sbatch ~--array=0-35%8\nscripts/run_tuning.sh
 activate SHT
 SHT -> ONE : python -m src.run_one_dataset ~--dataset-set cc18_tuning\n~--index $SLURM_ARRAY_TASK_ID ~--algorithms xgboost_tuned
 ONE -> RUN : run_dataset(spec, ..., algorithms=["xgboost_tuned"])
-RUN -> PD : <id>~__xgboost_tuned.csv (+ stolpec hyperparameters)\nin tuning/<id>/*.csv (vseh 96 nastavitev na fold)
+RUN -> PD : <id>~__xgboost_tuned.csv (+ stolpec hyperparameters)\nin tuning/<id>/*.csv (vseh 128 nastavitev na fold)
 deactivate SHT
 
 == Korak 3: združevanje ==

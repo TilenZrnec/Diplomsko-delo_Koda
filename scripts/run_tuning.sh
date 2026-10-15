@@ -2,7 +2,7 @@
 #SBATCH --job-name=tfm-tune
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=1-00:00:00
+#SBATCH --time=12:00:00
 #SBATCH --output=logs/tune-%A_%a.out
 #SBATCH --account=fri-users
 
@@ -14,7 +14,14 @@
 # NENASIČENI, 36-67 nasičeni. Najprej teče prvih 36, ostalih 32 kasneje pod ISTIM
 # RUN_ID in z ISTIM commitom (runner preskoči že narejene nabore):
 #     RUN_ID=cc18_xgb_tuned sbatch --array=0-35%8 scripts/run_tuning.sh
-#     RUN_ID=cc18_xgb_tuned sbatch --array=36-67%8 scripts/run_tuning.sh      (kasneje)
+# Ocena (2026-10-15, mreža 128 nastavitev; iz časov privzetega XGBoost v cc18_v4 x
+# razmerje uglaševanje / privzeto učenje 450-800 iz pilota, x 4/3 za learning_rate
+# 0.01): prvih 36 skupaj ~28-49 h računanja, najdaljši task (Bioresponse) do ~5 h,
+# zato --time=12:00:00. Pri ostalih 32 prevladujeta isolet (indeks 49, do ~62 h)
+# in har (54, do ~21 h):
+#     RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
+#     RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --time=3-00:00:00 scripts/run_tuning.sh
+# (časovne meje za drugi del še preveri z dejanskimi časi prvega dela na Arnesu)
 #
 # Samo CPU, brez GPU: XGBoost teče na 8 jedrih, zato particije ne določamo (privzeta
 # particija gruče). Če jo sbatch zavrne, isti ukaz z

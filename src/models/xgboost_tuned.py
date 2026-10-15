@@ -11,7 +11,7 @@ Postopek v enem zunanjem foldu (run() dobi le učni in testni del tega folda):
      model do največjega n_estimators; ROC-AUC na notranjem testnem delu se
      prebere pri vsakem n_estimators (iteration_range - model s k drevesi je
      natanko prvih k dreves večjega modela, preverjeno 2026-10-13). Skupaj
-     24 x 4 = 96 nastavitev.
+     32 x 4 = 128 nastavitev (config.yaml).
   3. Zmaga nastavitev z največjim povprečjem po notranjih foldih. Ob natančnem
      izenačenju zmaga prejšnja v vrstnem redu mreže: privzete vrednosti so v
      config.yaml prve, manj dreves pred več - privzeta nastavitev torej zmaga
@@ -24,7 +24,7 @@ Postopek v enem zunanjem foldu (run() dobi le učni in testni del tega folda):
 
 train_time_s = iskanje + ponovno učenje (cena uglaševanja), inference_time_s =
 napoved zmagovalca. Podrobnosti gredo v stolpec hyperparameters (JSON) in v
-tuning/<nabor>/xgboost_tuned_r<ponovitev>_f<fold>.csv (vseh 96 nastavitev).
+tuning/<nabor>/xgboost_tuned_r<ponovitev>_f<fold>.csv (vse nastavitve mreže).
 Viri: Probst, Boulesteix in Bischl 2019 (mreža); Cawley in Talbot 2010, Varma in
 Simon 2006, Bischl in sod. 2023 (gnezdeno prečno preverjanje).
 """

@@ -76,11 +76,17 @@ alpha: 0.05
 # je privzeta nastavitev ena od točk mreže in ob izenačenju zmaga (vrstni red mreže).
 # n_estimators ne zahteva novih učenj: model se nauči do največje vrednosti, manjše
 # se preberejo z iteration_range (preverjeno 2026-10-13: enake napovedi).
+# learning_rate 0.01 dodan 2026-10-15 po pilotu (subset, prva mreža z 0.03 kot
+# najmanjšo): pri 32 od 45 zunanjih foldov je zmagal spodnji kot mreže (0.03, 100
+# dreves), na diabetes je notranji rezultat padal z vsakim korakom učenja - optimum
+# je bil pod mrežo. Z 0.01 je najboljše število dreves v 12 od 15 preverjenih foldov
+# znotraj mreže (200-500). 0.01 je v Probstovem razponu (0.002-0.355) in z 0.03
+# objame njihovo optimalno privzeto vrednost 0.018. Mreža: 4 x 2 x 2 x 2 x 4 = 128.
 tuning:
   inner_splits: 3
   n_estimators: [100, 200, 500, 1000]
   grid:
-    learning_rate: [0.3, 0.1, 0.03]
+    learning_rate: [0.3, 0.1, 0.03, 0.01]
     min_child_weight: [1, 4]
     colsample_bylevel: [1.0, 0.5]
     subsample: [1.0, 0.8]
