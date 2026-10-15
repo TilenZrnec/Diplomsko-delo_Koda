@@ -41,6 +41,10 @@ dataset_sets:
   # Ta različica je zato edina, kjer je primerjava vseh šestih mogoča (mentorjeva
   # omejena različica, načrt 2026-08-12).
   medic3_160: scripts/medic3_160.json
+  # Poskus uglaševanja XGBoost (2026-10-14): CC18 brez štirih velikih slikovnih
+  # naborov (68), najprej 36 nenasičenih (indeksi 0-35), nato 32 nasičenih
+  # (36-67). Pripeto s scripts/gen_tuning_ids.py iz cc18_v4/combined.
+  cc18_tuning: scripts/cc18_tuning_ids.json
 
 # Kam OpenML shrani prenesene nabore (relativno na koren repozitorija).
 cache_dir: data/openml_cache
@@ -60,3 +64,23 @@ save_predictions: true
 saturation_threshold: 0.995
 # Stopnja značilnosti za Friedmanov test, Nemenyijev post-hoc in Wilcoxon-Holm.
 alpha: 0.05
+
+# Uglaševanje hiperparametrov - le za algoritem xgboost_tuned (src/models/xgboost_tuned.py).
+# Iskanje po mreži z gnezdenim prečnim preverjanjem: zunanji foldi so isti kot pri
+# vseh algoritmih (zgoraj), na učnem delu vsakega folda pa inner_splits-kratno
+# stratificirano prečno preverjanje izbere nastavitev z najboljšim povprečnim
+# ROC-AUC; ta se nato nauči na celem učnem delu in se enkrat oceni na testnem.
+# Katere nastavitve in razponi: Probst, Boulesteix in Bischl (2019), JMLR 20(53),
+# tabela 3 (najbolj "uglasljivi" parametri XGBoost; max_depth najmanj, zato ga ne
+# uglašujemo). Pri vsakem parametru je PRVA vrednost privzeta vrednost XGBoost, zato
+# je privzeta nastavitev ena od točk mreže in ob izenačenju zmaga (vrstni red mreže).
+# n_estimators ne zahteva novih učenj: model se nauči do največje vrednosti, manjše
+# se preberejo z iteration_range (preverjeno 2026-10-13: enake napovedi).
+tuning:
+  inner_splits: 3
+  n_estimators: [100, 200, 500, 1000]
+  grid:
+    learning_rate: [0.3, 0.1, 0.03]
+    min_child_weight: [1, 4]
+    colsample_bylevel: [1.0, 0.5]
+    subsample: [1.0, 0.8]

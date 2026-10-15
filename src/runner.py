@@ -54,6 +54,9 @@ RESULT_COLUMNS = [
     "roc_auc", "train_time_s", "inference_time_s", "warmup_s", "device",
     "preprocessing", "raw_error", "error",
     "git_commit", "hostname", "timestamp", "n_classes_scored",
+    # Le pri uglaševanih algoritmih (xgboost_tuned): izbrana nastavitev in podatki o
+    # iskanju kot JSON; pri ostalih prazno.
+    "hyperparameters",
 ]
 
 # Algoritmi, ki so v tem procesu že bili ogreti (nalaganje utež, CUDA).
@@ -235,6 +238,18 @@ def save_predictions(run_dir, ds_id, algo_name, repeat, fold, result, y_test, te
     os.replace(tmp, path)
 
 
+def save_tuning_table(run_dir, ds_id, algo_name, repeat, fold, table):
+    """Vse nastavitve iskanja po mreži enega zunanjega folda (le metrike, brez podatkov).
+
+    tuning/<id>/<algoritem>_r<ponovitev>_f<fold>.csv - majhne datoteke, gredo v git.
+    """
+    out_dir = os.path.join(run_dir, "tuning", ds_id)
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{algo_name}_r{repeat}_f{fold}.csv")
+    table.to_csv(path + ".tmp", index=False)
+    os.replace(path + ".tmp", path)
+
+
 def merge_run(run_dir, output_path=None, log=print):
     """Združi per_dataset/*.csv v results.csv; *.partial glasno našteje, a jih ne vključi."""
     per_dataset = os.path.join(run_dir, "per_dataset")
@@ -404,6 +419,9 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
                     run_dir, ds_id, algo_name, repeat, fold_idx, result,
                     y_test, test_idx, dataset["classes"],
                 )
+            if result.get("tuning_table") is not None:
+                save_tuning_table(run_dir, ds_id, algo_name, repeat, fold_idx,
+                                  result["tuning_table"])
 
             rows.append({
                 "run_id": run_id,
@@ -429,6 +447,8 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
                 "hostname": hostname,
                 "timestamp": _dt.datetime.now().astimezone().isoformat(timespec="seconds"),
                 "n_classes_scored": n_scored,
+                "hyperparameters": (json.dumps(result["tuning"], sort_keys=True)
+                                    if result.get("tuning") else None),
             })
             write_partial(rows, partial_path)
 

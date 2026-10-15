@@ -28,6 +28,7 @@ autonumber
 
 actor "Uporabnik" as U
 participant "scripts/gen_cc18_ids.py" as GEN
+participant "scripts/gen_tuning_ids.py" as GENT
 participant "scripts/profile_datasets.py" as PROF
 participant "src/config.py" as CFGPY
 participant "src/data.py" as DATA
@@ -47,6 +48,12 @@ else 72 ID-jev
     GEN -> IDS : zapiše cc18_ids.json
 end
 deactivate GEN
+
+U -> GENT : python scripts/gen_tuning_ids.py (enkrat, 2026-10-15)
+activate GENT
+GENT -> GENT : nasičenost iz cc18_v4/combined (pravilo src/summary.py)
+GENT -> IDS : cc18_tuning_ids.json: 68 naborov (brez 4 velikih\nslikovnih), najprej 36 nenasičenih
+deactivate GENT
 
 note over IDS, CFG
   config.yaml je **edini vir parametrov**: random_state, n_splits,
@@ -181,6 +188,8 @@ note over MODEL
   src/models/tabpfn_model.py    - SUROVO, fallback šele ob napaki (USES_GPU);
                                   TabPFN-3.5 izrecno prek make_classifier()
   src/models/tabicl_model.py    - SUROVO, fallback šele ob napaki (USES_GPU)
+  src/models/xgboost_tuned.py   - poskus uglaševanja: mreža 96 nastavitev,
+                                  gnezdeno PP na učnem delu; le z ~--algorithms
 
   Vsi so oviti v try/except: izjema se zapiše v
   result["error"] in se NE dvigne naprej (fail-soft),
@@ -213,6 +222,7 @@ participant "SLURM\n(čakalna vrsta)" as SLURM
 box "Računsko vozlišče (H100, BREZ interneta)" #EEF6FD
     participant "scripts/run_cc18.sh" as SH
     participant "scripts/run_medic3.sh" as SHM
+    participant "scripts/run_tuning.sh" as SHT
     participant "src/run_one_dataset.py" as ONE
     participant "src/config.py" as CFGPY
     participant "src/runner.py" as RUN
@@ -330,6 +340,15 @@ note over PD
   na koncu, se nepopoln rezultat NIKOLI ne more
   pretvarjati, da je popoln.
 end note
+
+== Korak 2c: poskus uglaševanja XGBoost (le CPU) ==
+
+U -> SLURM : RUN_ID=cc18_xgb_tuned sbatch ~--array=0-35%8\nscripts/run_tuning.sh (36 nenasičenih; kasneje 36-67)
+activate SHT
+SHT -> ONE : python -m src.run_one_dataset ~--dataset-set cc18_tuning\n~--index $SLURM_ARRAY_TASK_ID ~--algorithms xgboost_tuned
+ONE -> RUN : run_dataset(spec, ..., algorithms=["xgboost_tuned"])
+RUN -> PD : <id>~__xgboost_tuned.csv (+ stolpec hyperparameters)\nin tuning/<id>/*.csv (vseh 96 nastavitev na fold)
+deactivate SHT
 
 == Korak 3: združevanje ==
 

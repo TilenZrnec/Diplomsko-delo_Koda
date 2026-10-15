@@ -15,6 +15,7 @@ from . import (
     tabicl_model,
     tabpfn_model,
     xgboost_model,
+    xgboost_tuned,
 )
 
 REGISTRY = {
@@ -24,4 +25,7 @@ REGISTRY = {
     "catboost": catboost_model,
     "tabpfn": tabpfn_model,
     "tabicl": tabicl_model,
+    # Poskus uglaševanja (ni v config.yaml algorithms; poženeš ga z --algorithms
+    # xgboost_tuned): XGBoost z iskanjem po mreži in gnezdenim prečnim preverjanjem.
+    "xgboost_tuned": xgboost_tuned,
 }
