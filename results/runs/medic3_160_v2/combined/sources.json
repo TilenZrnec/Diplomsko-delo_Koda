@@ -1,0 +1,35 @@
+{
+  "note": "results.csv = all rows of 'new' + rows of 'base' for the algorithms 'new' lacks",
+  "combined_by": {
+    "script": "scripts/combine_runs.py",
+    "git_commit": "68d8173",
+    "git_dirty": false
+  },
+  "new": {
+    "run": "medic3_160_v2",
+    "git_commit": "8b601d1",
+    "algorithms": [
+      "random_forest",
+      "xgboost"
+    ],
+    "rows": 30
+  },
+  "base": {
+    "run": "medic3_160",
+    "git_commit": "420bdac",
+    "algorithms": [
+      "catboost",
+      "lightgbm",
+      "tabicl",
+      "tabpfn"
+    ],
+    "rows": 60
+  },
+  "split_config": {
+    "random_state": 42,
+    "n_splits": 5,
+    "n_repeats": 3
+  },
+  "rows": 90,
+  "datasets": 1
+}

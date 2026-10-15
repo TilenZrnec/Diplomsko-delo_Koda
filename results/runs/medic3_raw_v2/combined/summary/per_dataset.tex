@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{ROC-AUC po naborih in algoritmih.}
+\label{tab:per-dataset}
+\begin{tabular}{lrrrrrrr}
+\hline
+dataset & algorithm & n\_folds & n\_failed & roc\_auc\_mean & roc\_auc\_std & train\_time\_median\_s & inference\_time\_median\_s \\
+\hline
+medic3 & catboost & 15 & 0 & 0.9551 & 0.0010 & 8142.6187 & 0.2958 \\
+medic3 & lightgbm & 15 & 0 & 0.5028 & 0.0048 & 59.8109 & 1.2439 \\
+medic3 & random\_forest & 15 & 0 & 0.8394 & 0.0025 & 13.5796 & 0.4835 \\
+medic3 & tabicl & 15 & 0 & 0.9499 & 0.0016 & 10.2555 & 79.7986 \\
+medic3 & tabpfn & 15 & 15 & -- & -- & -- & -- \\
+medic3 & xgboost & 15 & 0 & 0.9306 & 0.0023 & 303.4815 & 3.9014 \\
+\hline
+\end{tabular}
+\end{table}

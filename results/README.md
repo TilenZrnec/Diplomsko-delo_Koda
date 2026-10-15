@@ -15,10 +15,13 @@ zgodovini. Nič v tej mapi se ne ureja na roko, vse nastane iz zagona.
 | `subset_v3` | ista validacija na gruči | Arnes `~/envs/tabular3.5`, H100 |
 | `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" (2026-10-14) na trojici credit-g, diabetes, sick; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
 
-Načrtovano (2026-10-14, oddaja na Arnes): `cc18_v4` (RandomForest + XGBoost, vseh
-72 naborov), `medic3_raw_v2` in `medic3_160_v2` (RandomForest + XGBoost kot
-preverba). Ostali štirje algoritmi ostanejo iz `cc18_v3` / `medic3_raw` /
-`medic3_160`, ker se njihova koda ni spremenila.
+| `cc18_v4` | RandomForest + XGBoost "kot iz škatle" na vseh 72 naborih, 2160 vrstic (2026-10-14/15); **`combined/` = rezultat diplome** (ostali štirje iz `cc18_v3`) | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
+| `medic3_raw_v2` | RandomForest + XGBoost (preverba) na Medic3, 30 vrstic; `combined/` = rezultat za diplomo | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
+| `medic3_160_v2` | isto za 160 razredov; `combined/` = rezultat za diplomo | Arnes `~/envs/tabular3.5`, H100 (le CPU) |
+
+`combined/` sestavi `scripts/combine_runs.py <nov> --base <star>`: vse vrstice
+novega zagona + vrstice starega za algoritme, ki jih novi nima (LightGBM,
+CatBoost, TabPFN, TabICL, katerih koda se ni spremenila); `sources.json` pove vir.
 
 `cc18_v2` (zamrznitev 2026-09-09, TabPFN-3) je bil po `cc18_v3` zbrisan
 2026-10-08; v gitu je zadnjič v commitu `5a14045`, npr.

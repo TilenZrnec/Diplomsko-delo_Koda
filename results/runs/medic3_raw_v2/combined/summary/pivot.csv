@@ -1,0 +1,2 @@
+dataset,catboost,lightgbm,random_forest,tabicl,tabpfn,xgboost,saturated
+medic3,0.9551125821628934,0.5027542222157968,0.8394325165962804,0.9499099296554424,,0.9305781684126629,False

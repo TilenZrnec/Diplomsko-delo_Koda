@@ -21,7 +21,13 @@ deleted from the working tree on 2026-10-08 and is read from git history
 (commit `5a14045`) where needed. **Medic3 finished 2026-10-11**: runs
 `medic3_raw` and `medic3_160` (see Datasets → Medic3 results); LightGBM collapses
 there at its default settings (ROC-AUC ~0.50), verified not to be our code.
-Next: tuning, then the leakage test. The TabPFN-3.5 licence is accepted and the weights are
+**Out-of-the-box fix 2026-10-14/15:** RandomForest and XGBoost preprocessed more
+than their libraries need; fixed and rerun as `cc18_v4` / `medic3_raw_v2` /
+`medic3_160_v2` (only those two algorithms). **The thesis result sets are now
+the `combined/` folders of those runs** (RF + XGBoost from the rerun, the other
+four from `cc18_v3` / `medic3_raw` / `medic3_160`; see Preprocessing policy →
+Audit and What is next, step 6). Conclusions unchanged. Next: thesis update,
+tuning, then the leakage test. The TabPFN-3.5 licence is accepted and the weights are
 cached on both local machines (Kremen since 2026-10-06).
 **Clean-up 2026-10-05:** all older runs (`check_refactor_oldenv`,
 `subset_v2_local`, `subset_v2`) and the 2026-08 archive `results/arnes/` were
@@ -132,6 +138,10 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
   `RUN_ID`; `run_cc18.sh` also `ALGORITHMS="a b"` for a subset of algorithms),
   `audit_defaults.py` (proves every algorithm runs out of the box, see
   Preprocessing policy; GPU for TabPFN/TabICL, a few minutes on Kremen),
+  `combine_runs.py <new> --base <old>` (full result set from a partial rerun:
+  all rows of the new run + the old run's rows for the algorithms the new one
+  lacks, into `<new>/combined/` with `sources.json`; refuses if seeds, folds or
+  datasets differ; then `src.summary` / `src.stats` on `combined/results.csv`),
   `merge_results.py <run>`, `compare_results.py <run A> <run B>`,
   `gen_version_table.py <run>` (LaTeX table of versions from the manifest; adds
   the weights file from `model_checkpoints` to the TabPFN/TabICL rows),
@@ -146,8 +156,11 @@ deleted; they live in git history, last present in commit `b1b9120` — e.g.
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
   `results.csv`, `summary/`, `diagnostics/` [checks made by a script after the
-  run]). Kept: **`cc18_v3`** (the thesis results), the Medic3 runs
-  **`medic3_raw`** and **`medic3_160`**, and the two validation runs of the
+  run]). Kept: **`cc18_v4/combined/`** (the thesis results: RF + XGBoost from
+  `cc18_v4`, LightGBM, CatBoost, TabPFN, TabICL from **`cc18_v3`**, which stays
+  as their source), the Medic3 runs **`medic3_raw`** / **`medic3_160`** and
+  their partial reruns **`medic3_raw_v2`** / **`medic3_160_v2`** (thesis sets:
+  their `combined/`), and the two validation runs of the
   freeze, `subset_v3_local` (Kremen) and `subset_v3` (Arnes), plus
   `subset_v4_local` (Kremen, RF + XGBoost only: local validation of the
   2026-10-14 out-of-the-box fix before `cc18_v4`); everything older
@@ -658,7 +671,7 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (every successful fit has its file, ROC-AUC from the files matches
    `results.csv`; see each run's `PROVENANCE.md`). Results and the LightGBM
    collapse: Datasets → Medic3 results; receipts in each run's `PROVENANCE.md`.
-6. **Next (2026-10-14): partial out-of-the-box rerun** (Preprocessing policy →
+6. **Done 2026-10-15: partial out-of-the-box rerun** (Preprocessing policy →
    Audit). Code fixed and validated on Kremen: `scripts/audit_defaults.py`
    passes for all six; `subset_v4_local` behaves as expected; Medic3 fold 0:
    XGBoost old and new module identical on Kremen
@@ -688,6 +701,30 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    regenerate summary/stats and the thesis tables; update Methods (RF and
    XGBoost preprocessing, the `\todo` in `sec:xgboost`) and the Medic3
    discussion (only TabICL imputes now).
+   **Outcome (checked 2026-10-15 on Kremen; receipts in each run's
+   PROVENANCE.md):** jobs `20470896`/`20470897` (`cc18_v4`, 2160 rows) and
+   `20470898`/`20470899` (Medic3, 30 rows each), all COMPLETED, 0 errors, all
+   rows from `8b601d1`, clean tree. XGBoost Δ 0 on the 49 CC18 sets without
+   categorical columns and on both Medic3 runs (Arnes reproduces them exactly);
+   RF on the 63 sets without NaN: 22/945 fits differ, max 1.3e-4 — the known
+   parallel-prediction noise (cc18_v2 vs v3: 24/945), the largest being one
+   flipped tie on blood-transfusion = 1/(2·35·114). XGBoost on the 23
+   categorical sets: 12 better, 8 worse, 3 identical (binary-only categorical
+   columns), mean −0.0003; RF on the 9 NaN sets: mean −0.0010; RF on Medic3
+   better on 15/15 folds (raw 0.8149 → 0.8394, 160 0.8530 → 0.8726).
+   Combined sets (`scripts/combine_runs.py`): rank order unchanged (TabPFN-3.5 >
+   TabICL > CatBoost > LightGBM > XGBoost > RF on all 72), Friedman still
+   rejects; Wilcoxon–Holm changes one pair per analysis: LightGBM vs RF (72)
+   no longer significant (p_Holm 0.042 → 0.057), LightGBM vs XGBoost (37
+   non-saturated) now significant (0.082 → 0.026); on the 37 RF and XGBoost
+   swap mean ranks (4.95 vs 4.97). Medic3: all 10 / 15 pairs still significant,
+   order unchanged. **Pending:** copy the three `predictions/` folders from
+   Arnes to the laptop, Kremen and the USB drive and verify them; point the
+   thesis generator at `cc18_v4/combined` (and Medic3 `combined/`), regenerate
+   the tables, rewrite the affected Results sentences (the two Wilcoxon pairs,
+   RF/XGBoost ranks on the non-saturated subset), Methods (RF and XGBoost
+   preprocessing, the `\todo` in `sec:xgboost`) and the Medic3 discussion
+   (only TabICL imputes).
 7. Then: tuning one booster by grid search with nested CV, then the CC18
    leakage test (design to be agreed with the supervisor first); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
