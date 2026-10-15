@@ -104,11 +104,21 @@ po drugem delu.
 
 ## Del 2: 32 nasičenih naborov (indeksi 36–67)
 
-Še ni oddan (2026-10-15). Ocena = čas privzetega XGBoost v `cc18_v4` × razmerje
-uglaševanje / `cc18_v4` na večjih naborih prvega dela (340–1194, pri
-večrazrednih 340–823): isolet (indeks 49) 20–69 h, har (54) 7–24 h, ostalih 30
-skupaj 14–50 h, najdaljši letter do 6,3 h. Ukaza na Arnesu (v korenu repozitorija,
-**brez `git pull`**, dokler oba dela ne končata):
+Ocena = čas privzetega XGBoost v `cc18_v4` × razmerje uglaševanje / `cc18_v4`
+na večjih naborih prvega dela (340–1194, pri večrazrednih 340–823): isolet
+(indeks 49) 20–69 h, har (54) 7–24 h, ostalih 30 skupaj 14–50 h, najdaljši
+letter do 6,3 h.
 
-    RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
-    RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --time=3-00:00:00 scripts/run_tuning.sh
+Oddano 2026-10-15 s `hpc-login4`, **brez `git pull`** (Arnes na `785257b`, učna
+pot enaka kot v `f7d8366`):
+
+- job `20511472`: indeksi 36–48, 50–53, 55–67 (`%8`), privzeta particija `all`,
+  `--time=12:00:00`;
+- isolet (49) in har (54): prva oddaja z `--time=3-00:00:00` je bila zavrnjena
+  ("Requested time limit is invalid"), ker particija `all` dovoli največ 2 dni
+  (`sinfo -o "%P %l"`, 2026-10-15: `all` 2 dni, `long` 7, `gpu` 4,
+  `mig-preempt` / `mig-priority` 1). Zato v particijo `long`:
+
+      RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --partition=long --time=4-00:00:00 scripts/run_tuning.sh
+
+  job ID: (vpišemo ob prejemu).

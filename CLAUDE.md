@@ -533,7 +533,10 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
 
 ## Arnes HPC
 - SLURM cluster, GPU partition `gpu`, H100 nodes; partition time limit
-  **4-00:00:00** (`sinfo -p gpu -o "%P %l"`, 2026-10-06). `--constraint=h100`
+  **4-00:00:00** (`sinfo -p gpu -o "%P %l"`, 2026-10-06). All partitions
+  (`sinfo -o "%P %l"`, 2026-10-15): **`all` (default, CPU nodes `wn…`) 2 days**,
+  `long` 7 days, `gpu` 4 days, `mig-preempt` / `mig-priority` 1 day; sbatch
+  refuses a longer `--time` at submission ("Requested time limit is invalid"). `--constraint=h100`
   matches **two H100 variants**: `cc18_v2` ran entirely on H100 PCIe
   (`gwn01`, `gwn03`–`gwn06`), `subset_v3` on H100 80GB HBM3 (`gwn08`), so
   `cc18_v3` may mix them. One dataset = one task = one node, so all six
@@ -860,7 +863,7 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      wall with 8 at a time. The other 32 later, same `RUN_ID` (isolet ≤ ~62 h,
      har ≤ ~21 h):
          RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
-         RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --time=3-00:00:00 scripts/run_tuning.sh
+         RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --partition=long --time=4-00:00:00 scripts/run_tuning.sh
      Rows record the commit of each submission; `src/`, `scripts/` and
      `config.yaml` must not change between the two halves (check with `git
      diff <c1> <c2> -- src scripts config.yaml`). After each half: merge,
@@ -887,9 +890,16 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      now would choose the grid after seeing results; the thesis names it as a
      limitation. Part 2 estimate (`cc18_v4` default time × measured ratio
      340–1194): isolet 20–69 h, har 7–24 h, the other 30 together 14–50 h
-     (letter ≤ 6.3 h), so the 12 h default and 3 days for 49/54 hold. Submit
-     with the two commands above **without `git pull`** (Arnes is at
-     `785257b`, training path = `f7d8366`).
+     (letter ≤ 6.3 h). **Part 2 submitted 2026-10-15** without `git pull`
+     (Arnes at `785257b`, training path = `f7d8366`): job `20511472`
+     (`--array=36-48,50-53,55-67%8`, default partition `all`, 12 h). For
+     49/54 sbatch rejected `--time=3-00:00:00` (`all` allows 2 days, see Arnes
+     HPC), so they go to the `long` partition (7 days) with the command above
+     (`--partition=long --time=4-00:00:00`); fallback if `long` refuses: `all`
+     with `--time=2-00:00:00`, then resubmit `--array=49` after a TIMEOUT (it
+     resumes at the last finished fold). The `3-00:00:00` in the
+     `scripts/run_tuning.sh` header gets corrected after part 2 (left alone so
+     the training-path diff stays empty while the run is in progress).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 
