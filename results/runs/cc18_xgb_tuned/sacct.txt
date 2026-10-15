@@ -1,0 +1,110 @@
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList 
+------------ -------------------- ---------- ---------- ---------- --------------- 
+20494570_0               tfm-tune   01:25:57             COMPLETED           wn029 
+20494570_0.+                batch   01:25:57    813920K  COMPLETED           wn029 
+20494570_0.+               extern   01:25:57             COMPLETED           wn029 
+20494570_1               tfm-tune   00:52:21             COMPLETED           wn042 
+20494570_1.+                batch   00:52:21    828504K  COMPLETED           wn042 
+20494570_1.+               extern   00:52:21             COMPLETED           wn042 
+20494570_2               tfm-tune   01:04:56             COMPLETED           wn055 
+20494570_2.+                batch   01:04:56    826164K  COMPLETED           wn055 
+20494570_2.+               extern   01:04:56             COMPLETED           wn055 
+20494570_3               tfm-tune   00:32:03             COMPLETED           wn109 
+20494570_3.+                batch   00:32:03    766712K  COMPLETED           wn109 
+20494570_3.+               extern   00:32:03             COMPLETED           wn109 
+20494570_4               tfm-tune   00:03:36             COMPLETED           wn036 
+20494570_4.+                batch   00:03:36    685476K  COMPLETED           wn036 
+20494570_4.+               extern   00:03:36             COMPLETED           wn036 
+20494570_5               tfm-tune   00:04:34             COMPLETED           wn036 
+20494570_5.+                batch   00:04:34    684568K  COMPLETED           wn036 
+20494570_5.+               extern   00:04:35             COMPLETED           wn036 
+20494570_6               tfm-tune   00:04:52             COMPLETED           wn036 
+20494570_6.+                batch   00:04:52    681544K  COMPLETED           wn036 
+20494570_6.+               extern   00:04:52             COMPLETED           wn036 
+20494570_7               tfm-tune   00:17:02             COMPLETED           wn055 
+20494570_7.+                batch   00:17:02    669512K  COMPLETED           wn055 
+20494570_7.+               extern   00:17:02             COMPLETED           wn055 
+20494570_8               tfm-tune   00:22:24             COMPLETED           wn026 
+20494570_8.+                batch   00:22:24    685924K  COMPLETED           wn026 
+20494570_8.+               extern   00:22:24             COMPLETED           wn026 
+20494570_9               tfm-tune   00:25:57             COMPLETED           wn032 
+20494570_9.+                batch   00:25:57    697088K  COMPLETED           wn032 
+20494570_9.+               extern   00:25:57             COMPLETED           wn032 
+20494570_10              tfm-tune   00:41:30             COMPLETED           wn041 
+20494570_10+                batch   00:41:30    755628K  COMPLETED           wn041 
+20494570_10+               extern   00:41:30             COMPLETED           wn041 
+20494570_11              tfm-tune   00:08:14             COMPLETED           wn040 
+20494570_11+                batch   00:08:14    631536K  COMPLETED           wn040 
+20494570_11+               extern   00:08:14             COMPLETED           wn040 
+20494570_12              tfm-tune   00:09:44             COMPLETED           wn026 
+20494570_12+                batch   00:09:44    648740K  COMPLETED           wn026 
+20494570_12+               extern   00:09:44             COMPLETED           wn026 
+20494570_13              tfm-tune   00:15:39             COMPLETED           wn029 
+20494570_13+                batch   00:15:39    672992K  COMPLETED           wn029 
+20494570_13+               extern   00:15:39             COMPLETED           wn029 
+20494570_14              tfm-tune   00:13:05             COMPLETED           wn111 
+20494570_14+                batch   00:13:05    639196K  COMPLETED           wn111 
+20494570_14+               extern   00:13:05             COMPLETED           wn111 
+20494570_15              tfm-tune   00:10:24             COMPLETED           wn023 
+20494570_15+                batch   00:10:24    641864K  COMPLETED           wn023 
+20494570_15+               extern   00:10:24             COMPLETED           wn023 
+20494570_16              tfm-tune   00:07:12             COMPLETED           wn026 
+20494570_16+                batch   00:07:12    641200K  COMPLETED           wn026 
+20494570_16+               extern   00:07:12             COMPLETED           wn026 
+20494570_17              tfm-tune   00:34:44             COMPLETED           wn109 
+20494570_17+                batch   00:34:44    722768K  COMPLETED           wn109 
+20494570_17+               extern   00:34:44             COMPLETED           wn109 
+20494570_18              tfm-tune   00:05:42             COMPLETED           wn029 
+20494570_18+                batch   00:05:42    638528K  COMPLETED           wn029 
+20494570_18+               extern   00:05:42             COMPLETED           wn029 
+20494570_19              tfm-tune   02:38:17             COMPLETED           wn023 
+20494570_19+                batch   02:38:17    798088K  COMPLETED           wn023 
+20494570_19+               extern   02:38:17             COMPLETED           wn023 
+20494570_20              tfm-tune   00:03:05             COMPLETED           wn029 
+20494570_20+                batch   00:03:05    641152K  COMPLETED           wn029 
+20494570_20+               extern   00:03:05             COMPLETED           wn029 
+20494570_21              tfm-tune   04:04:06             COMPLETED           wn111 
+20494570_21+                batch   04:04:06    816452K  COMPLETED           wn111 
+20494570_21+               extern   04:04:06             COMPLETED           wn111 
+20494570_22              tfm-tune   00:09:45             COMPLETED           wn029 
+20494570_22+                batch   00:09:45    666528K  COMPLETED           wn029 
+20494570_22+               extern   00:09:45             COMPLETED           wn029 
+20494570_23              tfm-tune   00:10:30             COMPLETED           wn029 
+20494570_23+                batch   00:10:30    658720K  COMPLETED           wn029 
+20494570_23+               extern   00:10:30             COMPLETED           wn029 
+20494570_24              tfm-tune   00:08:05             COMPLETED           wn041 
+20494570_24+                batch   00:08:05    651952K  COMPLETED           wn041 
+20494570_24+               extern   00:08:05             COMPLETED           wn041 
+20494570_25              tfm-tune   00:34:26             COMPLETED           wn029 
+20494570_25+                batch   00:34:26    725796K  COMPLETED           wn029 
+20494570_25+               extern   00:34:26             COMPLETED           wn029 
+20494570_26              tfm-tune   03:13:13             COMPLETED           wn029 
+20494570_26+                batch   03:13:13   1017052K  COMPLETED           wn029 
+20494570_26+               extern   03:13:13             COMPLETED           wn029 
+20494570_27              tfm-tune   01:52:44             COMPLETED           wn041 
+20494570_27+                batch   01:52:44    830136K  COMPLETED           wn041 
+20494570_27+               extern   01:52:44             COMPLETED           wn041 
+20494570_28              tfm-tune   00:04:20             COMPLETED           wn055 
+20494570_28+                batch   00:04:20    639032K  COMPLETED           wn055 
+20494570_28+               extern   00:04:20             COMPLETED           wn055 
+20494570_29              tfm-tune   00:06:30             COMPLETED           wn026 
+20494570_29+                batch   00:06:30    644768K  COMPLETED           wn026 
+20494570_29+               extern   00:06:30             COMPLETED           wn026 
+20494570_30              tfm-tune   00:35:43             COMPLETED           wn024 
+20494570_30+                batch   00:35:43    804536K  COMPLETED           wn024 
+20494570_30+               extern   00:35:43             COMPLETED           wn024 
+20494570_31              tfm-tune   02:17:25             COMPLETED           wn042 
+20494570_31+                batch   02:17:25    803752K  COMPLETED           wn042 
+20494570_31+               extern   02:17:25             COMPLETED           wn042 
+20494570_32              tfm-tune   00:10:45             COMPLETED           wn029 
+20494570_32+                batch   00:10:45    655140K  COMPLETED           wn029 
+20494570_32+               extern   00:10:45             COMPLETED           wn029 
+20494570_33              tfm-tune   02:00:39             COMPLETED           wn027 
+20494570_33+                batch   02:00:39    744648K  COMPLETED           wn027 
+20494570_33+               extern   02:00:39             COMPLETED           wn027 
+20494570_34              tfm-tune   01:01:39             COMPLETED           wn024 
+20494570_34+                batch   01:01:39    740616K  COMPLETED           wn024 
+20494570_34+               extern   01:01:39             COMPLETED           wn024 
+20494570_35              tfm-tune   00:02:59             COMPLETED           wn024 
+20494570_35+                batch   00:02:59    635608K  COMPLETED           wn024 
+20494570_35+               extern   00:02:59             COMPLETED           wn024 
