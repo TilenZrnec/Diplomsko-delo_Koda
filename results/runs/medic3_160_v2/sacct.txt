@@ -1,0 +1,8 @@
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList 
+------------ -------------------- ---------- ---------- ---------- --------------- 
+20470899_0             tfm-medic3   00:03:19             COMPLETED           gwn09 
+20470899_0.+                batch   00:03:19  11269968K  COMPLETED           gwn09 
+20470899_0.+               extern   00:03:19             COMPLETED           gwn09 
+20470899_1             tfm-medic3   00:33:17             COMPLETED           gwn09 
+20470899_1.+                batch   00:33:17   2163972K  COMPLETED           gwn09 
+20470899_1.+               extern   00:33:17             COMPLETED           gwn09 
