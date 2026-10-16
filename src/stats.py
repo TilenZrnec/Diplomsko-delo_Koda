@@ -1,6 +1,11 @@
 """Statistično preverjanje razlik med algoritmi (Demšar 2006; Benavoli in sod. 2016).
 
-Zagon: python -m src.stats <run_id | mapa zagona | results.csv> [--no-saturated]
+Zagon: python -m src.stats <run_id | mapa zagona | results.csv> [--no-saturated] [--metric M]
+
+--metric izbere metriko kot v src/summary.py (privzeto roc_auc; accuracy in
+log_loss iz metrics.csv). Izhod dodatnih metrik gre v summary/<metrika>/. Pri
+log_loss je boljša nižja vrednost: rangi in zmage (wins_a, wins_b) to
+upoštevajo, mean_diff pa je vedno surova razlika a - b.
 
 VEČ NABOROV (npr. CC18). Vprašanje: ali so razlike v rangih med algoritmi čez
 N naborov večje, kot bi jih pričakovali po naključju? Postopek po Demšarju:
@@ -42,8 +47,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
 from src.config import load_config  # noqa: E402
+from src.metrics import HIGHER_IS_BETTER  # noqa: E402
 from src.summary import (  # noqa: E402
-    dataset_pivot, load_results, rank_matrix, resolve_results, saturated_mask, to_latex,
+    METRIC_LABELS, dataset_pivot, load_results, metric_dir, rank_matrix, resolve_results,
+    saturated_mask, to_latex,
 )
 
 # Demšar (2006), tabela 5: kritične vrednosti q_0.05 za Nemenyijev test, k = 2..10.
@@ -115,11 +122,12 @@ def holm(p_values):
     return adjusted
 
 
-def wilcoxon_holm(pivot, alpha):
-    """Parni Wilcoxonovi testi na povprečnem ROC-AUC po naborih s Holmovim popravkom.
+def wilcoxon_holm(pivot, alpha, higher_is_better=True):
+    """Parni Wilcoxonovi testi na povprečju metrike po naborih s Holmovim popravkom.
 
     Vrne DataFrame s stolpci: a, b, n (skupni nabori), mean_diff (a - b),
-    wins_a, wins_b, ties, p, p_holm, significant.
+    wins_a, wins_b, ties, p, p_holm, significant. Zmaga je boljša vrednost:
+    višja, ali nižja, če higher_is_better=False (logaritemska izguba).
     """
     algos = list(pivot.columns)
     rows = []
@@ -130,10 +138,11 @@ def wilcoxon_holm(pivot, alpha):
             p = 1.0
         else:
             p = float(stats.wilcoxon(both[a], both[b], zero_method="zsplit").pvalue)
+        better = diff if higher_is_better else -diff
         rows.append({
             "a": a, "b": b, "n": int(len(both)),
             "mean_diff": float(diff.mean()),
-            "wins_a": int((diff > 0).sum()), "wins_b": int((diff < 0).sum()),
+            "wins_a": int((better > 0).sum()), "wins_b": int((better < 0).sum()),
             "ties": int((diff == 0).sum()), "p": p,
         })
     out = pd.DataFrame(rows)
@@ -169,7 +178,7 @@ def corrected_resampled_ttest(diffs, test_train_ratio):
     return float(t), float(2 * stats.t.sf(abs(t), df=n - 1))
 
 
-def single_dataset_tests(df, alpha):
+def single_dataset_tests(df, alpha, metric="roc_auc"):
     """Parni popravljeni t-testi s Holmovim popravkom za rezultate enega nabora.
 
     Primerja učenja na istih foldih (stolpec fold je pri vseh algoritmih ista
@@ -177,7 +186,8 @@ def single_dataset_tests(df, alpha):
     nastopa - isto pravilo kot v src/summary.py, kjer je delen neuspeh neuspeh na
     naboru. Vrne (DataFrame parov, seznam izključenih algoritmov, n2/n1).
     """
-    by_fold = df.pivot(index="fold", columns="algorithm", values="roc_auc")
+    by_fold = df.pivot(index="fold", columns="algorithm", values=metric)
+    sign = 1 if HIGHER_IS_BETTER[metric] else -1
     failed = df.groupby("algorithm")["failed"].any()
     usable = [a for a in by_fold.columns if not failed[a]]
     excluded = [a for a in by_fold.columns if failed[a]]
@@ -191,7 +201,7 @@ def single_dataset_tests(df, alpha):
         rows.append({
             "a": a, "b": b, "n": int(len(both)),
             "mean_diff": float(diff.mean()),
-            "wins_a": int((diff > 0).sum()), "wins_b": int((diff < 0).sum()),
+            "wins_a": int((sign * diff > 0).sum()), "wins_b": int((sign * diff < 0).sum()),
             "ties": int((diff == 0).sum()), "t": t, "p": p,
         })
     columns = ["a", "b", "n", "mean_diff", "wins_a", "wins_b", "ties", "t", "p"]
@@ -267,11 +277,11 @@ def cd_diagram(mean_ranks, cd, path, title=None):
     return cliques
 
 
-def analyse_single_dataset(df, alpha, base_dir, write=True):
+def analyse_single_dataset(df, alpha, base_dir, write=True, metric="roc_auc"):
     """Analiza zagona z enim samim naborom (Medic3): popravljeni t-testi + Holm."""
     name = df["dataset"].iloc[0]
     n_fits = int(df.groupby("algorithm").size().max())
-    out, excluded, ratio = single_dataset_tests(df, alpha)
+    out, excluded, ratio = single_dataset_tests(df, alpha, metric)
 
     print(f"En sam nabor ({name}, {n_fits} učenj na algoritem). Friedman, Nemenyi in "
           "Wilcoxon potrebujejo več naborov (Demšar 2006),")
@@ -288,7 +298,7 @@ def analyse_single_dataset(df, alpha, base_dir, write=True):
               f"t={r['t']:+7.3f} p={r['p']:.2e} p_holm={r['p_holm']:.2e}")
 
     if write:
-        out_dir = os.path.join(base_dir, "summary")
+        out_dir = metric_dir(base_dir, metric)
         os.makedirs(out_dir, exist_ok=True)
         out.to_csv(os.path.join(out_dir, "corrected_ttest_holm.csv"), index=False)
         with open(os.path.join(out_dir, "corrected_ttest_holm.tex"), "w", encoding="utf-8") as f:
@@ -302,22 +312,25 @@ def analyse_single_dataset(df, alpha, base_dir, write=True):
     return {"single_dataset": out, "excluded": excluded, "test_train_ratio": ratio}
 
 
-def analyse(path_or_id, config=None, drop_saturated=False, write=True):
+def analyse(path_or_id, config=None, drop_saturated=False, write=True, metric="roc_auc"):
     config = config or load_config()
     alpha = config["alpha"]
     results_csv, base_dir = resolve_results(path_or_id, config)
-    print(f"Vir: {os.path.relpath(results_csv, REPO_ROOT)}\n")
+    print(f"Vir: {os.path.relpath(results_csv, REPO_ROOT)}")
+    print(f"Metrika: {METRIC_LABELS[metric]}\n")
 
-    df = load_results(results_csv)
+    df = load_results(results_csv, metric)
     if df["dataset"].nunique() == 1:
         if drop_saturated:
             print("--no-saturated pri enem samem naboru nima pomena; ignoriram.\n")
-        return analyse_single_dataset(df, alpha, base_dir, write)
+        return analyse_single_dataset(df, alpha, base_dir, write, metric)
 
-    pivot = dataset_pivot(df)
+    pivot = dataset_pivot(df, metric)
     suffix = ""
     if drop_saturated:
-        sat = saturated_mask(pivot, config["saturation_threshold"])
+        # Nasičenost vedno po ROC-AUC, da je podmnožica pri vseh metrikah ista.
+        roc_pivot = pivot if metric == "roc_auc" else dataset_pivot(df, "roc_auc")
+        sat = saturated_mask(roc_pivot, config["saturation_threshold"]).reindex(pivot.index)
         pivot = pivot[~sat]
         suffix = "_nonsaturated"
         print(f"Brez nasičenih naborov: {int(sat.sum())} izločenih, {len(pivot)} ostane.\n")
@@ -325,7 +338,7 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
         print("Za teste čez nabore sta potrebna vsaj dva nabora - ni kaj testirati.")
         return None
 
-    ranks = rank_matrix(pivot)
+    ranks = rank_matrix(pivot, HIGHER_IS_BETTER[metric])
     k, n = ranks.shape[1], ranks.shape[0]
     mean_ranks = ranks.mean().sort_values()
 
@@ -351,8 +364,8 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
         nem.append({"a": a, "b": b, "rank_diff": d, "significant": d >= cd})
     nemenyi = pd.DataFrame(nem)
 
-    wil = wilcoxon_holm(pivot, alpha)
-    print("\nWilcoxon (povprečni ROC-AUC po naborih) + Holm:")
+    wil = wilcoxon_holm(pivot, alpha, HIGHER_IS_BETTER[metric])
+    print(f"\nWilcoxon (povprečna metrika {METRIC_LABELS[metric]} po naborih) + Holm:")
     for _, r in wil.sort_values("p_holm").iterrows():
         flag = "*" if r["significant"] else " "
         print(f" {flag} {r['a']:14s} vs {r['b']:14s} n={r['n']:3d} "
@@ -360,7 +373,7 @@ def analyse(path_or_id, config=None, drop_saturated=False, write=True):
               f"p={r['p']:.2e} p_holm={r['p_holm']:.2e}")
 
     if write:
-        out_dir = os.path.join(base_dir, "summary")
+        out_dir = metric_dir(base_dir, metric)
         os.makedirs(out_dir, exist_ok=True)
         cliques = cd_diagram(
             mean_ranks, cd, os.path.join(out_dir, f"cd_diagram{suffix}.png"),
@@ -393,6 +406,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Statistični testi razlik med algoritmi.")
     parser.add_argument("results", help="run_id, mapa zagona ali pot do results.csv")
     parser.add_argument("--no-saturated", action="store_true", help="Izloči nasičene nabore")
+    parser.add_argument("--metric", default="roc_auc", choices=list(HIGHER_IS_BETTER),
+                        help="metrika (privzeto roc_auc; dodatni potrebujeta metrics.csv)")
     parser.add_argument("--no-write", action="store_true", help="Samo izpis, brez zapisa summary/")
     args = parser.parse_args()
-    analyse(args.results, drop_saturated=args.no_saturated, write=not args.no_write)
+    analyse(args.results, drop_saturated=args.no_saturated, write=not args.no_write,
+            metric=args.metric)

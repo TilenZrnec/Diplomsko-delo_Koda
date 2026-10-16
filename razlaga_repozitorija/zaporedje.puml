@@ -395,6 +395,8 @@ participant "scripts/profile_medic3.py" as MED
 participant "scripts/diagnose_lightgbm_medic3.py" as DIAG
 participant "scripts/audit_defaults.py" as AUD
 participant "scripts/combine_runs.py" as COMB
+participant "scripts/compute_metrics.py" as MET
+participant "src/metrics.py" as METF
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -426,9 +428,30 @@ note right of COMB
   nato tečeta na combined/results.csv.
 end note
 
+== Dodatni metriki iz shranjenih napovedi (brez ponovnega učenja) ==
+U -> MET : python scripts/compute_metrics.py <run_id ali combined>
+activate MET
+MET -> RES : results.csv; za vsako uspelo učenje
+predictions/<nabor>/<algo>_r<r>_f<f>.npz
+(pri combined/ iz zagona v stolpcu run_id)
+MET -> METF : compute_accuracy, compute_log_loss
+(float32 -> float64, vrstica normirana na 1)
+MET -> MET : kontrola: ROC-AUC iz datoteke proti results.csv
+(float32 -> razlika do ~1e-3), manjkajoče datoteke -> izhodna koda 1
+MET -> RES : metrics.csv, metrics_info.json (ob results.csv)
+deactivate MET
+U -> SUM : python -m src.summary <run> ~--metric accuracy | log_loss
+SUM -> METF : HIGHER_IS_BETTER (pri log_loss rang 1 = najnižja)
+SUM -> SUMOUT : summary/<metrika>/ (nasičenost vedno po ROC-AUC)
+note right of MET
+  src/metrics.py namenoma ni na učni poti (modeli in
+  runner ga ne uvozijo), da se koda, ki uči, z dodanimi
+  metrikami ne spremeni. src.stats ~--metric enako.
+end note
+
 == Statistična značilnost (Demšar 2006) ==
 
-U -> STAT : python -m src.stats <run_id> [~--no-saturated]
+U -> STAT : python -m src.stats <run_id> [~--no-saturated] [~--metric M]
 activate STAT
 alt več naborov (CC18)
     STAT -> SUM : dataset_pivot, rank_matrix (isto pravilo za neuspeh)

@@ -1,6 +1,13 @@
 """Povzetek rezultatov zagona: ROC-AUC po naborih, rangi, časi, nasičenost.
 
-Zagon: python -m src.summary <run_id | mapa zagona | results.csv>
+Zagon: python -m src.summary <run_id | mapa zagona | results.csv> [--metric M]
+
+--metric izbere metriko: roc_auc (privzeto, glavna metrika, iz results.csv) ali
+dodatni accuracy / log_loss (iz metrics.csv, ki ga naredi
+scripts/compute_metrics.py). Tabele dodatnih metrik gredo v summary/<metrika>/;
+pri log_loss je boljša nižja vrednost, zato rang 1 dobi najnižja. Nasičenost je
+vedno določena po ROC-AUC, da je podmnožica nenasičenih naborov pri vseh
+metrikah ista.
 
 Pot je OBVEZNA - brez nje ni privzetka, da se nikoli ne povzame napačna
 tabela. Prva vrstica izpisa je vedno "Vir: <pot>", da je jasno, kateri
@@ -32,6 +39,10 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, REPO_ROOT)
 
 from src.config import load_config  # noqa: E402
+from src.metrics import HIGHER_IS_BETTER  # noqa: E402
+
+METRIC_LABELS = {"roc_auc": "ROC-AUC", "accuracy": "točnost", "log_loss": "logaritemska izguba"}
+METRIC_KEYS = ["run_id", "dataset", "algorithm", "repeat", "fold"]
 
 
 # --------------------------------------------------------------------------- #
@@ -53,13 +64,24 @@ def resolve_results(path_or_id, config=None):
     raise SystemExit(f"Ne najdem rezultatov: {path_or_id}")
 
 
-def load_results(results_csv):
-    """Prebere CSV in poskrbi za stolpce, ki jih starejši zagoni nimajo."""
+def load_results(results_csv, metric="roc_auc"):
+    """Prebere CSV in poskrbi za stolpce, ki jih starejši zagoni nimajo.
+
+    Pri dodatni metriki (accuracy, log_loss) pripne njen stolpec iz metrics.csv
+    ob results.csv; učenje brez te metrike šteje za neuspelo.
+    """
     df = pd.read_csv(results_csv)
     if "error" not in df.columns:
         df["error"] = np.nan
     # Neuspeh = manjka roc_auc ali je zapisana napaka.
     df["failed"] = df["roc_auc"].isna() | df["error"].notna()
+    if metric != "roc_auc":
+        metrics_csv = os.path.join(os.path.dirname(results_csv), "metrics.csv")
+        if not os.path.isfile(metrics_csv):
+            raise SystemExit(f"{metrics_csv} ne obstaja - najprej scripts/compute_metrics.py")
+        extra = pd.read_csv(metrics_csv)[METRIC_KEYS + [metric]]
+        df = df.merge(extra, on=METRIC_KEYS, how="left", validate="one_to_one")
+        df["failed"] = df["failed"] | df[metric].isna()
     return df
 
 
@@ -67,33 +89,32 @@ def load_results(results_csv):
 # Tabele                                                                       #
 # --------------------------------------------------------------------------- #
 
-def per_dataset_table(df):
-    """Ena vrstica na (nabor, algoritem): mean/std ROC-AUC, mediane časov, št. neuspehov."""
+def per_dataset_table(df, metric="roc_auc"):
+    """Ena vrstica na (nabor, algoritem): mean/std metrike, mediane časov, št. neuspehov."""
     g = df.groupby(["dataset", "algorithm"])
     table = g.agg(
         n_folds=("fold", "count"),
         n_failed=("failed", "sum"),
-        roc_auc_mean=("roc_auc", "mean"),
-        roc_auc_std=("roc_auc", "std"),
+        **{f"{metric}_mean": (metric, "mean"), f"{metric}_std": (metric, "std")},
         train_time_median_s=("train_time_s", "median"),
         inference_time_median_s=("inference_time_s", "median"),
     ).reset_index()
     # Delen neuspeh (nekateri foldi) bi dal optimistično povprečje uspelih foldov;
     # zato povprečje velja le, če so uspeli vsi foldi.
-    table.loc[table["n_failed"] > 0, ["roc_auc_mean", "roc_auc_std"]] = np.nan
+    table.loc[table["n_failed"] > 0, [f"{metric}_mean", f"{metric}_std"]] = np.nan
     return table
 
 
-def dataset_pivot(df):
-    """Matrika nabor x algoritem s povprečnim ROC-AUC (NaN = neuspeh na tem naboru)."""
-    table = per_dataset_table(df)
-    return table.pivot(index="dataset", columns="algorithm", values="roc_auc_mean")
+def dataset_pivot(df, metric="roc_auc"):
+    """Matrika nabor x algoritem s povprečjem metrike (NaN = neuspeh na tem naboru)."""
+    table = per_dataset_table(df, metric)
+    return table.pivot(index="dataset", columns="algorithm", values=f"{metric}_mean")
 
 
-def rank_matrix(pivot):
+def rank_matrix(pivot, higher_is_better=True):
     """Rangi po vrsticah (1 = najboljši); NaN dobi najslabši rang, izenačeni povprečje."""
-    filled = pivot.fillna(-np.inf)
-    return filled.rank(axis=1, ascending=False, method="average")
+    filled = pivot.fillna(-np.inf if higher_is_better else np.inf)
+    return filled.rank(axis=1, ascending=not higher_is_better, method="average")
 
 
 def saturated_mask(pivot, threshold):
@@ -101,16 +122,16 @@ def saturated_mask(pivot, threshold):
     return pivot.max(axis=1) >= threshold
 
 
-def overall_table(df, pivot, ranks):
-    """Ena vrstica na algoritem: povprečni ROC-AUC, rang, zmage, neuspehi, časi."""
+def overall_table(df, pivot, ranks, metric="roc_auc"):
+    """Ena vrstica na algoritem: povprečna metrika, rang, zmage, neuspehi, časi."""
     complete = pivot.dropna(axis=0, how="any")
     rows = []
     for algo in pivot.columns:
         sub = df[df["algorithm"] == algo]
         rows.append({
             "algorithm": algo,
-            "mean_roc_auc_complete": complete[algo].mean(),
-            "mean_roc_auc_own": pivot[algo].mean(),
+            f"mean_{metric}_complete": complete[algo].mean(),
+            f"mean_{metric}_own": pivot[algo].mean(),
             "mean_rank": ranks[algo].mean(),
             "n_wins": int((ranks[algo] == ranks.min(axis=1)).sum()),
             "n_failed_datasets": int(pivot[algo].isna().sum()),
@@ -169,28 +190,38 @@ def write_outputs(out_dir, tables):
             f.write(to_latex(df, caption, label, floatfmt))
 
 
-def summarize(path_or_id, config=None, write=True):
+def metric_dir(base_dir, metric):
+    """summary/ za glavno metriko, summary/<metrika>/ za dodatne."""
+    out = os.path.join(base_dir, "summary")
+    return out if metric == "roc_auc" else os.path.join(out, metric)
+
+
+def summarize(path_or_id, config=None, write=True, metric="roc_auc"):
     config = config or load_config()
     results_csv, base_dir = resolve_results(path_or_id, config)
     print(f"Vir: {os.path.relpath(results_csv, REPO_ROOT)}\n")
 
-    df = load_results(results_csv)
+    df = load_results(results_csv, metric)
     threshold = config["saturation_threshold"]
+    label = METRIC_LABELS[metric]
 
-    per_ds = per_dataset_table(df)
-    pivot = dataset_pivot(df)
-    ranks = rank_matrix(pivot)
-    saturated = saturated_mask(pivot, threshold)
+    per_ds = per_dataset_table(df, metric)
+    pivot = dataset_pivot(df, metric)
+    ranks = rank_matrix(pivot, HIGHER_IS_BETTER[metric])
+    # Nasičenost vedno po ROC-AUC (glej docstring modula).
+    roc_pivot = pivot if metric == "roc_auc" else dataset_pivot(df, "roc_auc")
+    saturated = saturated_mask(roc_pivot, threshold).reindex(pivot.index)
 
-    overall = overall_table(df, pivot, ranks)
+    overall = overall_table(df, pivot, ranks, metric)
     overall_ns = overall_table(
-        df[df["dataset"].isin(pivot.index[~saturated])], pivot[~saturated], ranks[~saturated]
+        df[df["dataset"].isin(pivot.index[~saturated])], pivot[~saturated], ranks[~saturated],
+        metric,
     )
 
-    show_cols = ["algorithm", "mean_roc_auc_complete", "mean_rank", "n_wins",
+    show_cols = ["algorithm", f"mean_{metric}_complete", "mean_rank", "n_wins",
                  "n_failed_datasets", "train_time_median_s", "inference_time_median_s"]
 
-    print(f"=== Vsi nabori ({len(pivot)}; povprečni ROC-AUC na {overall.attrs['n_complete']} "
+    print(f"=== Vsi nabori ({len(pivot)}; povprečna metrika {label} na {overall.attrs['n_complete']} "
           "naborih, kjer so uspeli vsi algoritmi; rang na nabor, neuspeh = najslabši rang) ===")
     print(tabulate(overall[show_cols], headers="keys", floatfmt=".4f", showindex=False))
 
@@ -198,7 +229,7 @@ def summarize(path_or_id, config=None, write=True):
           f"{int((~saturated).sum())} naborov, {int(saturated.sum())} izločenih ===")
     print(tabulate(overall_ns[show_cols], headers="keys", floatfmt=".4f", showindex=False))
 
-    print("\n=== ROC-AUC po naborih (povprečje čez folde; -- = neuspeh) ===")
+    print(f"\n=== {label} po naborih (povprečje čez folde; -- = neuspeh) ===")
     shown = pivot.round(4).astype(object).where(pivot.notna(), "--").reset_index()
     print(tabulate(shown, headers="keys", floatfmt=".4f", showindex=False))
 
@@ -212,7 +243,7 @@ def summarize(path_or_id, config=None, write=True):
         print(tabulate(short, headers="keys", showindex=False))
 
     if write:
-        out_dir = os.path.join(base_dir, "summary")
+        out_dir = metric_dir(base_dir, metric)
         pivot_out = pivot.reset_index()
         pivot_out["saturated"] = saturated.values
         write_outputs(out_dir, {
@@ -220,8 +251,9 @@ def summarize(path_or_id, config=None, write=True):
             "overall_nonsaturated": (
                 overall_ns, f"Povzetek brez nasičenih naborov (ROC-AUC $\\geq$ {threshold}).",
                 "tab:overall-nonsat", ".4f"),
-            "per_dataset": (per_ds, "ROC-AUC po naborih in algoritmih.", "tab:per-dataset", ".4f"),
-            "pivot": (pivot_out, "Povprečni ROC-AUC po naborih.", "tab:pivot", ".4f"),
+            "per_dataset": (per_ds, f"{label} po naborih in algoritmih.", "tab:per-dataset", ".4f"),
+            "pivot": (pivot_out, f"Povprečni {label} po naborih." if metric == "roc_auc"
+                      else f"Povprečje metrike {label} po naborih.", "tab:pivot", ".4f"),
             "ranks": (ranks.reset_index(), "Rangi po naborih.", "tab:ranks", ".2f"),
         })
         print(f"\nTabele zapisane v {os.path.relpath(out_dir, REPO_ROOT)}/ (CSV + LaTeX)")
@@ -233,6 +265,8 @@ def summarize(path_or_id, config=None, write=True):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Povzetek rezultatov benchmarka.")
     parser.add_argument("results", help="run_id, mapa zagona ali pot do results.csv")
+    parser.add_argument("--metric", default="roc_auc", choices=list(HIGHER_IS_BETTER),
+                        help="metrika (privzeto roc_auc; dodatni potrebujeta metrics.csv)")
     parser.add_argument("--no-write", action="store_true", help="Samo izpis, brez zapisa summary/")
     args = parser.parse_args()
-    summarize(args.results, write=not args.no_write)
+    summarize(args.results, write=not args.no_write, metric=args.metric)

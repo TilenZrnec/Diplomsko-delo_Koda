@@ -74,6 +74,20 @@ rerun plus the earlier run.
 reads `cc18_v4/combined/` and the two Medic3 `combined/` folders through
 `rezultati/generiraj_rezultate.py` (thesis repo); the TabPFN-3 comparison
 still uses `cc18_v3` vs `cc18_v2` on purpose (same code, only TabPFN differs).
+**Secondary metrics (2026-10-15):** accuracy and log loss of all three thesis
+sets were computed from the saved predictions (`scripts/compute_metrics.py`;
+every successful fit had its file; ROC-AUC from the files within 3.2e-4 on CC18
+and 7.5e-4 on Medic3 — the latter only the collapsed LightGBM, whose
+near-0/1 probabilities tie after float32 rounding). Findings: on CC18 the top
+three (TabPFN-3.5, TabICL, CatBoost) are the same under all three metrics and
+both foundation models beat every tree ensemble (Wilcoxon–Holm) under all of
+them; only the bottom three swap places, and RandomForest is clearly last by
+log loss. **On Medic3-160 CatBoost beats TabPFN-3.5 on accuracy (n.s.,
+p_Holm 0.084) and log loss (significant, 15/15 folds, p_Holm 0.0085)**, the
+reverse of ROC-AUC. Thesis: tables `tab_metrike`, `tab_medic3_metrike`, section
+`sec:rez-metrike`, subsection `sec:metrike`; new chapter "Sorodni pristopi".
+After every future run (incl. `cc18_xgb_tuned`) run `compute_metrics.py` on it
+while its predictions are on the machine.
 
 ## Structure
 - `config.yaml` — **the single source of every experiment parameter**:
@@ -153,14 +167,31 @@ still uses `cc18_v3` vs `cc18_v2` on purpose (same code, only TabPFN differs).
   known GPU-hardware difference (RTX 3060 here vs. H100 on Arnes), not the
   metric. Regenerating `cc18_v2/summary/` changed no file. The per-fit column
   `n_classes_scored` says how many classes the average covered.
-- `src/summary.py` — `python -m src.summary <run_id|dir|csv>` (path is
-  **required**). Prints and writes to `summary/` (CSV + LaTeX): per-dataset
+- `src/metrics.py` — **secondary metrics** (decided 2026-10-15, user):
+  `compute_accuracy` (argmax of `proba`, the same rule as `predict()`),
+  `compute_log_loss` (sklearn `log_loss`, which clips to [eps, 1-eps] with eps =
+  2.2e-16 in float64, so one row costs at most 36.04; the stored float32 `proba`
+  is cast to float64 and each row renormalised to sum 1 — max row-sum error seen
+  3.6e-7), and `HIGHER_IS_BETTER` (log loss is the only lower-is-better metric).
+  **Deliberately not on the training path** (no model or runner imports it), so
+  adding metrics never changes the code that trains. ROC-AUC stays the primary
+  metric (computed during training, `src/utils.py`); why these two were added
+  and the literature behind it: thesis `sec:sor-zbirke` (table `tab:sorodni`) and
+  `sec:metrike`.
+- `src/summary.py` — `python -m src.summary <run_id|dir|csv> [--metric M]` (path is
+  **required**; `--metric accuracy|log_loss` reads `metrics.csv` and writes to
+  `summary/<metric>/`, ROC-AUC output in `summary/` is unchanged — regenerating
+  all three thesis sets after the change gave byte-identical files; saturation
+  is always decided by ROC-AUC so the non-saturated subset is the same for every
+  metric). Prints and writes to `summary/` (CSV + LaTeX): per-dataset
   table, dataset×algorithm pivot, ranks, overall table, and the same without
   saturated datasets. Rules: rank **per dataset** on the fold mean; a
   (dataset, algorithm) with any failed fold is a failure and gets the **worst
   rank**; mean ROC-AUC is reported over datasets where **all** algorithms
   succeeded; "saturated" = best algorithm ≥ `saturation_threshold`.
-- `src/stats.py` — `python -m src.stats <run> [--no-saturated]`. Several
+- `src/stats.py` — `python -m src.stats <run> [--no-saturated] [--metric M]`
+  (`--metric` as in `src.summary`; for log loss ranks and wins count the lower
+  value as better, `mean_diff` stays raw a − b). Several
   datasets (Demšar 2006): Friedman test — chi2_F by **Demšar's formula from the
   mean ranks** (no tie correction, so every number can be recomputed by hand;
   scipy's `friedmanchisquare` adds one: 230.37 instead of 229.82 on `cc18_v2`) —
@@ -189,6 +220,11 @@ still uses `cc18_v3` vs `cc18_v2` on purpose (same code, only TabPFN differs).
   `gen_tuning_ids.py` (rebuilds `cc18_tuning_ids.json` from `cc18_v4/combined`:
   68 sets, the 36 non-saturated first), `run_tuning.sh` (SLURM, tuning
   experiment, CPU only, one dataset per task, takes `RUN_ID`),
+  `compute_metrics.py <run|dir>` (accuracy and log loss of every fit from its
+  saved `predictions/*.npz` — no re-run; for `combined/` the row's `run_id`
+  says which run's predictions to open; also recomputes ROC-AUC from the file as
+  a check, exit 1 on a missing file or |Δ| > 1e-3; writes `metrics.csv` and
+  `metrics_info.json` next to `results.csv`),
   `combine_runs.py <new> --base <old>` (full result set from a partial rerun:
   all rows of the new run + the old run's rows for the algorithms the new one
   lacks, into `<new>/combined/` with `sources.json`; refuses if seeds, folds or
@@ -207,7 +243,8 @@ still uses `cc18_v3` vs `cc18_v2` on purpose (same code, only TabPFN differs).
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
   `results.csv`, `summary/`, `diagnostics/` [checks made by a script after the
-  run]). Kept: **`cc18_v4/combined/`** (the thesis results: RF + XGBoost from
+  run], `metrics.csv` + `metrics_info.json` [`scripts/compute_metrics.py`],
+  `summary/<metric>/` [secondary metrics]). Kept: **`cc18_v4/combined/`** (the thesis results: RF + XGBoost from
   `cc18_v4`, LightGBM, CatBoost, TabPFN, TabICL from **`cc18_v3`**, which stays
   as their source), the Medic3 runs **`medic3_raw`** / **`medic3_160`** and
   their partial reruns **`medic3_raw_v2`** / **`medic3_160_v2`** (thesis sets:
@@ -864,9 +901,18 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      har ≤ ~21 h):
          RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
          RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --partition=long --time=4-00:00:00 scripts/run_tuning.sh
-     Rows record the commit of each submission; `src/`, `scripts/` and
-     `config.yaml` must not change between the two halves (check with `git
-     diff <c1> <c2> -- src scripts config.yaml`). After each half: merge,
+     Rows record the commit of each submission; the **training path** must not
+     change between the two halves. Check with `git diff f7d8366 HEAD --
+     src/config.py src/data.py src/runner.py src/run_one_dataset.py src/utils.py
+     src/models config.yaml scripts/run_tuning.sh` (must be empty). Narrowed on
+     2026-10-15: the secondary-metric work changed `src/summary.py` and
+     `src/stats.py` and added `src/metrics.py` and `scripts/compute_metrics.py`,
+     none of which the training path imports (checked: models import only
+     `src.utils`/`src.config`, the runner `config`, `data`, `models`, `utils`), so
+     a plain `git diff -- src scripts` is no longer empty but training is
+     identical. **Do not `git pull` on Arnes while an array of this run is still
+     queued or running** — tasks that have not started yet run whatever code is in
+     the directory when they start. After each half: merge,
      `sacct` → `sacct.txt`, `git pull`, commit `results/runs/cc18_xgb_tuned`
      (incl. `tuning/`; `predictions/` stays out), push; copy `predictions/` to
      Kremen, laptop, USB.

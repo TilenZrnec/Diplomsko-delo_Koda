@@ -68,6 +68,8 @@ Starejši zagoni (`check_refactor_oldenv`, `subset_v2_local`, `subset_v2`) in ar
 | `predictions/<id>/<algoritem>_r<rep>_f<fold>.npz` | `predict_proba`, `y_test`, `test_idx`, `classes`, `proba_classes` vsakega učenja — za poljubno metriko brez ponovnega zagona; po zagonu na Arnesu jih prekopiraj domov (`rsync`, glej `razlaga_repozitorija/razlaga.md`) | ne (velike) |
 | `results.csv` | združeni `per_dataset/*.csv` (`scripts/merge_results.py` ali samodejno lokalno) | da |
 | `summary/` | tabele (CSV + LaTeX), diagram kritične razdalje, `friedman.csv` (chi2_F in Iman-Davenportova F_F), `razlicice.tex`; pri zagonu z enim naborom namesto testov čez nabore `corrected_ttest_holm.csv/.tex` — iz `src/summary.py`, `src/stats.py`, `scripts/gen_version_table.py` | da |
+| `metrics.csv`, `metrics_info.json` | dodatni metriki (točnost, logaritemska izguba) vsakega učenja, izračunani iz `predictions/` brez ponovnega zagona, s kontrolo ROC-AUC iz datotek — iz `scripts/compute_metrics.py`; pri sestavljenem naboru v `combined/` | da |
+| `summary/<metrika>/` | iste tabele in testi za dodatno metriko (`accuracy`, `log_loss`) — `src/summary.py` in `src/stats.py` z `--metric`; nasičenost vedno po ROC-AUC | da |
 | `diagnostics/` | dodatne preverbe posameznega zagona, ki jih naredi skript (ne zagon sam), npr. `lightgbm_<različica>_*.csv/.json` iz `scripts/diagnose_lightgbm_medic3.py` — le metrike, nobenih podatkov | da |
 | `PROVENANCE.md`, `sacct.txt` | ročni zapis tega, česar skript ne ve: SLURM opravila, ponovne oddaje, težave | da |
 
