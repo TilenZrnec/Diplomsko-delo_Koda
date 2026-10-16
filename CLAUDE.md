@@ -947,6 +947,27 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      `3-00:00:00` in the
      `scripts/run_tuning.sh` header gets corrected after part 2 (left alone so
      the training-path diff stays empty while the run is in progress).
+     State 2026-10-16: job `20511472` left the queue (check its state with
+     `sacct`); isolet and har running on
+     `wn119` (`long`) for ~15 h. The user works on the **laptop** for the next
+     few days and has the USB drive with them.
+   - **After part 2 — checklist (in this order):**
+     1. On Arnes (the user has the commands): `sacct` says COMPLETED for both
+        jobs; `merge_results.py cc18_xgb_tuned` → 1020 rows, no `.partial`;
+        `sacct -j 20494570,20511472,20511665 ... > sacct.txt`; only then
+        `git pull`, commit `results/runs/cc18_xgb_tuned`, push.
+     2. On the laptop/Kremen: `git pull`; copy the predictions from Arnes (run
+        on the receiving machine, repo root):
+        `rsync -av tz43558@hpc-login.arnes.si:Diplomsko-delo_Koda/results/runs/cc18_xgb_tuned/predictions/ results/runs/cc18_xgb_tuned/predictions/`
+        (1020 files); then onto the USB drive, later to the other machine.
+     3. `python scripts/compute_metrics.py cc18_xgb_tuned` (env `tabular3.5`):
+        accuracy and log loss of the tuned XGBoost, with the ROC-AUC check
+        from the files (the secondary-metrics session asked for this).
+     4. Analysis of all 68 as for part 1 (default = `cc18_v4`, tuned vs
+        default, vs `cc18_v4/combined`, winners and grid edges, time), the
+        part-2 section of `PROVENANCE.md`, the registry rows here and in
+        `results/README.md`, and the `run_tuning.sh` header (2 days on `all`,
+        isolet/har on `long`). Then the thesis tuning section.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 
