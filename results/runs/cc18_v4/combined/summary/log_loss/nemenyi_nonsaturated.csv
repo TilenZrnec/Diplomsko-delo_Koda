@@ -1,0 +1,16 @@
+a,b,rank_diff,significant
+tabpfn,tabicl,0.9189189189189189,False
+tabpfn,catboost,2.027027027027027,True
+tabpfn,lightgbm,3.513513513513513,True
+tabpfn,xgboost,3.756756756756757,True
+tabpfn,random_forest,3.972972972972973,True
+tabicl,catboost,1.1081081081081083,False
+tabicl,lightgbm,2.5945945945945943,True
+tabicl,xgboost,2.837837837837838,True
+tabicl,random_forest,3.054054054054054,True
+catboost,lightgbm,1.486486486486486,True
+catboost,xgboost,1.7297297297297298,True
+catboost,random_forest,1.9459459459459456,True
+lightgbm,xgboost,0.24324324324324387,False
+lightgbm,random_forest,0.45945945945945965,False
+xgboost,random_forest,0.21621621621621578,False

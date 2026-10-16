@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{točnost po naborih in algoritmih.}
+\label{tab:per-dataset}
+\begin{tabular}{lrrrrrrr}
+\hline
+dataset & algorithm & n\_folds & n\_failed & accuracy\_mean & accuracy\_std & train\_time\_median\_s & inference\_time\_median\_s \\
+\hline
+medic3 & catboost & 15 & 0 & 0.4824 & 0.0020 & 8142.6187 & 0.2958 \\
+medic3 & lightgbm & 15 & 0 & 0.0512 & 0.0196 & 59.8109 & 1.2439 \\
+medic3 & random\_forest & 15 & 0 & 0.4540 & 0.0024 & 13.5796 & 0.4835 \\
+medic3 & tabicl & 15 & 0 & 0.4670 & 0.0026 & 10.2555 & 79.7986 \\
+medic3 & tabpfn & 15 & 15 & -- & -- & -- & -- \\
+medic3 & xgboost & 15 & 0 & 0.4600 & 0.0034 & 303.4815 & 3.9014 \\
+\hline
+\end{tabular}
+\end{table}

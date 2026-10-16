@@ -1,0 +1,17 @@
+{
+  "results_csv": "results/runs/medic3_160_v2/combined/results.csv",
+  "computed_by": {
+    "script": "scripts/compute_metrics.py",
+    "git_commit": "ed2cafc",
+    "git_dirty": false,
+    "scikit_learn": "1.9.1"
+  },
+  "timestamp": "2026-10-16T12:20:44+02:00",
+  "fits": 90,
+  "fits_failed": 0,
+  "fits_scored": 90,
+  "missing_prediction_files": [],
+  "max_abs_roc_auc_diff": 0.0007061267403916105,
+  "max_row_sum_error": 3.1087984098121524e-07,
+  "tolerance": 0.001
+}

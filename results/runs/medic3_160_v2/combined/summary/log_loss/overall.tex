@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{Povzetek čez vse nabore.}
+\label{tab:overall}
+\begin{tabular}{lrrrrrrrrrr}
+\hline
+algorithm & mean\_log\_loss\_complete & mean\_log\_loss\_own & mean\_rank & n\_wins & n\_failed\_datasets & n\_datasets & train\_time\_median\_s & inference\_time\_median\_s & train\_time\_total\_s & inference\_time\_total\_s \\
+\hline
+catboost & 1.9135 & 1.9135 & 1.0000 & 1 & 0 & 1 & 5549.8376 & 0.2125 & 83261.2608 & 3.1793 \\
+tabpfn & 1.9281 & 1.9281 & 2.0000 & 0 & 0 & 1 & 2.3313 & 74.3964 & 35.2722 & 1116.0612 \\
+tabicl & 2.0216 & 2.0216 & 3.0000 & 0 & 0 & 1 & 9.9924 & 76.5689 & 150.0374 & 1179.4764 \\
+xgboost & 2.3138 & 2.3138 & 4.0000 & 0 & 0 & 1 & 129.5945 & 1.7751 & 1941.1898 & 26.7283 \\
+random\_forest & 4.2027 & 4.2027 & 5.0000 & 0 & 0 & 1 & 11.1405 & 0.3377 & 167.2484 & 5.0760 \\
+lightgbm & 34.1245 & 34.1245 & 6.0000 & 0 & 0 & 1 & 49.6797 & 1.2805 & 752.3313 & 20.3158 \\
+\hline
+\end{tabular}
+\end{table}

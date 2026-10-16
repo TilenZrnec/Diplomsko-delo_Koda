@@ -1,0 +1,26 @@
+\begin{table}[htbp]
+\centering
+\caption{Popravljeni t-testi za ponovljeno prečno preverjanje s Holmovim popravkom.}
+\label{tab:corrected-ttest}
+\begin{tabular}{lrrrrrrrr}
+\hline
+a & b & n & mean\_diff & wins\_a & wins\_b & t & p\_holm & significant \\
+\hline
+catboost & lightgbm & 15 & 0.4459 & 15 & 0 & 41.3041 & 0.0000 & True \\
+catboost & random\_forest & 15 & 0.0296 & 15 & 0 & 28.1971 & 0.0000 & True \\
+catboost & tabicl & 15 & 0.0185 & 15 & 0 & 13.9063 & 0.0000 & True \\
+catboost & tabpfn & 15 & 0.0030 & 13 & 2 & 1.8637 & 0.0835 & False \\
+catboost & xgboost & 15 & 0.0231 & 15 & 0 & 13.5905 & 0.0000 & True \\
+lightgbm & random\_forest & 15 & -0.4163 & 0 & 15 & -37.7197 & 0.0000 & True \\
+lightgbm & tabicl & 15 & -0.4274 & 0 & 15 & -39.2734 & 0.0000 & True \\
+lightgbm & tabpfn & 15 & -0.4429 & 0 & 15 & -41.3971 & 0.0000 & True \\
+lightgbm & xgboost & 15 & -0.4228 & 0 & 15 & -39.7158 & 0.0000 & True \\
+random\_forest & tabicl & 15 & -0.0111 & 0 & 15 & -7.9741 & 0.0000 & True \\
+random\_forest & tabpfn & 15 & -0.0266 & 0 & 15 & -20.1759 & 0.0000 & True \\
+random\_forest & xgboost & 15 & -0.0065 & 0 & 15 & -3.7032 & 0.0071 & True \\
+tabicl & tabpfn & 15 & -0.0156 & 0 & 15 & -10.4842 & 0.0000 & True \\
+tabicl & xgboost & 15 & 0.0045 & 15 & 0 & 3.5690 & 0.0071 & True \\
+tabpfn & xgboost & 15 & 0.0201 & 15 & 0 & 13.0166 & 0.0000 & True \\
+\hline
+\end{tabular}
+\end{table}

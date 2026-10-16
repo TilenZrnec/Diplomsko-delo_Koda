@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering
+\caption{logaritemska izguba po naborih in algoritmih.}
+\label{tab:per-dataset}
+\begin{tabular}{lrrrrrrr}
+\hline
+dataset & algorithm & n\_folds & n\_failed & log\_loss\_mean & log\_loss\_std & train\_time\_median\_s & inference\_time\_median\_s \\
+\hline
+medic3\_160 & catboost & 15 & 0 & 1.9135 & 0.0089 & 5549.8376 & 0.2125 \\
+medic3\_160 & lightgbm & 15 & 0 & 34.1245 & 0.7017 & 49.6797 & 1.2805 \\
+medic3\_160 & random\_forest & 15 & 0 & 4.2027 & 0.0512 & 11.1405 & 0.3377 \\
+medic3\_160 & tabicl & 15 & 0 & 2.0216 & 0.0119 & 9.9924 & 76.5689 \\
+medic3\_160 & tabpfn & 15 & 0 & 1.9281 & 0.0105 & 2.3313 & 74.3964 \\
+medic3\_160 & xgboost & 15 & 0 & 2.3138 & 0.0210 & 129.5945 & 1.7751 \\
+\hline
+\end{tabular}
+\end{table}
