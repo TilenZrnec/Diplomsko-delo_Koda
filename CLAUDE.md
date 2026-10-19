@@ -947,14 +947,32 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      `3-00:00:00` in the
      `scripts/run_tuning.sh` header gets corrected after part 2 (left alone so
      the training-path diff stays empty while the run is in progress).
-     State 2026-10-16: job `20511472` left the queue (check its state with
-     `sacct`); isolet and har running on
-     `wn119` (`long`) for ~15 h. The user works on the **laptop** for the next
-     few days and has the USB drive with them.
+     **State 2026-10-19 (Monday, ~11:05):** job `20511472` COMPLETED, all 30
+     tasks (longest index 37, 5 h 00 min); har (`20511665_54`) COMPLETED in
+     31 h 09 min on `wn119` — over its 7–24 h estimate. **isolet
+     (`20511665_49`) cannot finish within its 4 days:** at 84.8 h it had 10/15
+     folds in `per_dataset/300__xgboost_tuned.csv.partial` (fold times 5.8–9.4 h;
+     repeat 0 mean 6.4 h, repeat 1 mean 8.5 h; fold 9 ended 2026-10-18 23:37,
+     fold 10 then already ran > 10 h), ~37–43 h still needed, TIMEOUT expected
+     ~2026-10-19 21:05. The user submitted the continuation from
+     `hpc-login3`, Arnes still at `785257b`, no `git pull`:
+         RUN_ID=cc18_xgb_tuned sbatch --array=49 --partition=long --time=4-00:00:00 \
+             --dependency=afternotok:20511665_49 scripts/run_tuning.sh
+     → job **`20652997`** (`20652997_49`), starts only if `20511665_49` ends not
+     OK (TIMEOUT) and resumes from the partial; only the fold in progress at the
+     kill is lost. If `20511665_49` were to finish (e.g. time limit extended by
+     Arnes support), `20652997` stays `DependencyNeverSatisfied` → `scancel` it.
+     Expected end with 4–5 folds left: ~2026-10-21. Both isolet and har ran far
+     over the part-1-based estimate on `wn119`; quantify with the in-run
+     `default_train_time_s` in the analysis (same-node ratio) and note it in
+     PROVENANCE part 2 together with the TIMEOUT and resubmission.
+     The user works on the **laptop** for the next few days and has the USB
+     drive with them.
    - **After part 2 — checklist (in this order):**
-     1. On Arnes (the user has the commands): `sacct` says COMPLETED for both
-        jobs; `merge_results.py cc18_xgb_tuned` → 1020 rows, no `.partial`;
-        `sacct -j 20494570,20511472,20511665 ... > sacct.txt`; only then
+     1. On Arnes (the user has the commands): `sacct` says COMPLETED for
+        `20511472`, `20511665_54` and `20652997_49` (`20511665_49` = TIMEOUT,
+        expected); `merge_results.py cc18_xgb_tuned` → 1020 rows, no `.partial`;
+        `sacct -j 20494570,20511472,20511665,20652997 ... > sacct.txt`; only then
         `git pull`, commit `results/runs/cc18_xgb_tuned`, push.
      2. On the laptop/Kremen: `git pull`; copy the predictions from Arnes (run
         on the receiving machine, repo root):
