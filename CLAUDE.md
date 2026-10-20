@@ -489,6 +489,13 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
   - **no categorical columns** — all 275 attributes are numeric, so CatBoost's
     native categorical handling gives it no advantage here;
   - `Field` alone predicts the class with 25 % accuracy → correctly dropped;
+    `Field` is the department ("oddelek", 11 values; dropped together with
+    `Index` on the supervisor's instruction). **Column check 2026-10-19:**
+    header names are exact (`Index` col 0, `Field` 276, `Class` 277 of 278);
+    `drop_cols` is `["Index", "Field"]` at `420bdac` and `8b601d1`; all four
+    Medic3 runs record `n_features` 275 for every algorithm and fold; file
+    sha256 = PROVENANCE; no attribute is a 1:1 relabelling of `Field`, the best
+    single one (A177) predicts it at 0.418 held-out vs 0.323 majority;
   - **missingness itself is a strong predictor** (e.g. A177 observed in 99.5 %
     of class C152's rows vs. 0.0 % of C202's). **Only TabICL loses this signal,
     inside its own library** (until 2026-10-14 RandomForest did too, through
@@ -966,8 +973,11 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      over the part-1-based estimate on `wn119`; quantify with the in-run
      `default_train_time_s` in the analysis (same-node ratio) and note it in
      PROVENANCE part 2 together with the TIMEOUT and resubmission.
-     The user works on the **laptop** for the next few days and has the USB
-     drive with them.
+     **2026-10-20:** the user reports `20652997_49` started (so `20511665_49`
+     ended not OK — confirm TIMEOUT with `sacct` for `sacct.txt`); its log
+     should contain `najden partial: 10` (or 11) `učenj že narejenih`. Expected
+     end ~2026-10-21/22. The user now works on **Kremen** again; after the
+     run they copy the predictions to Kremen and the laptop.
    - **After part 2 — checklist (in this order):**
      1. On Arnes (the user has the commands): `sacct` says COMPLETED for
         `20511472`, `20511665_54` and `20652997_49` (`20511665_49` = TIMEOUT,
@@ -986,8 +996,61 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         part-2 section of `PROVENANCE.md`, the registry rows here and in
         `results/README.md`, and the `run_tuning.sh` header (2 days on `all`,
         isolet/har on `long`). Then the thesis tuning section.
+     5. Only now (training path free again), before the leakage test loads
+        Medic3 again: make `_load_csv` in `src/data.py` **raise** when a
+        `drop_cols` name is missing from the file — it currently skips it
+        silently (`if c in df.columns`), so a renamed `Field` would stay in
+        (see Datasets → Medic3, column check 2026-10-19).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
+8. **Leakage test — state 2026-10-19 (design proposed, awaiting the
+   supervisor).**
+   - **Purpose (user, after a call with the supervisor):** the supervisor was
+     surprised how well TabPFN does on CC18 and wants to know whether TabPFN
+     was trained on CC18 data — i.e. contamination / memorisation of the
+     foundation model, **not** a leak in our pipeline. A label-shuffle check of
+     our pipeline answers a different question; at most a small add-on.
+   - **TabPFN-3.5 report exists:** arXiv 2609.17895, "TabPFN-3.5: Technical
+     Report" (Jäger, Erickson, Grinsztajn, … 47 authors; v1 2026-09-15, v2
+     2026-09-22). Whole text read via WebFetch 2026-10-19: §3.3 "Our synthetic
+     data generation pipeline closely follows TabPFN-3"; no mention of
+     training, fine-tuning or validating on real data, OpenML (only C.7
+     ScoringBench as an evaluation benchmark), CC18, contamination or overlap;
+     §C.5 (TALENT, borrowing the TabICLv2 protocol and baselines) uses "the 300
+     base datasets minus the 26 that were used during the development of
+     TabPFN-2 and TabICLv2". The thesis `\todo` "Poišči preverljiv vir za
+     TabPFN-3.5" and the sentence "tehničnega poročila v času pisanja nismo
+     imeli na voljo" can now be fixed (bib entry from the arXiv record; quote
+     only what the report says).
+   - **What TabPFN-3.5 does itself** (`inference_config` in the header of
+     `tabpfn-v3.5-20260909.safetensors`, read without loading the model):
+     `N_ESTIMATORS` 8, `PREPROCESS_TRANSFORMS` one config `name: "none"`
+     (numbers enter untransformed), `FEATURE_SHIFT_METHOD` and
+     `CLASS_SHIFT_METHOD` `"shuffle"`, categoricals `"ordinal_shuffled"`.
+     So permuting columns, classes or category codes tests nothing — the
+     perturbation must change the values. The architecture config has
+     `cell_ecdf_num_buckets` 8192 (probably a rank/ECDF cell embedding;
+     unverified), so an order-preserving transform may leave part of the input
+     unchanged → also an arm that changes ranks (noise).
+   - **Proposed design (in the email to the supervisor, drafted 2026-10-19):**
+     the 36 non-saturated sets of the tuning run (= the 37 minus CIFAR_10);
+     TabPFN-3.5, TabICL, CatBoost (control: trees react to strictly monotone
+     transforms only through split points between values); arms: original,
+     (a) each numeric attribute through a strictly increasing function, (b) (a)
+     plus slight noise (strength to fix); the same arms on `medic3_160` (private,
+     all numeric — separates memorisation from TabPFN's general sensitivity to
+     the transform); 5 folds of repeat 0, original arm rerun in the same job;
+     rule fixed before running: per dataset drop(TabPFN) − drop(CatBoost),
+     Wilcoxon over datasets. Cost per repeat on all 72 (from `cc18_v4/combined`):
+     TabPFN 0.8 GPU-h, TabICL 1.3 GPU-h, CatBoost 15.9 CPU-h. Limitation: it
+     cannot detect indirect influence (developers selecting the model on public
+     benchmarks) → named as a limitation. Optional extras not in the email:
+     overlap analysis if the list of the 26 is published; label-shuffle check.
+   - **Asked the supervisor** whether the test is needed at all, or whether the
+     report + Medic3 (TabPFN-3.5 first there too, 0.9614 vs CatBoost 0.9599,
+     a dataset it cannot have seen) + a stated limitation suffice; and if
+     needed, whether the design is fine. Runs on Arnes/Kremen only (laptop: no
+     GPU), after the tuning run.
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
