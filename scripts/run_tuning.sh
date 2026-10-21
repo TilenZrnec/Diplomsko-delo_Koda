@@ -17,11 +17,14 @@
 # Ocena (2026-10-15, mreža 128 nastavitev; iz časov privzetega XGBoost v cc18_v4 x
 # razmerje uglaševanje / privzeto učenje 450-800 iz pilota, x 4/3 za learning_rate
 # 0.01): prvih 36 skupaj ~28-49 h računanja, najdaljši task (Bioresponse) do ~5 h,
-# zato --time=12:00:00. Pri ostalih 32 prevladujeta isolet (indeks 49, do ~62 h)
-# in har (54, do ~21 h):
+# zato --time=12:00:00. Pri ostalih 32 prevladujeta isolet (indeks 49) in har (54);
+# particija all dovoli največ 2 dni, zato gresta v particijo long (7 dni):
 #     RUN_ID=cc18_xgb_tuned sbatch --array=36-48,50-53,55-67%8 scripts/run_tuning.sh
-#     RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --time=3-00:00:00 scripts/run_tuning.sh
-# (časovne meje za drugi del še preveri z dejanskimi časi prvega dela na Arnesu)
+#     RUN_ID=cc18_xgb_tuned sbatch --array=49,54 --partition=long --time=4-00:00:00 scripts/run_tuning.sh
+# Dejansko (2026-10-15/20): ostalih 30 taskov do 5 h (letter), har 31 h, isolet
+# ~121 h na počasnejših vozliščih wn119/wn116 - ob 4 dneh prekinjen (TIMEOUT) in
+# nadaljevan z isto oddajo, le --array=49 --dependency=afternotok:<job>_49
+# (nadaljuje za zadnjim končanim foldom; results/runs/cc18_xgb_tuned/PROVENANCE.md).
 #
 # Samo CPU, brez GPU: XGBoost teče na 8 jedrih, zato particije ne določamo (privzeta
 # particija gruče). Če jo sbatch zavrne, isti ukaz z

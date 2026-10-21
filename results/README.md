@@ -38,7 +38,7 @@ zagona (`sources.json` pove, od kod je kateri algoritem).
 
 | `run_id` | Kaj je | Okolje |
 |---|---|---|
-| `cc18_xgb_tuned` | le `xgboost_tuned` (XGBoost, uglašen z iskanjem po mreži in gnezdenim prečnim preverjanjem) na 68 naborih `cc18_tuning`: del 1 = 36 nenasičenih (končan 2026-10-15, job `20494570`, 540 vrstic), del 2 = 32 nasičenih (sledi); `tuning/` = vseh 128 notranjih rezultatov na fold; primerja se s `cc18_v4/combined` | Arnes `~/envs/tabular3.5`, le CPU |
+| `cc18_xgb_tuned` | le `xgboost_tuned` (XGBoost, uglašen z iskanjem po mreži in gnezdenim prečnim preverjanjem) na 68 naborih `cc18_tuning`: del 1 = 36 nenasičenih (končan 2026-10-15, job `20494570`, 540 vrstic), del 2 = 32 nasičenih (končan 2026-10-20, jobi `20511472`, `20511665`, `20652997`); skupaj 1020 vrstic, preverjeno 2026-10-21 (`PROVENANCE.md`); `tuning/` = vseh 128 notranjih rezultatov na fold; `metrics.csv` = točnost in log. izguba iz napovedi; primerja se s `cc18_v4/combined` | Arnes `~/envs/tabular3.5`, le CPU |
 
 **Le preverbe (niso rezultati diplome)**
 

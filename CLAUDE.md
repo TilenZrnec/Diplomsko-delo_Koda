@@ -62,7 +62,7 @@ rerun plus the earlier run.
 | **`medic3_160_v2/combined/`** | Medic3 (160 classes), all six algorithms | **THE Medic3-160 thesis results** (the only Medic3 variant where all six run) |
 | `medic3_160_v2` | Medic3 (160), **RF (fixed) + XGBoost (check, identical)** (Arnes, 2026-10-15) | source of RF and XGBoost |
 | `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
-| `cc18_xgb_tuned` (Arnes, CPU only) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — part 1 = the 36 non-saturated CC18 sets (done 2026-10-15, job `20494570`, 540 rows), part 2 = the other 32 (next); `tuning/` = all 128 inner scores per fold | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
+| `cc18_xgb_tuned` (Arnes, CPU only) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — part 1 = the 36 non-saturated CC18 sets (done 2026-10-15, job `20494570`, 540 rows), part 2 = the other 32 (done 2026-10-20, jobs `20511472`, `20511665`, `20652997`); 1020 rows, checked 2026-10-21; `tuning/` = all 128 inner scores per fold; `metrics.csv` = accuracy and log loss | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
 | `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
 | `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
@@ -829,7 +829,7 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (LightGBM mechanism, only TabICL imputes on Medic3), Materiali (CC18 and
    Medic3 descriptions), Protokol / Predobdelava / Okolje / Ponovljivost.
 7. Then: tuning one booster by grid search with nested CV, then the CC18
-   leakage test (design to be agreed with the supervisor first); CC18 with
+   leakage test (design approved by the supervisor 2026-10-20, step 8); CC18 with
    injected NULLs is still on the supervisor's list. **Tuning decisions (user,
    2026-10-14):**
    - **XGBoost**, with the same out-of-the-box preprocessing as the default
@@ -978,6 +978,25 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      should contain `najden partial: 10` (or 11) `učenj že narejenih`. Expected
      end ~2026-10-21/22. The user now works on **Kremen** again; after the
      run they copy the predictions to Kremen and the laptop.
+     **Part 2 done and checked 2026-10-21 on Kremen** (receipts and every
+     number in `results/runs/cc18_xgb_tuned/PROVENANCE.md`, part 2):
+     `20511472` 30/30 COMPLETED, `20511665_54` COMPLETED, `20511665_49`
+     TIMEOUT with 11/15 folds, `20652997_49` COMPLETED (resumed at 11, ~11.5 h
+     of fold 11 lost); merged on Arnes (1020 rows, 0 errors), committed from
+     Arnes as `0ad1a88`; predictions (1020, 32 MB) on Kremen, laptop, USB;
+     `compute_metrics.py` done. All checks of part 1 hold on all 68. Results:
+     tuned beats default on 61/68 (+0.0083; non-saturated +0.0141, saturated
+     +0.0018), ties default CatBoost (30:38, p_Holm 0.52), loses to TabPFN-3.5
+     on 66/68 and TabICL on 62/68, closes 38 % of the gap to TabPFN-3.5; log
+     loss better on 65/68; worse than default notably only on ilpd (−0.0088,
+     selection noise: inner gain > 0 on 15/15 folds, test gain < 0 on 11).
+     Saturated sets prefer more learning (1000 trees in 253/480 folds, plateau
+     there), non-saturated the least (low corner 73/540). Probst et al. 2019
+     Table 2: XGBoost tunability vs package defaults 0.043 ± 0.006 (oracle, an
+     upper bound) — read from the PDF 2026-10-21. isolet/har ran over the
+     estimate because `wn116`/`wn119` ran the same 8-core default fit ~2.6×
+     slower than `gwn09` (the ratio itself was normal). Checklist items 1–3
+     done; item 4 done except the thesis tuning section; item 5 still open.
    - **After part 2 — checklist (in this order):**
      1. On Arnes (the user has the commands): `sacct` says COMPLETED for
         `20511472`, `20511665_54` and `20652997_49` (`20511665_49` = TIMEOUT,
@@ -1003,8 +1022,13 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         (see Datasets → Medic3, column check 2026-10-19).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
-8. **Leakage test — state 2026-10-19 (design proposed, awaiting the
-   supervisor).**
+8. **Leakage test — state 2026-10-20: design APPROVED by the supervisor;
+   the parameters below are fixed by the user before anything runs.**
+   - **Supervisor's answer (email, 2026-10-20):** "Test na 36 množicah kar
+     naredite, tako kot ste si zamislili je čisto OK, ne glede na izid bova sum
+     na uhajanje navedla kot omejitev." → run the test as designed below; the
+     thesis states the suspicion of leakage as a **limitation whatever the
+     outcome** (Discussion, `ch:zakljucek`; noted in its outline comment).
    - **Purpose (user, after a call with the supervisor):** the supervisor was
      surprised how well TabPFN does on CC18 and wants to know whether TabPFN
      was trained on CC18 data — i.e. contamination / memorisation of the
@@ -1049,8 +1073,63 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    - **Asked the supervisor** whether the test is needed at all, or whether the
      report + Medic3 (TabPFN-3.5 first there too, 0.9614 vs CatBoost 0.9599,
      a dataset it cannot have seen) + a stated limitation suffice; and if
-     needed, whether the design is fine. Runs on Arnes/Kremen only (laptop: no
-     GPU), after the tuning run.
+     needed, whether the design is fine. **Answer: run it as designed** (top of
+     this step). Runs on Arnes/Kremen only (laptop: no GPU), after the tuning run.
+   - **Checked 2026-10-20 on Kremen** (library source and synthetic data only;
+     no CC18 result of any arm was looked at, so the design is still fixed blind):
+     - **TabPFN-3.5 cell input** (`tabpfn/architectures/tabpfn_v3_5.py`,
+       `_preprocess_raw` and `FourierPlusMetadataFeatureGroupEmbedder`): every
+       cell enters as (1) its value standardised on the train rows (clipped at
+       ±100), Fourier-embedded; (2) a NaN/inf indicator; (3) its midrank ECDF
+       against the train rows (exact up to 8192 distinct values per column,
+       interpolated above), sin/cos-embedded. A strictly increasing transform
+       changes only (1); (2) and (3) stay identical. This verifies the ECDF
+       guess of 2026-10-19: the noise arm is the one that reaches the rank channel.
+     - **TabICL** (tabicl 2.2.0 defaults): 8 members, `norm_methods` None →
+       `["none", "power"]`, i.e. 4 members get standard scaling only and 4 also
+       Yeo-Johnson (which partly undoes a monotone distortion); outliers clipped
+       at 4 sd.
+     - **CatBoost** (synthetic, 2400 train / 600 test rows, 10 features, a
+       signed cube): the training bins are the same row sets (borders compared
+       as ranks of the train values), ROC-AUC identical to 6 decimals,
+       predictions differ by ≤ 1.3e-3 (test values between two train values next
+       to a border). Not exactly invariant when the original values tie in
+       float32 (CatBoost's input type) and the transformed ones do not: with a +7
+       offset and 0.01 scale the same check gave max |Δproba| 0.097, ΔAUC 5e-5.
+       So "trees hardly react" holds; "they use only the order" is approximate.
+     - **Two of the 36 sets have no numeric attribute** (analcatdata_dmft 469,
+       connect-4 40668): both arms leave them unchanged, so they carry no
+       information → exclude them, **34 remain** (tell the supervisor/thesis why).
+       Few numeric attributes: dresses-sales 1 of 12, Internet-Advertisements 3
+       of 1558, cmc 2 of 9. Largest standardised value |z| = 119
+       (bank-marketing): exp(z) would overflow float32 (above 88.7), a power
+       does not.
+     - **Cost** (`cc18_v4/combined`, repeat-0 times on Arnes): 34 sets × 3 arms ×
+       5 folds = CatBoost 0.73 CPU-h, TabPFN-3.5 0.36 GPU-h, TabICL 0.31 GPU-h;
+       largest task numerai28.6 ~0.2 h. Medic3-160 × 3 arms × 5 folds: CatBoost
+       ~23 h (1.54 h per fold), TabPFN ~0.3 h, TabICL ~0.5 h but ~92 GiB RAM →
+       Arnes (Kremen has 31 GB).
+   - **Still open — the user fixes these before the run** (Claude's proposal
+     2026-10-20): arm (a) = cube of the standardised value, `((x − mean)/sd)³`,
+     mean and sd over the whole column (NaN ignored and kept, categorical
+     columns untouched); arm (b) = `((x − mean)/sd + ε)³`, ε ~ N(0, 0.1²) drawn
+     once per dataset with a fixed seed (all algorithms see the same copy);
+     folds 0–4 (= repeat 0 of the thesis runs, model seed 42). Analysis: per
+     dataset, the 5-fold mean ROC-AUC per arm; drop = original − arm; Δ =
+     drop(TabPFN-3.5) − drop(CatBoost); one-sided Wilcoxon signed-rank over the
+     34 sets (H1: Δ > 0), Holm over the two arms; TabICL the same, as a
+     secondary result; Medic3-160 is the reference for general sensitivity
+     (CC18 excess drop counts as sensitivity, not memorisation, if Medic3's Δ is
+     at least the CC18 median Δ).
+   - **Implementation plan (after the user's go):** spec keys in `src/data.py`
+     (perturbation; use only the first repeat's folds, still generated with
+     `n_repeats` 3 so they equal the thesis folds 0–4), a per-arm `spec_id`
+     suffix, a generator for the 34 × 3 CC18 + 3 Medic3-160 specs, a SLURM script
+     (one task = one dataset's three arms on one node), and an analysis script
+     committed **before** the run. Smoke test on `sick` (saturated, so not in
+     the test). Arnes only after the tuning run is merged and committed; the
+     tuning check is then `git diff f7d8366 <part-2 commit>` on the training
+     path, not against HEAD.
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`
