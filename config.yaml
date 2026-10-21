@@ -45,6 +45,12 @@ dataset_sets:
   # naborov (68), najprej 36 nenasičenih (indeksi 0-35), nato 32 nasičenih
   # (36-67). Pripeto s scripts/gen_tuning_ids.py iz cc18_v4/combined.
   cc18_tuning: scripts/cc18_tuning_ids.json
+  # Test uhajanja podatkov (2026-10-21, razdelek leakage spodaj): vsak nabor v treh
+  # zaporednih različicah (ključ perturbation v opisu). Nastanejo s
+  # scripts/gen_leakage_ids.py - ročno jih ne urejaj.
+  cc18_leakage: scripts/cc18_leakage.json            # 34 nenasičenih CC18 x 3 različice
+  medic3_160_leakage: scripts/medic3_160_leakage.json  # Medic3-160 x 3 (referenca)
+  leakage_smoke: scripts/leakage_smoke.json          # sick x 3, le tehnični preizkus
 
 # Kam OpenML shrani prenesene nabore (relativno na koren repozitorija).
 cache_dir: data/openml_cache
@@ -90,3 +96,31 @@ tuning:
     min_child_weight: [1, 4]
     colsample_bylevel: [1.0, 0.5]
     subsample: [1.0, 0.8]
+
+# Test uhajanja podatkov (poskus 3). Mentor je zasnovo odobril 2026-10-20, ti
+# parametri so bili določeni 2026-10-21 PRED vsakim zagonom na spremenjenih
+# podatkih - utemeljitve in viri: results/runs/cc18_leakage/DESIGN.md.
+# Vprašanje: ali TabPFN-3.5 (in TabICL) nabore CC18 prepozna po vrednostih, ki bi
+# jih lahko videl med razvojem? Vsak nabor teče v treh različicah: izvirni,
+# monotone (vsak številski atribut: predznačeni kubični koren standardizirane
+# vrednosti) in monotone_noise (enako, s šumom pred korenom). CatBoost je
+# kontrola: drevesa monotona preslikava skoraj ne spremeni. Iz tega razdelka
+# scripts/gen_leakage_ids.py naredi sezname naborov, scripts/analyze_leakage.py
+# pa prebere test (stopnja značilnosti je alpha zgoraj).
+leakage:
+  source_set: cc18_tuning      # nabori: prvih n_nonsaturated opisov tega seznama,
+  n_nonsaturated: 36           # tj. 36 nenasičenih; nabori brez številskega atributa
+                               # izpadejo, ker jih preslikava ne spremeni (ostane 34)
+  reference_set: medic3_160    # nikoli objavljen nabor: referenca za splošno občutljivost
+  smoke_dataset: 38            # sick: nasičen, zato ni v testu - le tehnični preizkus
+  arms: [original, monotone, monotone_noise]
+  noise_sd: 0.1                # std šuma v enotah std atributa (1 % variance atributa)
+  seed: 42                     # seme šuma, en žreb na nabor
+  repeats: 1                   # le ponovitev 0 = foldi 0-4 diplomskih zagonov, seme modela 42
+  algorithms: [catboost, tabpfn, tabicl]
+  control: catboost            # padec temeljnega modela primerjamo s padcem CatBoosta
+  primary: tabpfn              # glavna hipoteza; tabicl je drugotni rezultat
+  # Test (analyze_leakage.py): za vsak nabor delta = padec(model) - padec(CatBoost),
+  # padec = ROC-AUC izvirne - ROC-AUC spremenjene različice (povprečje foldov);
+  # enostranski Wilcoxonov test čez nabore (H1: delta > 0), Holmov popravek čez obe
+  # spremenjeni različici znotraj modela.

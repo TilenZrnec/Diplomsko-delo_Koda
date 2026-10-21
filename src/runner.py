@@ -57,6 +57,9 @@ RESULT_COLUMNS = [
     # Le pri uglaševanih algoritmih (xgboost_tuned): izbrana nastavitev in podatki o
     # iskanju kot JSON; pri ostalih prazno.
     "hyperparameters",
+    # Le pri testu uhajanja: različica nabora (original, monotone, monotone_noise,
+    # glej src/data.py, _perturb); pri ostalih zagonih prazno.
+    "perturbation",
 ]
 
 # Algoritmi, ki so v tem procesu že bili ogreti (nalaganje utež, CUDA).
@@ -373,6 +376,17 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
             f"zavrženih {cl['n_rows_dropped']} od {cl['n_rows_before']} vrstic "
             f"({100 * cl['n_rows_dropped'] / cl['n_rows_before']:.2f} %)"
         )
+    perturbation = dataset.get("perturbation")
+    if perturbation:
+        noise = (
+            f", šum {perturbation['noise_sd']} std na {perturbation['n_noised_cells']} celicah "
+            f"(seme {perturbation['seed']})" if perturbation["noise_sd"] else ""
+        )
+        log(
+            f"    različica za test uhajanja: {perturbation['arm']} - preslikanih "
+            f"{perturbation['n_transformed']} od {perturbation['n_numeric']} številskih atributov "
+            f"(konstantnih ali praznih {perturbation['n_unchanged']}){noise}"
+        )
 
     commit, _dirty = git_info()
     hostname = socket.gethostname()
@@ -449,6 +463,7 @@ def run_dataset(spec, config, run_dir, run_id, algorithms=None, log=print):
                 "n_classes_scored": n_scored,
                 "hyperparameters": (json.dumps(result["tuning"], sort_keys=True)
                                     if result.get("tuning") else None),
+                "perturbation": perturbation["arm"] if perturbation else None,
             })
             write_partial(rows, partial_path)
 

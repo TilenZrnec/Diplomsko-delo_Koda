@@ -64,7 +64,10 @@ rerun plus the earlier run.
 | `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
 | `cc18_xgb_tuned` (Arnes, CPU only) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — part 1 = the 36 non-saturated CC18 sets (done 2026-10-15, job `20494570`, 540 rows), part 2 = the other 32 (done 2026-10-20, jobs `20511472`, `20511665`, `20652997`); 1020 rows, checked 2026-10-21; `tuning/` = all 128 inner scores per fold; `metrics.csv` = accuracy and log loss | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
 | `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
+| `cc18_leakage` (planned, Arnes H100) | **leakage test**: 34 non-saturated CC18 sets × 3 arms (original, monotone warp, warp + noise) × CatBoost, TabPFN-3.5, TabICL × folds 0–4 = 1530 rows; `DESIGN.md` = the pre-registered design with sources; `diagnostics/perturbation_check.csv` = data-only check of the arms | thesis results of experiment 3 (with `medic3_160_leakage`) |
+| `medic3_160_leakage` (planned, Arnes) | leakage-test reference: Medic3-160 × the same 3 arms, 45 rows (FMs on GPU, CatBoost on the CPU partition) | reference for `cc18_leakage` |
 | `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
+| `leakage_smoke_local` (to rerun from the commit) | sick × 3 arms × CatBoost, TabPFN-3.5, TabICL, Kremen: technical check of the leakage code (sick is saturated, so not in the test) | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
 | `subset_v3` | the same check on Arnes | evidence only |
 | `cc18_v2` (deleted; git `5a14045`) | CC18, all six, older freeze 2026-09-09 with **TabPFN-3** | read from git only for the thesis table "TabPFN-3 vs TabPFN-3.5" |
@@ -94,9 +97,12 @@ while its predictions are on the machine.
   `random_state`, `n_splits`, `n_repeats`, `algorithms`, `dataset_sets`
   (name → JSON file of dataset specs), `cache_dir`, `results_dir`,
   `save_predictions`, `saturation_threshold`, `alpha`, and `tuning` (inner
-  folds, `n_estimators` list, grid — only for `xgboost_tuned`). `dataset_sets`
-  also has `medic3_160` (Medic3 capped at 160 classes) and `cc18_tuning` (the
-  68 sets of the tuning experiment). Nothing is hardcoded
+  folds, `n_estimators` list, grid — only for `xgboost_tuned`), and `leakage`
+  (the leakage test's fixed parameters: arms, noise, seed, models, control).
+  `dataset_sets` also has `medic3_160` (Medic3 capped at 160 classes),
+  `cc18_tuning` (the 68 sets of the tuning experiment) and the leakage sets
+  `cc18_leakage`, `medic3_160_leakage`, `leakage_smoke` (written by
+  `scripts/gen_leakage_ids.py`, never by hand). Nothing is hardcoded
   elsewhere; every script reads it through `src/config.py`.
 - `src/config.py` — `load_config()` (resolves paths to absolute),
   `dataset_specs(config, set_name)`, `spec_id(spec)`.
@@ -110,7 +116,14 @@ while its predictions are on the machine.
   classes, applied **before** label encoding so the codes stay 0..N-1; it exists
   because TabPFN-3 and TabPFN-3.5 both cap at 160 classes and Medic3 has 220
   (measured, see Datasets). The returned `class_limit` records how many
-  rows that dropped.
+  rows that dropped. Leakage-test keys (2026-10-21, What is next step 8):
+  `perturbation` (`original` | `monotone` | `monotone_noise`, `_perturb`;
+  with `noise_sd`, `perturbation_seed`) changes only the numeric attributes
+  (signed cube root of the standardised value, noise before the root; NaN,
+  categorical, constant and all-missing columns untouched), adds `_<arm>` to
+  the dataset name and `spec_id`, and returns `perturbation` (what was done);
+  `repeats: r` keeps only the first r repeats' folds, cut from the full
+  `n_repeats` split so they are exactly the thesis folds.
 - `src/runner.py` — **the only training loop.** `run_dataset()` runs every
   algorithm on every fold of one dataset with per-fit checkpointing
   (`<id>.csv.partial`, atomic finalisation to `<id>.csv`; with an explicit
@@ -220,6 +233,15 @@ while its predictions are on the machine.
   `gen_tuning_ids.py` (rebuilds `cc18_tuning_ids.json` from `cc18_v4/combined`:
   68 sets, the 36 non-saturated first), `run_tuning.sh` (SLURM, tuning
   experiment, CPU only, one dataset per task, takes `RUN_ID`),
+  leakage test (What is next, step 8): `gen_leakage_ids.py [--check]` (writes
+  `cc18_leakage.json`, `medic3_160_leakage.json`, `leakage_smoke.json` from
+  `config.yaml` `leakage`; `--check` = data-only verification of the arms,
+  `results/runs/cc18_leakage/diagnostics/perturbation_check.csv`),
+  `run_leakage.sh` (SLURM GPU, one dataset per task, its arms in a row on one
+  node, takes `RUN_ID`, optional `DATASET_SET`, `ALGORITHMS`),
+  `run_leakage_cpu.sh` (SLURM CPU partition, one spec = one arm per task; for
+  Medic3-160 CatBoost), `analyze_leakage.py <run> [--reference <run>]` (the
+  pre-registered analysis, writes `summary/leakage_*`),
   `compute_metrics.py <run|dir>` (accuracy and log loss of every fit from its
   saved `predictions/*.npz` — no re-run; for `combined/` the row's `run_id`
   says which run's predictions to open; also recomputes ROC-AUC from the file as
@@ -1019,8 +1041,11 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         isolet/har on `long`). Then the thesis tuning section.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
-8. **Leakage test — state 2026-10-20: design APPROVED by the supervisor;
-   the parameters below are fixed by the user before anything runs.**
+8. **Leakage test — state 2026-10-21: design APPROVED by the supervisor,
+   parameters FIXED with verified sources, code implemented and checked on
+   Kremen; next: commit + push, then run on Arnes.** The pre-registration is
+   `results/runs/cc18_leakage/DESIGN.md` (Slovenian; every decision with its
+   source and page) — read it before touching the test.
    - **Supervisor's answer (email, 2026-10-20):** "Test na 36 množicah kar
      naredite, tako kot ste si zamislili je čisto OK, ne glede na izid bova sum
      na uhajanje navedla kot omejitev." → run the test as designed below; the
@@ -1106,27 +1131,87 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
        largest task numerai28.6 ~0.2 h. Medic3-160 × 3 arms × 5 folds: CatBoost
        ~23 h (1.54 h per fold), TabPFN ~0.3 h, TabICL ~0.5 h but ~92 GiB RAM →
        Arnes (Kremen has 31 GB).
-   - **Still open — the user fixes these before the run** (Claude's proposal
-     2026-10-20): arm (a) = cube of the standardised value, `((x − mean)/sd)³`,
-     mean and sd over the whole column (NaN ignored and kept, categorical
-     columns untouched); arm (b) = `((x − mean)/sd + ε)³`, ε ~ N(0, 0.1²) drawn
-     once per dataset with a fixed seed (all algorithms see the same copy);
-     folds 0–4 (= repeat 0 of the thesis runs, model seed 42). Analysis: per
-     dataset, the 5-fold mean ROC-AUC per arm; drop = original − arm; Δ =
-     drop(TabPFN-3.5) − drop(CatBoost); one-sided Wilcoxon signed-rank over the
-     34 sets (H1: Δ > 0), Holm over the two arms; TabICL the same, as a
-     secondary result; Medic3-160 is the reference for general sensitivity
-     (CC18 excess drop counts as sensitivity, not memorisation, if Medic3's Δ is
-     at least the CC18 median Δ).
-   - **Implementation plan (after the user's go):** spec keys in `src/data.py`
-     (perturbation; use only the first repeat's folds, still generated with
-     `n_repeats` 3 so they equal the thesis folds 0–4), a per-arm `spec_id`
-     suffix, a generator for the 34 × 3 CC18 + 3 Medic3-160 specs, a SLURM script
-     (one task = one dataset's three arms on one node), and an analysis script
-     committed **before** the run. Smoke test on `sick` (saturated, so not in
-     the test). Arnes only after the tuning run is merged and committed; the
-     tuning check is then `git diff f7d8366 <part-2 commit>` on the training
-     path, not against HEAD.
+   - **Proposal of 2026-10-20 (superseded in one point):** arm (a) was the
+     cube `((x − mean)/sd)³`. The user (2026-10-21) accepted the proposals "as
+     long as you can cite the exact sources"; no source used a cube, so arm (a)
+     became the **signed cube root** of the standardised value, the published
+     warp of Biloš et al. 2026 (below). Everything else stayed as proposed.
+   - **Final design (user's condition met 2026-10-21; details, quotes and pages
+     in `DESIGN.md`):** 34 sets (the 36 non-saturated minus analcatdata_dmft
+     and connect-4) + Medic3-160 as reference; CatBoost (control), TabPFN-3.5
+     (primary), TabICL (secondary); arms `original`, `monotone` = cbrt(z),
+     `monotone_noise` = cbrt(z + ε), z = (x − mean)/sd over all rows (ddof 0,
+     NaN kept), ε ~ N(0, 0.1²) once per dataset, seed 42; folds 0–4, model
+     seed 42, all arms of a dataset in one task; per dataset Δ = drop(model) −
+     drop(CatBoost) on the 5-fold mean ROC-AUC; one-sided Wilcoxon (H1: Δ > 0,
+     `zsplit`), Holm within each model over the two arms, α 0.05; a significant
+     CC18 result counts as memorisation-consistent only if Medic3's Δ is below
+     the CC18 median Δ. **Verified sources** (PDFs read with pdftotext, pages
+     are printed page numbers): Bordt et al. 2024 (COLM, arXiv 2404.06209v3:
+     p. 2, §4.1 p. 6, §4.2 p. 7, App. E p. 23, Tables 9–10 p. 30 — the test
+     principle, ~1 % perturbation, novel datasets as reference, LR/GBT check);
+     TabArena App. E.6 pp. 55–56 (no contamination test exists for TFMs, calls
+     for tools "akin to the work by Bordt et al."); Galili & Meilijson 2016
+     (arXiv 1611.04561, p. 2, quotes CART p. 57; exception near split points,
+     p. 1); Biloš et al. 2026 (arXiv 2605.21288v1, preprint: Table 7 p. 16
+     signed cube-root warp exponent 1/3 fixed before evaluation and noise in
+     feature-std units; §H.1 p. 42; Table 3 p. 9 TabPFNv2 −1.1 pp n.s.,
+     TabICLv2 −0.3 pp; §H.5 p. 44 XGBoost 0.0 under the warp; §H.6 p. 44
+     pre-specified one-sided Wilcoxon on per-dataset differences, Holm within
+     each model); TabPFN-3.5 report (arXiv 2609.17895v2: §3.1 p. 9 value +
+     ECDF channels, "midranks are unchanged by any strictly increasing
+     transformation"; Fig. 8 p. 10, K = 4 ECDF harmonics; §3.2 p. 11 no
+     quantile transforms; §C.5 p. 29 "the 26 that were used during the
+     development"); Qu et al. 2025 p. 7 (TabICL z-normalisation with or without
+     power transform); Demšar 2006 §3.1.3 pp. 7–8, pp. 12–13. **Not from a
+     source (own derivation, stated as such):** centring before the root, the
+     noise level 0.1 sd (variance 1 %; E|ΔECDF| ≈ 0.0225 for a normal attribute,
+     measured 0.0224–0.0228 on climate/numerai, up to 0.20 where noise breaks
+     ties: Bioresponse, spambase), the Medic3 median rule. **Caution:** the
+     TabPFN-3.5 report's "without using LLMs, real data, internet search" is
+     about the Thinking mode (§3.4), not pretraining — never cite it for
+     pretraining.
+   - **Implemented 2026-10-21** (committed together with `DESIGN.md`, before
+     any run on the perturbed data): spec keys
+     `perturbation`, `noise_sd`, `perturbation_seed`, `repeats` in
+     `src/data.py` (`_perturb`; folds are cut from the `n_repeats` 3 splits, so
+     folds 0–4 equal the thesis folds; dataset name gets the suffix `_<arm>` so
+     arms never merge in `src.summary`); `spec_id` suffix `_<arm>`; runner logs
+     the arm and writes a new last column `perturbation`; `config.yaml`
+     section `leakage` + sets `cc18_leakage` (102 specs), `medic3_160_leakage`
+     (3), `leakage_smoke` (sick × 3); `scripts/gen_leakage_ids.py [--check]`,
+     `scripts/run_leakage.sh` (GPU, one task = one dataset's arms in a row),
+     `scripts/run_leakage_cpu.sh` (Medic3 CatBoost, one arm per task),
+     `scripts/analyze_leakage.py` (the pre-registered analysis; checks: rows,
+     errors, CatBoost's monotone drop, original arm vs the thesis run).
+   - **Checked 2026-10-21 on Kremen:** `gen_leakage_ids.py --check` (data only,
+     no model): all 34 sets + Medic3-160 pass — folds and labels equal the
+     thesis folds 0–4 in every arm, categorical columns and NaN pattern
+     unchanged, monotone arm keeps order and ties; float32 rounding changes the
+     number of distinct values by ≤ ~1 % in a few columns of 4 sets
+     (mfeat-fourier, mfeat-zernike, Bioresponse, numerai28.6). Dry runs of both
+     SLURM scripts (task i → specs 3i..3i+2; bad `--array` and missing RUN_ID
+     rejected). Smoke test `leakage_smoke_local` (sick, 45 fits, 0 errors):
+     found and fixed an all-missing `object` column (TBG) that the dtype guard
+     rejected — all-missing columns are now left unchanged; the 34 sets were
+     unaffected (check report byte-identical before/after). CatBoost's monotone
+     drop on sick exactly 0; original arm = `cc18_v4/combined` (CatBoost 5/5
+     identical, TabPFN ≤ 3.1e-5, TabICL ≤ 1.5e-5). That smoke run came from the
+     uncommitted tree, so it was moved out of the repo: **rerun it from the
+     commit** (`python -m src.run_benchmark --dataset-set leakage_smoke --run-id
+     leakage_smoke_local --algorithms catboost tabpfn tabicl`, ~5 min, then
+     `python scripts/analyze_leakage.py leakage_smoke_local`) and commit it.
+   - **On Arnes** (after commit + push; `git pull` is safe, nothing queued):
+         RUN_ID=cc18_leakage sbatch --array=0-33 scripts/run_leakage.sh
+         DATASET_SET=medic3_160_leakage ALGORITHMS="tabpfn tabicl" RUN_ID=medic3_160_leakage sbatch --array=0 --mem=160G scripts/run_leakage.sh
+         DATASET_SET=medic3_160_leakage RUN_ID=medic3_160_leakage sbatch --array=0-2 scripts/run_leakage_cpu.sh
+     Expect 1530 and 45 rows. Then `merge_results.py` for both, `sacct` into a
+     PROVENANCE.md per run, commit from Arnes; copy predictions; then
+     `python scripts/analyze_leakage.py cc18_leakage --reference medic3_160_leakage`
+     and `compute_metrics.py` on both. Do NOT change any parameter after
+     seeing results; report whatever comes out (the limitation is stated
+     regardless). The tuning-run training-path check is `git diff f7d8366
+     0ad1a88 -- <training path>` (the part-2 commit), no longer against HEAD.
 
 ## FRI methodology requirements (official diploma guidelines)
 Writing/citation rules live in the thesis repo's `CLAUDE.md`

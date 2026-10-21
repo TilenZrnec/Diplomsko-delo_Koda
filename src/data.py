@@ -14,10 +14,19 @@ od kod nabor prihaja.
 Folde za dani nabor ustvari SAMO ENKRAT (StratifiedKFold oz. RepeatedStratifiedKFold
 z istim semenom), nato jih uporabijo vsi algoritmi - rezultati so tako
 primerljivi na identičnih razdelitvah na učne in testne primere.
+
+Neobvezni ključi v opisu nabora (veljajo za oba vira):
+  max_classes   - obdrži le N najpogostejših razredov (_limit_classes)
+  perturbation  - različica nabora za test uhajanja (_perturb): original,
+                  monotone ali monotone_noise; z njo še noise_sd in
+                  perturbation_seed
+  repeats       - uporabi le prvih `repeats` ponovitev prečnega preverjanja
+                  (foldi so isti kot v diplomskih zagonih, le manj jih je)
 """
 
 import os
 
+import numpy as np
 import openml
 import pandas as pd
 from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedKFold
@@ -117,6 +126,88 @@ def _limit_classes(X, y, max_classes):
     return X[mask].reset_index(drop=True), y[mask].reset_index(drop=True), info
 
 
+# Različice nabora za test uhajanja podatkov (CLAUDE.md, What is next, korak 8;
+# zasnova in viri v results/runs/cc18_leakage/DESIGN.md).
+PERTURBATIONS = ("original", "monotone", "monotone_noise")
+
+
+def _perturb(X, categorical_cols, arm, noise_sd=None, seed=None):
+    """Spremeni številske atribute za test uhajanja; vrne (X, opis).
+
+    original        - nič; izvirni podatki tečejo v istem zagonu kot ostali dve
+                      različici, zato razlike med njimi niso razlike med stroji.
+    monotone        - vsak številski atribut standardiziramo, z = (x - povprečje) / std,
+                      in preslikamo s predznačenim kubičnim korenom cbrt(z), strogo
+                      naraščajočo funkcijo (Biloš in sod. 2026, tabela 7). Vrstni red
+                      in vezi ostanejo, spremenijo se razmiki med vrednostmi.
+    monotone_noise  - kot monotone, le da pred korenom prištejemo šum N(0, noise_sd^2)
+                      v enotah std atributa (en žreb na nabor, seme seed). Šum premeša
+                      tudi vrstni red bližnjih vrednosti, torej rang, ki ga TabPFN-3.5
+                      bere kot ločen kanal (poročilo TabPFN-3.5, razd. 3.1).
+
+    Zakaj centriramo: cbrt ni neodvisen od premika - na atributu daleč od nič
+    (npr. vrednosti 1000-1010) je skoraj linearen, in ker model vsak atribut sam
+    standardizira, bi sprememba skoraj izginila. Deljenje s std obliko le
+    poenoti (cbrt(c x) = cbrt(c) cbrt(x), model ta faktor sam izniči).
+
+    Manjkajoče vrednosti ostanejo manjkajoče; kategorični, konstantni in povsem
+    prazni atributi ostanejo nespremenjeni (prazen atribut ima pandas lahko kot
+    tip object, npr. TBG v naboru sick). Povprečje in std sta izračunana na vseh
+    vrsticah pred delitvijo na folde: preslikava ne uporabi oznak razreda in je
+    za vse vrstice ista, torej je le drug zapis istega nabora (ne uhajanje v
+    našem cevovodu).
+    """
+    if arm not in PERTURBATIONS:
+        raise ValueError(f"Neznana različica {arm!r}; znane so {PERTURBATIONS}")
+    categorical = set(categorical_cols)
+    numeric = [c for c in X.columns if c not in categorical]
+    info = {
+        "arm": arm,
+        "noise_sd": None,
+        "seed": None,
+        "n_numeric": len(numeric),
+        "n_transformed": 0,
+        "n_unchanged": 0,
+        "n_noised_cells": 0,
+    }
+    if arm == "original":
+        return X, info
+
+    noisy = arm == "monotone_noise"
+    if noisy:
+        if noise_sd is None or not float(noise_sd) > 0 or seed is None:
+            raise ValueError("Različica monotone_noise potrebuje noise_sd > 0 in perturbation_seed")
+        info["noise_sd"], info["seed"] = float(noise_sd), int(seed)
+        rng = np.random.default_rng(int(seed))
+
+    new_cols = {}
+    for col in numeric:
+        if X[col].isna().all():
+            info["n_unchanged"] += 1
+            continue
+        if not pd.api.types.is_numeric_dtype(X[col]):
+            raise TypeError(f"Atribut {col!r} ni kategoričen, a tudi ni številski ({X[col].dtype})")
+        x = X[col].to_numpy(dtype=float, na_value=np.nan)
+        if np.isinf(x).any():
+            raise ValueError(f"Atribut {col!r} vsebuje neskončne vrednosti - preslikava zanje ni določena")
+        observed = ~np.isnan(x)
+        sd = x[observed].std()
+        if not sd > 0:
+            info["n_unchanged"] += 1
+            continue
+        z = (x - x[observed].mean()) / sd
+        if noisy:
+            z[observed] += float(noise_sd) * rng.standard_normal(int(observed.sum()))
+            info["n_noised_cells"] += int(observed.sum())
+        new_cols[col] = np.cbrt(z)  # realni kubični koren: liho in strogo naraščajoče, NaN ostane NaN
+        info["n_transformed"] += 1
+
+    if new_cols:
+        X = X.copy()
+        X[list(new_cols)] = pd.DataFrame(new_cols, index=X.index)
+    return X, info
+
+
 def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1):
     """Naloži nabor (OpenML ali CSV) in pripravi razdelitve na folde.
 
@@ -124,8 +215,9 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
     števil 0..K-1), classes (izvirne oznake razredov v vrstnem redu kod),
     categorical_cols (imena kategoričnih stolpcev), folds (seznam parov
     (train_idx, test_idx) pozicijskih indeksov; pri n_repeats > 1 jih je
-    n_repeats * n_splits, fold k pripada ponovitvi k // n_splits) in
-    class_limit (None ali opis omejitve iz ključa max_classes v opisu nabora).
+    n_repeats * n_splits, fold k pripada ponovitvi k // n_splits), class_limit
+    (None ali opis omejitve iz ključa max_classes) in perturbation (None ali
+    opis različice za test uhajanja iz ključa perturbation, glej _perturb).
     """
     spec = _normalise_spec(spec)
     if spec["source"] == "openml":
@@ -143,6 +235,17 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
     if spec.get("max_classes"):
         X, y, class_limit = _limit_classes(X, y, int(spec["max_classes"]))
 
+    # Neobvezna različica za test uhajanja (glej _perturb). Spremeni le X, zato so
+    # stratificirani foldi spodaj za vse različice istega nabora enaki. Ime dobi
+    # pripono, da se različice v results.csv nikoli ne zlijejo v en nabor.
+    perturbation = None
+    if spec.get("perturbation") is not None:
+        X, perturbation = _perturb(
+            X, categorical_cols, spec["perturbation"],
+            noise_sd=spec.get("noise_sd"), seed=spec.get("perturbation_seed"),
+        )
+        name = f"{name}_{spec['perturbation']}"
+
     # Ciljne oznake (npr. "good"/"bad") pretvori v števila (0, 1, ...). To ni
     # uhajanje informacije: preslikava oznak ne uporabi ničesar iz atributov.
     encoder = LabelEncoder()
@@ -158,6 +261,15 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
         splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     folds = list(splitter.split(X, y))
 
+    # Neobvezno le prvih `repeats` ponovitev. Foldi so ustvarjeni z vsemi n_repeats
+    # in nato odrezani, zato so foldi 0..repeats*n_splits-1 natanko foldi diplomskih
+    # zagonov (isti učni in testni primeri, isto seme modela random_state + ponovitev).
+    if spec.get("repeats") is not None:
+        repeats = int(spec["repeats"])
+        if not 1 <= repeats <= n_repeats:
+            raise ValueError(f"repeats={repeats} mora biti med 1 in n_repeats={n_repeats}")
+        folds = folds[: repeats * n_splits]
+
     return {
         "name": name,
         "source": spec["source"],
@@ -167,4 +279,5 @@ def load_dataset(spec, n_splits=5, random_state=42, cache_dir=None, n_repeats=1)
         "categorical_cols": categorical_cols,
         "folds": folds,
         "class_limit": class_limit,
+        "perturbation": perturbation,
     }

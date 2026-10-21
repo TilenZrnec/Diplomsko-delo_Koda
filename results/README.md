@@ -40,12 +40,20 @@ zagona (`sources.json` pove, od kod je kateri algoritem).
 |---|---|---|
 | `cc18_xgb_tuned` | le `xgboost_tuned` (XGBoost, uglašen z iskanjem po mreži in gnezdenim prečnim preverjanjem) na 68 naborih `cc18_tuning`: del 1 = 36 nenasičenih (končan 2026-10-15, job `20494570`, 540 vrstic), del 2 = 32 nasičenih (končan 2026-10-20, jobi `20511472`, `20511665`, `20652997`); skupaj 1020 vrstic, preverjeno 2026-10-21 (`PROVENANCE.md`); `tuning/` = vseh 128 notranjih rezultatov na fold; `metrics.csv` = točnost in log. izguba iz napovedi; primerja se s `cc18_v4/combined` | Arnes `~/envs/tabular3.5`, le CPU |
 
+**Test uhajanja podatkov (poskus 3) — zasnova določena 2026-10-21, zagon še ni tekel**
+
+| `run_id` | Kaj je | Okolje |
+|---|---|---|
+| `cc18_leakage` | test uhajanja na 34 nenasičenih naborih CC18 (36 brez dveh brez številskega atributa), vsak v treh različicah (izvirni, monotona preslikava, preslikava s šumom) × CatBoost, TabPFN-3.5, TabICL × foldi 0–4; pričakovanih 1530 vrstic; **`DESIGN.md` = vnaprej določena zasnova z viri**, `diagnostics/perturbation_check.csv` = preverba preslikav (le podatki); analiza `scripts/analyze_leakage.py` | Arnes `~/envs/tabular3.5`, H100 |
+| `medic3_160_leakage` | referenca testa uhajanja: Medic3-160 v istih treh različicah, 45 vrstic (temeljna modela na GPU, CatBoost na CPU particiji) | Arnes, H100 + CPU |
+
 **Le preverbe (niso rezultati diplome)**
 
 | `run_id` | Kaj je | Okolje |
 |---|---|---|
 | `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" na trojici; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
 | `subset_xgb_tuned_local` | pilot poskusa uglaševanja (`xgboost_tuned`) na trojici pred zagonom na Arnesu | Kremen `tabular3.5` |
+| `leakage_smoke_local` (še ni; ponovi iz commita) | tehnični preizkus kode testa uhajanja na naboru sick (nasičen, zato ni v testu): 3 različice × CatBoost, TabPFN-3.5, TabICL × 5 foldov, 45 vrstic | Kremen `tabular3.5`, RTX 3060 |
 | `subset_v3_local` | vseh šest na trojici: deluje zamrznitev 2026-10-05 | Kremen `tabular3.5`, RTX 3060 |
 | `subset_v3` | ista preverba na gruči | Arnes `~/envs/tabular3.5`, H100 |
 

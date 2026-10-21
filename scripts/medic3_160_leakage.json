@@ -1,0 +1,5 @@
+[
+  {"source": "csv", "name": "medic3_160", "path": "data/medic3/Medic3.csv", "target": "Class", "drop_cols": ["Index", "Field"], "max_classes": 160, "perturbation": "original", "repeats": 1},
+  {"source": "csv", "name": "medic3_160", "path": "data/medic3/Medic3.csv", "target": "Class", "drop_cols": ["Index", "Field"], "max_classes": 160, "perturbation": "monotone", "repeats": 1},
+  {"source": "csv", "name": "medic3_160", "path": "data/medic3/Medic3.csv", "target": "Class", "drop_cols": ["Index", "Field"], "max_classes": 160, "perturbation": "monotone_noise", "repeats": 1, "noise_sd": 0.1, "perturbation_seed": 42}
+]

@@ -29,6 +29,7 @@ autonumber
 actor "Uporabnik" as U
 participant "scripts/gen_cc18_ids.py" as GEN
 participant "scripts/gen_tuning_ids.py" as GENT
+participant "scripts/gen_leakage_ids.py" as GENL
 participant "scripts/profile_datasets.py" as PROF
 participant "src/config.py" as CFGPY
 participant "src/data.py" as DATA
@@ -54,6 +55,19 @@ activate GENT
 GENT -> GENT : nasičenost iz cc18_v4/combined (pravilo src/summary.py)
 GENT -> IDS : cc18_tuning_ids.json: 68 naborov (brez 4 velikih\nslikovnih), najprej 36 nenasičenih
 deactivate GENT
+
+U -> GENL : python scripts/gen_leakage_ids.py ~--check (enkrat, 2026-10-21)
+activate GENL
+GENL -> CFGPY : load_config() - razdelek leakage;\ndataset_specs(cc18_tuning), dataset_specs(medic3_160)
+GENL -> DATA : load_dataset(spec) - šteje številske atribute;\nz ~--check naloži vse tri različice (_perturb) in preveri\nfolde, vezi, vzorec NaN (le podatki, brez modelov)
+GENL -> IDS : cc18_leakage.json (34 naborov x 3 različice),\nmedic3_160_leakage.json, leakage_smoke.json
+deactivate GENL
+note right of GENL
+  Test uhajanja: original, monotone (kubični koren
+  standardizirane vrednosti), monotone_noise (+ šum
+  0,1 std). Nabora brez številskega atributa izpadeta.
+  Zasnova: results/runs/cc18_leakage/DESIGN.md
+end note
 
 note over IDS, CFG
   config.yaml je **edini vir parametrov**: random_state, n_splits,
@@ -223,6 +237,8 @@ box "Računsko vozlišče (H100, BREZ interneta)" #EEF6FD
     participant "scripts/run_cc18.sh" as SH
     participant "scripts/run_medic3.sh" as SHM
     participant "scripts/run_tuning.sh" as SHT
+    participant "scripts/run_leakage.sh" as SHL
+    participant "scripts/run_leakage_cpu.sh" as SHLC
     participant "src/run_one_dataset.py" as ONE
     participant "src/config.py" as CFGPY
     participant "src/runner.py" as RUN
@@ -350,6 +366,22 @@ ONE -> RUN : run_dataset(spec, ..., algorithms=["xgboost_tuned"])
 RUN -> PD : <id>~__xgboost_tuned.csv (+ stolpec hyperparameters)\nin tuning/<id>/*.csv (vseh 128 nastavitev na fold)
 deactivate SHT
 
+== Korak 2d: test uhajanja podatkov ==
+
+U -> SLURM : RUN_ID=cc18_leakage sbatch ~--array=0-33 scripts/run_leakage.sh
+activate SHL
+loop tri različice istega nabora zaporedoma na ISTEM vozlišču
+    SHL -> ONE : python -m src.run_one_dataset ~--dataset-set cc18_leakage\n~--index 3*task+različica ~--algorithms catboost tabpfn tabicl
+    ONE -> RUN : run_dataset(spec s ključi perturbation, repeats)
+    RUN -> PD : <id>_<različica>~__catboost-tabpfn-tabicl.csv\n(foldi 0-4, + stolpec perturbation)
+end
+deactivate SHL
+U -> SLURM : DATASET_SET=medic3_160_leakage ... sbatch ~--array=0 ~--mem=160G\nscripts/run_leakage.sh (TabPFN, TabICL)
+U -> SLURM : DATASET_SET=medic3_160_leakage ... sbatch ~--array=0-2\nscripts/run_leakage_cpu.sh (CatBoost, brez GPU)
+activate SHLC
+SHLC -> ONE : ~--index $SLURM_ARRAY_TASK_ID ~--algorithms catboost\n(ena različica na task, privzeta CPU particija)
+deactivate SHLC
+
 == Korak 3: združevanje ==
 
 U -> MERGE : python scripts/merge_results.py cc18_v2
@@ -397,6 +429,7 @@ participant "scripts/audit_defaults.py" as AUD
 participant "scripts/combine_runs.py" as COMB
 participant "scripts/compute_metrics.py" as MET
 participant "src/metrics.py" as METF
+participant "scripts/analyze_leakage.py" as LEAK
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -466,6 +499,18 @@ else en sam nabor (Medic3) - zazna samodejno
     STAT --> U : t, p, p_holm po parih; izključeni algoritmi z neuspehom
 end
 deactivate STAT
+
+== Test uhajanja: vnaprej določena analiza ==
+
+U -> LEAK : python scripts/analyze_leakage.py cc18_leakage\n~--reference medic3_160_leakage
+activate LEAK
+LEAK -> RES : results.csv obeh zagonov (stolpec perturbation)
+LEAK -> LEAK : padec = AUC(original) - AUC(različica);\ndelta = padec(TabPFN ali TabICL) - padec(CatBoost)
+LEAK -> STAT : holm(), corrected_resampled_ttest() (referenca, le informativno)
+LEAK -> LEAK : enostranski Wilcoxon čez nabore (H1: delta > 0);\npravilo: delta na Medic3 < mediana delta na CC18?
+LEAK -> SUMOUT : summary/leakage_per_dataset, leakage_tests (.csv, .tex),\nleakage_reference, leakage_report.txt
+LEAK --> U : p, p_Holm, odločitev po vnaprej določenem pravilu, preverbe
+deactivate LEAK
 
 == Različice knjižnic za diplomo ==
 

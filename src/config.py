@@ -91,12 +91,17 @@ def dataset_specs(config, set_name):
 
 
 def spec_id(spec):
-    """Kratek, za ime datoteke varen identifikator nabora ('31' ali 'medic3')."""
+    """Kratek, za ime datoteke varen identifikator nabora ('31', 'medic3' ali '31_monotone')."""
     if isinstance(spec, int):
         return str(spec)
     if isinstance(spec, dict):
         if spec.get("source", "openml") == "openml":
-            return str(int(spec["id"]))
-        name = spec.get("name") or os.path.splitext(os.path.basename(spec["path"]))[0]
-        return "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+            base = str(int(spec["id"]))
+        else:
+            name = spec.get("name") or os.path.splitext(os.path.basename(spec["path"]))[0]
+            base = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+        # Različica za test uhajanja (ključ perturbation, src/data.py) dobi pripono,
+        # da imajo različice istega nabora ločene kontrolne točke in napovedi.
+        arm = spec.get("perturbation")
+        return base if arm is None else f"{base}_{arm}"
     raise TypeError(f"Nepodprt opis nabora: {spec!r}")
