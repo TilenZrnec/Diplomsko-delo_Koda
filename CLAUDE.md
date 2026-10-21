@@ -1215,6 +1215,14 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
          RUN_ID=cc18_leakage sbatch --array=0-33%4 scripts/run_leakage.sh
          DATASET_SET=medic3_160_leakage ALGORITHMS="tabpfn tabicl" RUN_ID=medic3_160_leakage sbatch --array=0 --mem=160G scripts/run_leakage.sh
          DATASET_SET=medic3_160_leakage RUN_ID=medic3_160_leakage sbatch --array=0-2 scripts/run_leakage_cpu.sh
+     **Submitted 2026-10-21** by the user from `hpc-login3`, Arnes fast-forwarded
+     `0ad1a88` → `1186a57` just before: job **`20724058`** = `cc18_leakage`
+     (`--array=0-33%4`, GPU), **`20724059`** = `medic3_160_leakage` TabPFN +
+     TabICL (`--array=0 --mem=160G`, GPU), **`20724060`** = `medic3_160_leakage`
+     CatBoost (`run_leakage_cpu.sh`, `--array=0-2`, CPU partition `all`). No `git
+     pull` on Arnes until all three are done. Afterwards on Arnes:
+         sacct -j 20724058 --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList > results/runs/cc18_leakage/sacct.txt
+         sacct -j 20724059,20724060 --format=JobID,JobName%20,Elapsed,MaxRSS,State,NodeList > results/runs/medic3_160_leakage/sacct.txt
      Expect 1530 and 45 rows. Then `merge_results.py` for both, `sacct` into a
      PROVENANCE.md per run, commit from Arnes; copy predictions; then
      `python scripts/analyze_leakage.py cc18_leakage --reference medic3_160_leakage`
