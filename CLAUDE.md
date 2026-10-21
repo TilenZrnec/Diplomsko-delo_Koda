@@ -496,6 +496,8 @@ hardware as much as algorithms and the thesis must say so. Summaries report the
     Medic3 runs record `n_features` 275 for every algorithm and fold; file
     sha256 = PROVENANCE; no attribute is a 1:1 relabelling of `Field`, the best
     single one (A177) predicts it at 0.418 held-out vs 0.323 majority;
+    `_load_csv` would skip a missing `drop_cols` name silently, left as is
+    because the Medic3 file is never changed (user, 2026-10-21);
   - **missingness itself is a strong predictor** (e.g. A177 observed in 99.5 %
     of class C152's rows vs. 0.0 % of C202's). **Only TabICL loses this signal,
     inside its own library** (until 2026-10-14 RandomForest did too, through
@@ -996,7 +998,7 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      upper bound) — read from the PDF 2026-10-21. isolet/har ran over the
      estimate because `wn116`/`wn119` ran the same 8-core default fit ~2.6×
      slower than `gwn09` (the ratio itself was normal). Checklist items 1–3
-     done; item 4 done except the thesis tuning section; item 5 still open.
+     done; item 4 done except the thesis tuning section.
    - **After part 2 — checklist (in this order):**
      1. On Arnes (the user has the commands): `sacct` says COMPLETED for
         `20511472`, `20511665_54` and `20652997_49` (`20511665_49` = TIMEOUT,
@@ -1015,11 +1017,6 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         part-2 section of `PROVENANCE.md`, the registry rows here and in
         `results/README.md`, and the `run_tuning.sh` header (2 days on `all`,
         isolet/har on `long`). Then the thesis tuning section.
-     5. Only now (training path free again), before the leakage test loads
-        Medic3 again: make `_load_csv` in `src/data.py` **raise** when a
-        `drop_cols` name is missing from the file — it currently skips it
-        silently (`if c in df.columns`), so a renamed `Field` would stay in
-        (see Datasets → Medic3, column check 2026-10-19).
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 8. **Leakage test — state 2026-10-20: design APPROVED by the supervisor;
