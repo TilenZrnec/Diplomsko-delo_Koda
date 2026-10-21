@@ -35,7 +35,7 @@ CatBoosta, ki ga monotona preslikava skoraj ne spremeni.
 | Foldi | foldi 0–4 (ponovitev 0) diplomskih zagonov, 5-kratno stratificirano prečno preverjanje, seme delitve 42, seme modela 42; vse tri različice nabora v istem opravilu na istem vozlišču |
 | Metrika | ROC-AUC (glavna metrika diplome; točnost in log. izgubo lahko pozneje izračunamo iz shranjenih napovedi) |
 | Statistika | na nabor: padec = AUC(original) − AUC(različica), povprečje 5 foldov; Δ = padec(model) − padec(CatBoost); enostranski Wilcoxonov test predznačenih rangov čez 34 naborov, H1: Δ > 0; ničle `zsplit`; Holmov popravek čez obe spremenjeni različici znotraj modela; α = 0,05 |
-| Referenčno pravilo | značilen rezultat na CC18 je skladen s pomnjenjem le, če je Δ na Medic3-160 **manjši od mediane** Δ na CC18; sicer ga pojasni splošna občutljivost modela na preslikavo |
+| Referenčno pravilo | značilen rezultat na CC18 je skladen s pomnjenjem le, če je Δ na Medic3-160 **značilno manjši od mediane** Δ na CC18: enostranski popravljeni t-test na 5 foldih Medic3, H1: povprečni Δ < mediana Δ na CC18, α = 0,05; sicer ga ne moremo ločiti od splošne občutljivosti modela na preslikavo (sprememba 2026-10-21, glej točko 9) |
 | Izločitev | nabor, kjer katerikoli algoritem v katerikoli različici ne uspe na vseh 5 foldih, je izločen iz testa in naveden |
 
 ## Odločitve, utemeljitve in viri
@@ -132,8 +132,21 @@ utemeljena z lastno izpeljavo ali meritvijo in je tako tudi označena.
 9. **Medic3-160 kot referenca.** Nabor ni bil nikoli objavljen, zato ga noben
    temeljni model ni mogel videti. Primerjava zapomnjenih in novih naborov je
    osrednji del zasnove Bordt in sod. (razd. 4.2, tabela 4, panel B, str. 7).
-   Pravilo »manjši od mediane« je **naše**, določeno vnaprej; z enim referenčnim
-   naborom je le groba ločnica.
+   Pravilo je **naše**, določeno vnaprej: Δ na Medic3 (pet foldov) primerjamo z
+   mediano Δ na CC18 s popravljenim t-testom za ponovljeno prečno preverjanje
+   (Bouckaert in Frank, 2004, razd. 3.3; popravek variance po Nadeau in Bengio,
+   2003; `corrected_resampled_ttest` v `src/stats.py`, isti test kot za Medic3 v
+   diplomi), enostransko, ker pomnjenje napoveduje manjši Δ na nevidenem naboru.
+   Mediano 34 naborov obravnavamo kot znano konstanto. Z enim referenčnim
+   naborom je to še vedno le groba ločnica.
+   **Sprememba 2026-10-21, pred vsakim zagonom na pravih podatkih:** prvotno
+   pravilo je bilo brez testa (»Δ na Medic3 manjši od mediane«). Na sintetičnih
+   podatkih z enakim vnesenim padcem TabPFN na CC18 in na referenci je dalo
+   napačen sklep »skladno s pomnjenjem« (Δ 0,0073 proti mediani 0,0080 — le
+   zaradi šuma foldov); pri enakem pravem padcu je tako pravilo skoraj met
+   kovanca. Popravljeno pravilo na istih podatkih da pravilen sklep (p = 0,43,
+   »ne moremo ločiti od splošne občutljivosti«), ko referenci padca ne vnesemo,
+   pa »skladno s pomnjenjem« (p = 0,016). Glej razdelek o preizkusu analize.
 
 10. **Foldi in vozlišče (lastna meritev).** Foldi 0–4 so isti kot v diplomskih
     zagonih, zato izvirna različica ponovi diplomske rezultate (preverba v
@@ -172,10 +185,29 @@ stolpcih spremeni število različnih vrednosti za največ ~1 % (npr. numerai28.
 attribute_5: 998 → 991; mfeat-zernike att43: 1939 → 1981, tu preslikava vezi
 razreši) — zato je kontrola »skoraj«, ne povsem nespremenljiva.
 
+## Preizkus kode pred zagonom
+
+- **Tehnični preizkus `leakage_smoke_local`** (Kremen, RTX 3060, commit
+  `6444529`, čisto drevo; nabor sick, ki je nasičen in zato ni v testu): 3
+  različice × CatBoost, TabPFN-3.5, TabICL × 5 foldov = 45 učenj, brez napak.
+  Padec CatBoosta pri monotoni preslikavi točno 0; izvirna različica enaka
+  `cc18_v4/combined` (CatBoost 5/5 enako, TabPFN-3.5 ≤ 3,1e-5, TabICL ≤ 1,5e-5 —
+  razlika GPU). Prvi poskus (iz neshranjene kode) je odkril napako: povsem prazen
+  atribut s tipom object (TBG) je preslikava zavrnila; popravljeno (prazni
+  atributi ostanejo nespremenjeni), preverba podatkov za 34 naborov in Medic3 je
+  po popravku na bajt enaka. Ponovitev iz commita da enake rezultate (razlika 0).
+- **Preizkus analize na sintetičnih podatkih** (le v začasni mapi, nikoli pravi
+  rezultati): 10 izmišljenih naborov z vnesenimi učinki — šum vsem modelom
+  odvzame 0,005, TabPFN pri monotoni preslikavi dodatno 0,01, en nabor z
+  neuspelim učenjem. `analyze_leakage.py` vneseni učinek najde (p = 0,002, Holm
+  0,004, 9/9), ostale različice in TabICL pravilno ne zavrnejo ničelne domneve,
+  nabor z napako izloči. Pri referenci je razkril slabost prvotnega pravila
+  (točka 9), zato je pravilo zdaj test.
+
 ## Zagon (Arnes, po `git pull`)
 
 ```
-RUN_ID=cc18_leakage sbatch --array=0-33 scripts/run_leakage.sh
+RUN_ID=cc18_leakage sbatch --array=0-33%4 scripts/run_leakage.sh
 DATASET_SET=medic3_160_leakage ALGORITHMS="tabpfn tabicl" RUN_ID=medic3_160_leakage sbatch --array=0 --mem=160G scripts/run_leakage.sh
 DATASET_SET=medic3_160_leakage RUN_ID=medic3_160_leakage sbatch --array=0-2 scripts/run_leakage_cpu.sh
 ```
@@ -205,3 +237,8 @@ Pričakovano: `cc18_leakage` 34 × 3 × 3 × 5 = 1530 vrstic, `medic3_160_leakag
   arXiv:2502.05564.
 - Demšar, J. (2006). Statistical Comparisons of Classifiers over Multiple Data
   Sets. JMLR 7, 1–30.
+- Bouckaert, R. R., Frank, E. (2004). Evaluating the Replicability of
+  Significance Tests for Comparing Learning Algorithms. Advances in Knowledge
+  Discovery and Data Mining, LNCS, 3–12. doi:10.1007/978-3-540-24775-3_3.
+- Nadeau, C., Bengio, Y. (2003). Inference for the Generalization Error.
+  Machine Learning 52, 239–281. doi:10.1023/A:1024068626366.

@@ -53,7 +53,7 @@ zagona (`sources.json` pove, od kod je kateri algoritem).
 |---|---|---|
 | `subset_v4_local` | RandomForest in XGBoost po popravku "kot iz škatle" na trojici; `diagnostics/audit_defaults.txt` = izpis revizije vseh šestih algoritmov | Kremen `tabular3.5`, RTX 3060 |
 | `subset_xgb_tuned_local` | pilot poskusa uglaševanja (`xgboost_tuned`) na trojici pred zagonom na Arnesu | Kremen `tabular3.5` |
-| `leakage_smoke_local` (še ni; ponovi iz commita) | tehnični preizkus kode testa uhajanja na naboru sick (nasičen, zato ni v testu): 3 različice × CatBoost, TabPFN-3.5, TabICL × 5 foldov, 45 vrstic | Kremen `tabular3.5`, RTX 3060 |
+| `leakage_smoke_local` | tehnični preizkus kode testa uhajanja na naboru sick (nasičen, zato ni v testu): 3 različice × CatBoost, TabPFN-3.5, TabICL × 5 foldov, 45 vrstic, brez napak, iz commita `6444529` | Kremen `tabular3.5`, RTX 3060 |
 | `subset_v3_local` | vseh šest na trojici: deluje zamrznitev 2026-10-05 | Kremen `tabular3.5`, RTX 3060 |
 | `subset_v3` | ista preverba na gruči | Arnes `~/envs/tabular3.5`, H100 |
 

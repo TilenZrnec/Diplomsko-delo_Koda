@@ -1,0 +1,22 @@
+Test uhajanja: results/runs/leakage_smoke_local (1 naborov, 45 vrstic, 5 foldov)
+  pričakovanih vrstic 45, z napako 0
+
+Rezultat (enostranski Wilcoxon, H1: delta > 0; Holm znotraj modela; alpha 0.05):
+  TabPFN-3.5  monotona preslikava  n= 1  mediana delta +0.0002  delta>0 na 1/1  p=nan  p_Holm=nan
+      referenca: delta +nan, p(referenca < mediana CC18) = nan
+      -> test ni izveden (manj kot 6 naborov)
+  TabPFN-3.5  preslikava s šumom   n= 1  mediana delta -0.0007  delta>0 na 0/1  p=nan  p_Holm=nan
+      referenca: delta +nan, p(referenca < mediana CC18) = nan
+      -> test ni izveden (manj kot 6 naborov)
+  TabICL      monotona preslikava  n= 1  mediana delta +0.0002  delta>0 na 1/1  p=nan  p_Holm=nan
+      referenca: delta +nan, p(referenca < mediana CC18) = nan
+      -> test ni izveden (manj kot 6 naborov)
+  TabICL      preslikava s šumom   n= 1  mediana delta -0.0008  delta>0 na 0/1  p=nan  p_Holm=nan
+      referenca: delta +nan, p(referenca < mediana CC18) = nan
+      -> test ni izveden (manj kot 6 naborov)
+
+Preverbe (niso del testa):
+  padec kontrole (CatBoost) pri monotoni preslikavi: mediana +0.00e+00, največji |padec| 0.00e+00
+  izvirna različica, CatBoost: 5 učenj, enakih 5, največja |razlika| 0.00e+00 (proti cc18_v4/combined)
+  izvirna različica, TabICL: 5 učenj, enakih 3, največja |razlika| 1.50e-05 (proti cc18_v4/combined)
+  izvirna različica, TabPFN-3.5: 5 učenj, enakih 3, največja |razlika| 3.07e-05 (proti cc18_v4/combined)

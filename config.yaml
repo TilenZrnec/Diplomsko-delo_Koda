@@ -123,4 +123,6 @@ leakage:
   # Test (analyze_leakage.py): za vsak nabor delta = padec(model) - padec(CatBoost),
   # padec = ROC-AUC izvirne - ROC-AUC spremenjene različice (povprečje foldov);
   # enostranski Wilcoxonov test čez nabore (H1: delta > 0), Holmov popravek čez obe
-  # spremenjeni različici znotraj modela.
+  # spremenjeni različici znotraj modela. Referenca: značilen rezultat je skladen s
+  # pomnjenjem le, če je delta na Medic3 značilno manjši od mediane delta na CC18
+  # (enostranski popravljeni t-test na foldih Medic3).

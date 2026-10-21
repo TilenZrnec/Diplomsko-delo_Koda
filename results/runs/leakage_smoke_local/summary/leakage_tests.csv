@@ -1,0 +1,5 @@
+model,role,arm,n,median_delta,mean_delta,n_positive,n_negative,statistic,p,p_holm,significant,cc18_median_delta,reference_delta,reference_p_below_median,verdict
+tabpfn,glavni,monotone,1,0.00016435234937561827,0.00016435234937561827,1,0,,,,,0.00016435234937561827,,,test ni izveden (manj kot 6 naborov)
+tabpfn,glavni,monotone_noise,1,-0.0006515009704595176,-0.0006515009704595176,0,1,,,,,-0.0006515009704595176,,,test ni izveden (manj kot 6 naborov)
+tabicl,drugotni,monotone,1,0.00018927367115340044,0.00018927367115340044,1,0,,,,,0.00018927367115340044,,,test ni izveden (manj kot 6 naborov)
+tabicl,drugotni,monotone_noise,1,-0.0007785633885488696,-0.0007785633885488696,0,1,,,,,-0.0007785633885488696,,,test ni izveden (manj kot 6 naborov)

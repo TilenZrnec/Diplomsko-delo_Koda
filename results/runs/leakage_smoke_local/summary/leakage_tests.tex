@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+\centering
+\caption{Test uhajanja: delta = padec temeljnega modela minus padec CatBoosta (ROC-AUC), enostranski Wilcoxonov test s Holmovim popravkom; Medic3: delta in enostranski popravljeni t-test, ali je manjši od mediane na CC18.}
+\label{tab:uhajanje}
+\begin{tabular}{lrrrrrrrr}
+\hline
+Model & Različica & n & Mediana delta & delta > 0 & p & p (Holm) & Medic3 delta & p (Medic3 manjši) \\
+\hline
+TabPFN-3.5 & monotona preslikava & 1 & 0.0002 & 1 & -- & -- & -- & -- \\
+TabPFN-3.5 & preslikava s šumom & 1 & -0.0007 & 0 & -- & -- & -- & -- \\
+TabICL & monotona preslikava & 1 & 0.0002 & 1 & -- & -- & -- & -- \\
+TabICL & preslikava s šumom & 1 & -0.0008 & 0 & -- & -- & -- & -- \\
+\hline
+\end{tabular}
+\end{table}

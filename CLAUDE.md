@@ -67,7 +67,7 @@ rerun plus the earlier run.
 | `cc18_leakage` (planned, Arnes H100) | **leakage test**: 34 non-saturated CC18 sets × 3 arms (original, monotone warp, warp + noise) × CatBoost, TabPFN-3.5, TabICL × folds 0–4 = 1530 rows; `DESIGN.md` = the pre-registered design with sources; `diagnostics/perturbation_check.csv` = data-only check of the arms | thesis results of experiment 3 (with `medic3_160_leakage`) |
 | `medic3_160_leakage` (planned, Arnes) | leakage-test reference: Medic3-160 × the same 3 arms, 45 rows (FMs on GPU, CatBoost on the CPU partition) | reference for `cc18_leakage` |
 | `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
-| `leakage_smoke_local` (to rerun from the commit) | sick × 3 arms × CatBoost, TabPFN-3.5, TabICL, Kremen: technical check of the leakage code (sick is saturated, so not in the test) | evidence only |
+| `leakage_smoke_local` | sick × 3 arms × CatBoost, TabPFN-3.5, TabICL, Kremen RTX 3060, from `6444529` (clean tree), 45 rows, 0 errors: technical check of the leakage code (sick is saturated, so not in the test) | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
 | `subset_v3` | the same check on Arnes | evidence only |
 | `cc18_v2` (deleted; git `5a14045`) | CC18, all six, older freeze 2026-09-09 with **TabPFN-3** | read from git only for the thesis table "TabPFN-3 vs TabPFN-3.5" |
@@ -1042,8 +1042,8 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
 8. **Leakage test — state 2026-10-21: design APPROVED by the supervisor,
-   parameters FIXED with verified sources, code implemented and checked on
-   Kremen; next: commit + push, then run on Arnes.** The pre-registration is
+   parameters FIXED with verified sources, code implemented, checked on
+   Kremen and pushed; next: the user runs it on Arnes.** The pre-registration is
    `results/runs/cc18_leakage/DESIGN.md` (Slovenian; every decision with its
    source and page) — read it before touching the test.
    - **Supervisor's answer (email, 2026-10-20):** "Test na 36 množicah kar
@@ -1145,8 +1145,13 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      seed 42, all arms of a dataset in one task; per dataset Δ = drop(model) −
      drop(CatBoost) on the 5-fold mean ROC-AUC; one-sided Wilcoxon (H1: Δ > 0,
      `zsplit`), Holm within each model over the two arms, α 0.05; a significant
-     CC18 result counts as memorisation-consistent only if Medic3's Δ is below
-     the CC18 median Δ. **Verified sources** (PDFs read with pdftotext, pages
+     CC18 result counts as memorisation-consistent only if Medic3's Δ is
+     **significantly** below the CC18 median Δ (one-sided corrected repeated-CV
+     t-test on Medic3's 5 fold Δs, the thesis's Bouckaert & Frank 2004 /
+     Nadeau & Bengio 2003 test; changed 2026-10-21 before any real run — the
+     first rule, "Δ below the median" without a test, gave the wrong verdict on
+     synthetic data with the same planted drop on both sides, a coin flip under
+     fold noise). **Verified sources** (PDFs read with pdftotext, pages
      are printed page numbers): Bordt et al. 2024 (COLM, arXiv 2404.06209v3:
      p. 2, §4.1 p. 6, §4.2 p. 7, App. E p. 23, Tables 9–10 p. 30 — the test
      principle, ~1 % perturbation, novel datasets as reference, LR/GBT check);
@@ -1167,7 +1172,8 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      source (own derivation, stated as such):** centring before the root, the
      noise level 0.1 sd (variance 1 %; E|ΔECDF| ≈ 0.0225 for a normal attribute,
      measured 0.0224–0.0228 on climate/numerai, up to 0.20 where noise breaks
-     ties: Bioresponse, spambase), the Medic3 median rule. **Caution:** the
+     ties: Bioresponse, spambase), the Medic3 rule (its test is sourced, the
+     rule itself is ours). **Caution:** the
      TabPFN-3.5 report's "without using LLMs, real data, internet search" is
      about the Thinking mode (§3.4), not pretraining — never cite it for
      pretraining.
@@ -1196,13 +1202,17 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
      rejected — all-missing columns are now left unchanged; the 34 sets were
      unaffected (check report byte-identical before/after). CatBoost's monotone
      drop on sick exactly 0; original arm = `cc18_v4/combined` (CatBoost 5/5
-     identical, TabPFN ≤ 3.1e-5, TabICL ≤ 1.5e-5). That smoke run came from the
-     uncommitted tree, so it was moved out of the repo: **rerun it from the
-     commit** (`python -m src.run_benchmark --dataset-set leakage_smoke --run-id
-     leakage_smoke_local --algorithms catboost tabpfn tabicl`, ~5 min, then
-     `python scripts/analyze_leakage.py leakage_smoke_local`) and commit it.
+     identical, TabPFN ≤ 3.1e-5, TabICL ≤ 1.5e-5). Implementation committed as
+     **`6444529`**; the smoke run was then **rerun from that commit** (clean
+     tree, `git_dirty` false) and is committed as `leakage_smoke_local`: 45/45
+     fits identical (Δ 0.0) to the first, uncommitted run. **Synthetic test of
+     the analysis** (scratch only): planted extra TabPFN drop 0.01 found (p
+     0.002, Holm 0.004, 9/9), unplanted arms/models not rejected, a dataset
+     with a failed fit excluded; it exposed the weak Medic3 rule (above) — the
+     revised rule says "not distinguishable" when the reference has the same
+     drop (p 0.43) and "memorisation-consistent" when it has none (p 0.016).
    - **On Arnes** (after commit + push; `git pull` is safe, nothing queued):
-         RUN_ID=cc18_leakage sbatch --array=0-33 scripts/run_leakage.sh
+         RUN_ID=cc18_leakage sbatch --array=0-33%4 scripts/run_leakage.sh
          DATASET_SET=medic3_160_leakage ALGORITHMS="tabpfn tabicl" RUN_ID=medic3_160_leakage sbatch --array=0 --mem=160G scripts/run_leakage.sh
          DATASET_SET=medic3_160_leakage RUN_ID=medic3_160_leakage sbatch --array=0-2 scripts/run_leakage_cpu.sh
      Expect 1530 and 45 rows. Then `merge_results.py` for both, `sacct` into a

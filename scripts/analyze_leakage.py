@@ -17,8 +17,15 @@ Kaj izračuna:
      (TabPFN-3.5), ostali (TabICL) so drugotni rezultat.
   5. Referenca (--reference, Medic3-160, nikoli objavljen): enak delta in še po
      foldih. Vnaprej določeno pravilo: značilen rezultat na CC18 je skladen s
-     pomnjenjem le, če je delta na referenci MANJŠI od mediane delta na CC18; sicer
-     ga pojasni splošna občutljivost modela na preslikavo.
+     pomnjenjem le, če je delta na referenci ZNAČILNO MANJŠI od mediane delta na
+     CC18 - enostranski popravljeni t-test za ponovljeno prečno preverjanje na
+     foldih reference (Bouckaert in Frank 2004, popravek Nadeau in Bengio 2003;
+     src/stats.py), H1: povprečni delta na referenci < mediana delta na CC18.
+     Sicer ga ne moremo ločiti od splošne občutljivosti modela na preslikavo.
+     (Prvotno pravilo brez testa, »delta na referenci < mediana«, je na
+     sintetičnih podatkih z enakim padcem na obeh straneh dalo napačen sklep -
+     šum foldov ga naredi skoraj za met kovanca; spremenjeno 2026-10-21, pred
+     vsakim zagonom na pravih podatkih, glej DESIGN.md.)
 
 Preverbe (niso del testa): vse pričakovane vrstice brez napak (nabor, kjer katerikoli
 algoritem v katerikoli različici ni uspel, je iz testa izločen in izpisan); padec
@@ -189,14 +196,17 @@ def main():
     per_dataset = deltas(df, leakage)
     tests = run_tests(per_dataset, leakage, alpha)
 
-    ref, ref_rows = None, []
+    # Pri 5-kratnem preverjanju je testna množica četrtina učne (popravek variance).
+    ratio = 1.0 / (config["n_splits"] - 1)
+    ref, ref_rows, ref_folds = None, [], {}
     if args.reference:
         ref_all, _ = load_run(args.reference, config)
         ref = complete_datasets(ref_all, leakage, n_folds, report)
         ref_table = deltas(ref, leakage)
         for _, r in ref_table.iterrows():
             folds = fold_deltas(ref, leakage, r["model"], r["arm"])
-            t, p = corrected_resampled_ttest(folds.to_numpy(), 1.0 / (config["n_splits"] - 1))
+            ref_folds[(r["model"], r["arm"])] = folds.to_numpy()
+            t, p = corrected_resampled_ttest(folds.to_numpy(), ratio)
             ref_rows.append({**r.to_dict(), "fold_deltas": " ".join(f"{v:+.4f}" for v in folds),
                              "n_folds_positive": int((folds > 0).sum()),
                              "corrected_t": t, "corrected_p_two_sided": p})
@@ -205,24 +215,33 @@ def main():
     # Odločitev po vnaprej določenem pravilu.
     verdicts = []
     for _, r in tests.iterrows():
-        cc18 = per_dataset[(per_dataset["model"] == r["model"]) & (per_dataset["arm"] == r["arm"])]
-        ref_delta = np.nan
-        if len(ref_df):
-            sel = ref_df[(ref_df["model"] == r["model"]) & (ref_df["arm"] == r["arm"])]
-            ref_delta = float(sel["delta"].iloc[0]) if len(sel) else np.nan
+        cc18_median = per_dataset[(per_dataset["model"] == r["model"])
+                                  & (per_dataset["arm"] == r["arm"])]["delta"].median()
+        ref_delta, p_below = np.nan, np.nan
+        d = ref_folds.get((r["model"], r["arm"]))
+        if d is not None:
+            ref_delta = float(d.mean())
+            # H1: povprečni delta na referenci < mediana delta na CC18 (mediano 34
+            # naborov obravnavamo kot znano konstanto); enostranska p iz t.
+            t, _ = corrected_resampled_ttest(d - cc18_median, ratio)
+            p_below = float(stats.t.cdf(t, df=len(d) - 1)) if not np.isnan(t) else np.nan
         if r["significant"] is None:
             verdict = f"test ni izveden (manj kot {MIN_DATASETS} naborov)"
         elif not r["significant"]:
             verdict = "ni značilen: ni dokazov za pomnjenje vrednosti"
-        elif np.isnan(ref_delta):
+        elif np.isnan(p_below):
             verdict = "značilen; brez reference ga ne moremo ločiti od splošne občutljivosti"
-        elif ref_delta < cc18["delta"].median():
-            verdict = "značilen in na referenci manjši: skladno s pomnjenjem (ni dokaz)"
+        elif p_below < alpha:
+            verdict = ("značilen, delta na referenci pa značilno manjši od mediane CC18: "
+                       "skladno s pomnjenjem (ni dokaz)")
         else:
-            verdict = "značilen, a na referenci enako velik ali večji: splošna občutljivost na preslikavo"
-        verdicts.append((ref_delta, verdict))
-    tests["reference_delta"] = [v[0] for v in verdicts]
-    tests["verdict"] = [v[1] for v in verdicts]
+            verdict = ("značilen, a delta na referenci ni značilno manjši od mediane CC18: "
+                       "ne moremo ga ločiti od splošne občutljivosti na preslikavo")
+        verdicts.append((cc18_median, ref_delta, p_below, verdict))
+    tests["cc18_median_delta"] = [v[0] for v in verdicts]
+    tests["reference_delta"] = [v[1] for v in verdicts]
+    tests["reference_p_below_median"] = [v[2] for v in verdicts]
+    tests["verdict"] = [v[3] for v in verdicts]
 
     report()
     report("Rezultat (enostranski Wilcoxon, H1: delta > 0; Holm znotraj modela; "
@@ -230,7 +249,9 @@ def main():
     for _, r in tests.iterrows():
         report(f"  {NAMES[r['model']]:11} {NAMES[r['arm']]:20} n={r['n']:2d}  mediana delta "
                f"{r['median_delta']:+.4f}  delta>0 na {r['n_positive']}/{r['n']}  p={r['p']:.4g}  "
-               f"p_Holm={r['p_holm']:.4g}  referenca {r['reference_delta']:+.4f}")
+               f"p_Holm={r['p_holm']:.4g}")
+        report(f"      referenca: delta {r['reference_delta']:+.4f}, p(referenca < mediana CC18) = "
+               f"{r['reference_p_below_median']:.4g}")
         report(f"      -> {r['verdict']}")
 
     report()
@@ -256,14 +277,16 @@ def main():
     if len(ref_df):
         ref_df.to_csv(os.path.join(out_dir, "leakage_reference.csv"), index=False)
     tex = tests.assign(model=tests["model"].map(NAMES), arm=tests["arm"].map(NAMES))[
-        ["model", "arm", "n", "median_delta", "n_positive", "p", "p_holm", "reference_delta"]]
+        ["model", "arm", "n", "median_delta", "n_positive", "p", "p_holm", "reference_delta",
+         "reference_p_below_median"]]
     with open(os.path.join(out_dir, "leakage_tests.tex"), "w", encoding="utf-8") as f:
         f.write(to_latex(
             tex, "Test uhajanja: delta = padec temeljnega modela minus padec CatBoosta "
-                 "(ROC-AUC), enostranski Wilcoxonov test s Holmovim popravkom.",
+                 "(ROC-AUC), enostranski Wilcoxonov test s Holmovim popravkom; Medic3: delta "
+                 "in enostranski popravljeni t-test, ali je manjši od mediane na CC18.",
             "tab:uhajanje", floatfmt=".4f",
             column_names=["Model", "Različica", "n", "Mediana delta", "delta > 0", "p",
-                          "p (Holm)", "Medic3 delta"]))
+                          "p (Holm)", "Medic3 delta", "p (Medic3 manjši)"]))
     with open(os.path.join(out_dir, "leakage_report.txt"), "w", encoding="utf-8") as f:
         f.write("\n".join(report.lines) + "\n")
     print(f"\nZapisano v {os.path.relpath(out_dir, REPO_ROOT)}/leakage_*")

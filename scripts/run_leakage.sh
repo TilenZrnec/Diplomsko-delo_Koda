@@ -22,8 +22,9 @@
 #
 # ODDAJA (iz korena repozitorija, po git pull; vozlišča so brez interneta, nabori
 # CC18 in uteži TabPFN/TabICL so že predpomnjeni, Medic3.csv je na gruči):
-#   a) CC18: 34 naborov x 3 različice x CatBoost, TabPFN-3.5, TabICL x 5 foldov:
-#        RUN_ID=cc18_leakage sbatch --array=0-33 scripts/run_leakage.sh
+#   a) CC18: 34 naborov x 3 različice x CatBoost, TabPFN-3.5, TabICL x 5 foldov
+#      (%4 = največ štirje GPU hkrati, kot pri run_cc18.sh):
+#        RUN_ID=cc18_leakage sbatch --array=0-33%4 scripts/run_leakage.sh
 #   b) Medic3-160, oba temeljna modela (TabICL potrebuje ~92 GiB RAM, glej
 #      scripts/run_medic3.sh, zato --mem=160G):
 #        DATASET_SET=medic3_160_leakage ALGORITHMS="tabpfn tabicl" RUN_ID=medic3_160_leakage \
