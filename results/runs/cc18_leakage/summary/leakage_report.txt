@@ -1,0 +1,30 @@
+Test uhajanja: results/runs/cc18_leakage (34 naborov, 1530 vrstic, 5 foldov)
+  pričakovanih vrstic 1530, z napako 0
+
+Rezultat (enostranski Wilcoxon, H1: delta > 0; Holm znotraj modela; alpha 0.05):
+  TabPFN-3.5  monotona preslikava  n=34  mediana delta +0.0026  delta>0 na 29/34  p=3.836e-07  p_Holm=7.673e-07
+      referenca: delta -0.0002, p(referenca < mediana CC18) = 7.652e-06
+      -> značilen, delta na referenci pa značilno manjši od mediane CC18: skladno s pomnjenjem (ni dokaz)
+  TabPFN-3.5  preslikava s šumom   n=34  mediana delta +0.0025  delta>0 na 23/34  p=0.0108  p_Holm=0.0108
+      referenca: delta -0.0004, p(referenca < mediana CC18) = 0.0006266
+      -> značilen, delta na referenci pa značilno manjši od mediane CC18: skladno s pomnjenjem (ni dokaz)
+  TabICL      monotona preslikava  n=34  mediana delta +0.0013  delta>0 na 27/34  p=1.414e-06  p_Holm=2.827e-06
+      referenca: delta -0.0012, p(referenca < mediana CC18) = 0.0007993
+      -> značilen, delta na referenci pa značilno manjši od mediane CC18: skladno s pomnjenjem (ni dokaz)
+  TabICL      preslikava s šumom   n=34  mediana delta +0.0028  delta>0 na 23/34  p=0.009806  p_Holm=0.009806
+      referenca: delta +0.0059, p(referenca < mediana CC18) = 0.9982
+      -> značilen, a delta na referenci ni značilno manjši od mediane CC18: ne moremo ga ločiti od splošne občutljivosti na preslikavo
+
+Preverbe (niso del testa):
+  padec kontrole (CatBoost) pri monotoni preslikavi: mediana +4.38e-07, največji |padec| 1.35e-03
+  izvirna različica, CatBoost: 170 učenj, enakih 165, največja |razlika| 2.86e-03 (proti cc18_v4/combined)
+  izvirna različica, TabICL: 170 učenj, enakih 95, največja |razlika| 4.39e-03 (proti cc18_v4/combined)
+  izvirna različica, TabPFN-3.5: 170 učenj, enakih 167, največja |razlika| 9.31e-05 (proti cc18_v4/combined)
+  referenca, izvirna, CatBoost: 5 učenj, enakih 5, največja |razlika| 0.00e+00 (proti medic3_160_v2/combined)
+  referenca, izvirna, TabICL: 5 učenj, enakih 0, največja |razlika| 1.89e-08 (proti medic3_160_v2/combined)
+  referenca, izvirna, TabPFN-3.5: 5 učenj, enakih 5, največja |razlika| 0.00e+00 (proti medic3_160_v2/combined)
+  referenca po foldih (delta; popravljeni t-test je le informativen):
+    TabICL      monotona preslikava  -0.0018 -0.0010 -0.0015 -0.0007 -0.0007  p=0.0241
+    TabICL      preslikava s šumom   +0.0053 +0.0050 +0.0060 +0.0066 +0.0066  p=0.000304
+    TabPFN-3.5  monotona preslikava  -0.0000 -0.0004 -0.0003 -0.0001 -0.0000  p=0.226
+    TabPFN-3.5  preslikava s šumom   -0.0005 -0.0012 -0.0004 +0.0000 +0.0002  p=0.349

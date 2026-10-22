@@ -1,0 +1,17 @@
+{
+  "results_csv": "results/runs/cc18_leakage/results.csv",
+  "computed_by": {
+    "script": "scripts/compute_metrics.py",
+    "git_commit": "98332d1",
+    "git_dirty": false,
+    "scikit_learn": "1.9.1"
+  },
+  "timestamp": "2026-10-22T14:02:35+02:00",
+  "fits": 1530,
+  "fits_failed": 0,
+  "fits_scored": 1530,
+  "missing_prediction_files": [],
+  "max_abs_roc_auc_diff": 9.636139376989483e-06,
+  "max_row_sum_error": 1.852504283306189e-07,
+  "tolerance": 0.001
+}

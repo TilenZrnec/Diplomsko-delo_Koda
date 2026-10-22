@@ -64,8 +64,8 @@ rerun plus the earlier run.
 | `medic3_160` | Medic3 (160), all six algorithms (Arnes, 2026-10-10/11) | source of LightGBM, CatBoost, TabPFN-3.5, TabICL; RF row superseded; `diagnostics/` = LightGBM-collapse analysis |
 | `cc18_xgb_tuned` (Arnes, CPU only) | **tuning experiment**: only `xgboost_tuned` (XGBoost tuned by grid search with nested CV) on `cc18_tuning` — part 1 = the 36 non-saturated CC18 sets (done 2026-10-15, job `20494570`, 540 rows), part 2 = the other 32 (done 2026-10-20, jobs `20511472`, `20511665`, `20652997`); 1020 rows, checked 2026-10-21; `tuning/` = all 128 inner scores per fold; `metrics.csv` = accuracy and log loss | thesis results of experiment 4 (compared with `cc18_v4/combined`) |
 | `subset_v4_local` | 3 datasets, RF + XGBoost, Kremen: check of the out-of-the-box fix; `diagnostics/audit_defaults.txt` = audit of all six | evidence only, not thesis results |
-| `cc18_leakage` (planned, Arnes H100) | **leakage test**: 34 non-saturated CC18 sets × 3 arms (original, monotone warp, warp + noise) × CatBoost, TabPFN-3.5, TabICL × folds 0–4 = 1530 rows; `DESIGN.md` = the pre-registered design with sources; `diagnostics/perturbation_check.csv` = data-only check of the arms | thesis results of experiment 3 (with `medic3_160_leakage`) |
-| `medic3_160_leakage` (planned, Arnes) | leakage-test reference: Medic3-160 × the same 3 arms, 45 rows (FMs on GPU, CatBoost on the CPU partition) | reference for `cc18_leakage` |
+| `cc18_leakage` (Arnes H100, job `20724058`, 2026-10-21) | **leakage test**: 34 non-saturated CC18 sets × 3 arms (original, monotone warp, warp + noise) × CatBoost, TabPFN-3.5, TabICL × folds 0–4 = 1530 rows, 0 errors; `DESIGN.md` = the pre-registered design with sources; `PROVENANCE.md` = receipts, checks, result; `summary/leakage_*` = the pre-registered analysis; `diagnostics/perturbation_check.csv` = data-only check of the arms; `metrics.csv` | thesis results of experiment 3 (with `medic3_160_leakage`) |
+| `medic3_160_leakage` (Arnes, jobs `20724059`/`20724060`, 2026-10-21/22) | leakage-test reference: Medic3-160 × the same 3 arms, 45 rows, 0 errors (FMs on GPU, CatBoost on the CPU partition); `PROVENANCE.md`, `metrics.csv` | reference for `cc18_leakage` |
 | `subset_xgb_tuned_local` | 3 datasets (credit-g, diabetes, sick), `xgboost_tuned`, Kremen: pilot of the tuning experiment before Arnes | evidence only |
 | `leakage_smoke_local` | sick × 3 arms × CatBoost, TabPFN-3.5, TabICL, Kremen RTX 3060, from `6444529` (clean tree), 45 rows, 0 errors: technical check of the leakage code (sick is saturated, so not in the test) | evidence only |
 | `subset_v3_local` | 3 datasets, all six, Kremen: check that the 2026-10-05 freeze works | evidence only |
@@ -1041,9 +1041,22 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         isolet/har on `long`). Then the thesis tuning section.
    For the supervisor: leakage design, injected NULLs, the LightGBM finding,
    and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
-8. **Leakage test — state 2026-10-21: design APPROVED by the supervisor,
-   parameters FIXED with verified sources, code implemented, checked on
-   Kremen and pushed; next: the user runs it on Arnes.** The pre-registration is
+8. **Leakage test — DONE 2026-10-22.** Result (pre-registered, details and
+   numbers in `results/runs/cc18_leakage/PROVENANCE.md`): TabPFN-3.5 loses
+   significantly more than CatBoost on the perturbed CC18 copies (warp: median
+   Δ +0.0026, 29/34, p_Holm 7.7e-7; warp + noise: +0.0025, 23/34, p_Holm 0.011)
+   and nothing extra on Medic3-160 (Δ −0.0002/−0.0004, significantly below the
+   CC18 median) → **"consistent with memorisation (not proof)"**; TabICL the same
+   for the warp, "indistinguishable from sensitivity" for the noise arm.
+   Exploratory (post hoc, label it so): TabPFN-3.5 keeps 84 % / 74 % of its mean
+   lead over CatBoost (+0.0222 → +0.0185 / +0.0163) and stays ahead on 33/34 /
+   32/34 sets; Δ correlates with the original lead (ρ 0.42), not with size.
+   Caveats for the thesis: one, very different reference (94k rows, 82 % missing,
+   TabPFN lead only +0.0016); cannot separate memorisation from indirect
+   influence. Both runs merged on Arnes (`de03198`), receipts `98332d1`,
+   predictions on Kremen verified (`compute_metrics.py`, both runs), USB and
+   laptop copies by the user. Next: tell the supervisor; thesis section.
+   History of the step follows. The pre-registration is
    `results/runs/cc18_leakage/DESIGN.md` (Slovenian; every decision with its
    source and page) — read it before touching the test.
    - **Supervisor's answer (email, 2026-10-20):** "Test na 36 množicah kar
@@ -1313,6 +1326,11 @@ Writing/citation rules live in the thesis repo's `CLAUDE.md`
   is broken (LightGBM on Medic3) leaves ordinary rows with no `error`. After
   every run, check per-fold ROC-AUC: anything near 0.5 on a dataset where the
   others score high is a red flag to investigate before writing.
+- **CatBoost is not always bit-identical across Arnes nodes on large data**
+  (found 2026-10-22): numerai28.6 (96k rows) gave ≤ 2.9e-3 different fold
+  ROC-AUCs on `gwn10` (`cc18_leakage`) than on `gwn02` (`cc18_v3`); the other
+  33 CC18 sets and Medic3-160 (on `wn0xx` vs `gwn0x`) were identical. Compare
+  CatBoost numbers on big sets within one node.
 - **XGBoost is deterministic on one machine and across Arnes nodes**
   (`cc18_v2` vs `cc18_v3`: Δ 0 on all 72 sets, PCIe and SXM nodes), **but not
   between Kremen and Arnes on large data**: Medic3 fold 0 differs by 6.2e-4
