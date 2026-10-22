@@ -1,0 +1,104 @@
+JobID                     JobName    Elapsed     MaxRSS      State        NodeList 
+------------ -------------------- ---------- ---------- ---------- --------------- 
+20724058_0               tfm-leak   00:07:34             COMPLETED           gwn03 
+20724058_0.+                batch   00:07:34   3998700K  COMPLETED           gwn03 
+20724058_0.+               extern   00:07:34             COMPLETED           gwn03 
+20724058_1               tfm-leak   00:01:13             COMPLETED           gwn08 
+20724058_1.+                batch   00:01:13    976684K  COMPLETED           gwn08 
+20724058_1.+               extern   00:01:13             COMPLETED           gwn08 
+20724058_2               tfm-leak   00:03:12             COMPLETED           gwn08 
+20724058_2.+                batch   00:03:12   4080088K  COMPLETED           gwn08 
+20724058_2.+               extern   00:03:12             COMPLETED           gwn08 
+20724058_3               tfm-leak   00:01:00             COMPLETED           gwn08 
+20724058_3.+                batch   00:01:00    976644K  COMPLETED           gwn08 
+20724058_3.+               extern   00:01:00             COMPLETED           gwn08 
+20724058_4               tfm-leak   00:01:31             COMPLETED           gwn03 
+20724058_4.+                batch   00:01:31     11216K  COMPLETED           gwn03 
+20724058_4.+               extern   00:01:31             COMPLETED           gwn03 
+20724058_5               tfm-leak   00:01:29             COMPLETED           gwn08 
+20724058_5.+                batch   00:01:29    114940K  COMPLETED           gwn08 
+20724058_5.+               extern   00:01:29             COMPLETED           gwn08 
+20724058_6               tfm-leak   00:00:51             COMPLETED           gwn03 
+20724058_6.+                batch   00:00:51   3846284K  COMPLETED           gwn03 
+20724058_6.+               extern   00:00:51             COMPLETED           gwn03 
+20724058_7               tfm-leak   00:01:20             COMPLETED           gwn08 
+20724058_7.+                batch   00:01:20    923732K  COMPLETED           gwn08 
+20724058_7.+               extern   00:01:20             COMPLETED           gwn08 
+20724058_8               tfm-leak   00:01:19             COMPLETED           gwn03 
+20724058_8.+                batch   00:01:19    830208K  COMPLETED           gwn03 
+20724058_8.+               extern   00:01:19             COMPLETED           gwn03 
+20724058_9               tfm-leak   00:02:37             COMPLETED           gwn03 
+20724058_9.+                batch   00:02:37   4469064K  COMPLETED           gwn03 
+20724058_9.+               extern   00:02:37             COMPLETED           gwn03 
+20724058_10              tfm-leak   00:00:51             COMPLETED           gwn08 
+20724058_10+                batch   00:00:51   3958684K  COMPLETED           gwn08 
+20724058_10+               extern   00:00:51             COMPLETED           gwn08 
+20724058_11              tfm-leak   00:00:52             COMPLETED           gwn08 
+20724058_11+                batch   00:00:52   3939512K  COMPLETED           gwn08 
+20724058_11+               extern   00:00:52             COMPLETED           gwn08 
+20724058_12              tfm-leak   00:01:54             COMPLETED           gwn03 
+20724058_12+                batch   00:01:54   3936816K  COMPLETED           gwn03 
+20724058_12+               extern   00:01:54             COMPLETED           gwn03 
+20724058_13              tfm-leak   00:00:42             COMPLETED           gwn08 
+20724058_13+                batch   00:00:42    668728K  COMPLETED           gwn08 
+20724058_13+               extern   00:00:42             COMPLETED           gwn08 
+20724058_14              tfm-leak   00:00:47             COMPLETED           gwn08 
+20724058_14+                batch   00:00:47     80696K  COMPLETED           gwn08 
+20724058_14+               extern   00:00:47             COMPLETED           gwn08 
+20724058_15              tfm-leak   00:01:03             COMPLETED           gwn03 
+20724058_15+                batch   00:01:03   3868188K  COMPLETED           gwn03 
+20724058_15+               extern   00:01:05             COMPLETED           gwn03 
+20724058_16              tfm-leak   00:05:48             COMPLETED           gwn08 
+20724058_16+                batch   00:05:48   4681512K  COMPLETED           gwn08 
+20724058_16+               extern   00:05:48             COMPLETED           gwn08 
+20724058_17              tfm-leak   00:00:47             COMPLETED           gwn03 
+20724058_17+                batch   00:00:47     11216K  COMPLETED           gwn03 
+20724058_17+               extern   00:00:47             COMPLETED           gwn03 
+20724058_18              tfm-leak   00:04:40             COMPLETED           gwn03 
+20724058_18+                batch   00:04:40   4028652K  COMPLETED           gwn03 
+20724058_18+               extern   00:04:40             COMPLETED           gwn03 
+20724058_19              tfm-leak   00:00:52             COMPLETED           gwn03 
+20724058_19+                batch   00:00:52   3850404K  COMPLETED           gwn03 
+20724058_19+               extern   00:00:52             COMPLETED           gwn03 
+20724058_20              tfm-leak   00:04:26             COMPLETED           gwn08 
+20724058_20+                batch   00:04:26   4273700K  COMPLETED           gwn08 
+20724058_20+               extern   00:04:26             COMPLETED           gwn08 
+20724058_21              tfm-leak   00:01:49             COMPLETED           gwn03 
+20724058_21+                batch   00:01:49   3891868K  COMPLETED           gwn03 
+20724058_21+               extern   00:01:50             COMPLETED           gwn03 
+20724058_22              tfm-leak   00:01:13             COMPLETED           gwn03 
+20724058_22+                batch   00:01:13    821764K  COMPLETED           gwn03 
+20724058_22+               extern   00:01:13             COMPLETED           gwn03 
+20724058_23              tfm-leak   00:01:13             COMPLETED           gwn03 
+20724058_23+                batch   00:01:13    809096K  COMPLETED           gwn03 
+20724058_23+               extern   00:01:13             COMPLETED           gwn03 
+20724058_24              tfm-leak   00:10:13             COMPLETED           gwn03 
+20724058_24+                batch   00:10:13   4458900K  COMPLETED           gwn03 
+20724058_24+               extern   00:10:13             COMPLETED           gwn03 
+20724058_25              tfm-leak   00:12:41             COMPLETED           gwn08 
+20724058_25+                batch   00:12:41   5023812K  COMPLETED           gwn08 
+20724058_25+               extern   00:12:41             COMPLETED           gwn08 
+20724058_26              tfm-leak   00:03:55             COMPLETED           gwn03 
+20724058_26+                batch   00:03:55   3967744K  COMPLETED           gwn03 
+20724058_26+               extern   00:03:55             COMPLETED           gwn03 
+20724058_27              tfm-leak   00:02:04             COMPLETED           gwn08 
+20724058_27+                batch   00:02:04   4178144K  COMPLETED           gwn08 
+20724058_27+               extern   00:02:04             COMPLETED           gwn08 
+20724058_28              tfm-leak   00:01:54             COMPLETED           gwn03 
+20724058_28+                batch   00:01:54    946924K  COMPLETED           gwn03 
+20724058_28+               extern   00:01:54             COMPLETED           gwn03 
+20724058_29              tfm-leak   00:08:00             COMPLETED           gwn10 
+20724058_29+                batch   00:08:00   4371560K  COMPLETED           gwn10 
+20724058_29+               extern   00:08:00             COMPLETED           gwn10 
+20724058_30              tfm-leak   00:01:20             COMPLETED           gwn08 
+20724058_30+                batch   00:01:20   1024760K  COMPLETED           gwn08 
+20724058_30+               extern   00:01:20             COMPLETED           gwn08 
+20724058_31              tfm-leak   00:13:50             COMPLETED           gwn03 
+20724058_31+                batch   00:13:50   4394472K  COMPLETED           gwn03 
+20724058_31+               extern   00:13:50             COMPLETED           gwn03 
+20724058_32              tfm-leak   00:01:50             COMPLETED           gwn08 
+20724058_32+                batch   00:01:50   4018156K  COMPLETED           gwn08 
+20724058_32+               extern   00:01:50             COMPLETED           gwn08 
+20724058_33              tfm-leak   00:00:44             COMPLETED           gwn08 
+20724058_33+                batch   00:00:44    586284K  COMPLETED           gwn08 
+20724058_33+               extern   00:00:44             COMPLETED           gwn08 
