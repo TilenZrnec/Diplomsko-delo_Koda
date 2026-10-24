@@ -853,8 +853,10 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
    (LightGBM mechanism, only TabICL imputes on Medic3), Materiali (CC18 and
    Medic3 descriptions), Protokol / Predobdelava / Okolje / Ponovljivost.
 7. Then: tuning one booster by grid search with nested CV, then the CC18
-   leakage test (design approved by the supervisor 2026-10-20, step 8); CC18 with
-   injected NULLs is still on the supervisor's list. **Tuning decisions (user,
+   leakage test (design approved by the supervisor 2026-10-20, step 8). The CC18
+   experiment with 50 % injected NULLs was **dropped by the user 2026-10-23** (only a
+   fallback if the foundation models were worse than the trees on Medic3); all
+   experiments are done, writing next. **Tuning decisions (user,
    2026-10-14):**
    - **XGBoost**, with the same out-of-the-box preprocessing as the default
      XGBoost after the 2026-10-14 correction (native categories, see
@@ -1039,8 +1041,9 @@ Order from here (the user's decision): CC18 re-run → Medic3 → tuning → lea
         part-2 section of `PROVENANCE.md`, the registry rows here and in
         `results/README.md`, and the `run_tuning.sh` header (2 days on `all`,
         isolet/har on `long`). Then the thesis tuning section.
-   For the supervisor: leakage design, injected NULLs, the LightGBM finding,
-   and the out-of-the-box correction of XGBoost and RandomForest (2026-10-14).
+   For the supervisor: the LightGBM finding was reported (email 2026-10-19). The
+   out-of-the-box rule was agreed with him from the start, so the 2026-10-14 fix
+   (making the code follow it) needs no report (user, 2026-10-23).
 8. **Leakage test — DONE 2026-10-22.** Result (pre-registered, details and
    numbers in `results/runs/cc18_leakage/PROVENANCE.md`): TabPFN-3.5 loses
    significantly more than CatBoost on the perturbed CC18 copies (warp: median
