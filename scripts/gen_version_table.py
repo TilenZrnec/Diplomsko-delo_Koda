@@ -50,8 +50,10 @@ def build_table(manifest):
     lines = [
         "\\begin{table}[htbp]",
         "\\centering",
-        "\\caption{Uporabljeni algoritmi, implementacije in pripete različice knjižnic.}",
+        "\\caption{Uporabljeni algoritmi, implementacije in pripete različice knjižnic. Pri temeljnih "
+        "modelih je pod paketom navedena še datoteka z utežmi, saj različica paketa modela ne določa.}",
         "\\label{tab:razlicice}",
+        "\\small",
         "\\begin{tabular}{llll}",
         "\\hline",
         "Algoritem & Knjižnica & Razred & Različica \\\\",
@@ -59,13 +61,15 @@ def build_table(manifest):
     ]
     # Pri temeljnih modelih različica paketa ne pove, katere uteži so tekle (tabpfn
     # 9 zna naložiti TabPFN-3 ali TabPFN-3.5), zato dodamo ime kontrolne točke iz
-    # manifesta. Starejši manifesti (pred 2026-10-05) tega ključa nimajo.
+    # manifesta. Starejši manifesti (pred 2026-10-05) tega ključa nimajo. Ime je
+    # v svoji vrstici čez tri stolpce: v stolpcu Različica bi bila tabela širša od
+    # besedila (z 12-točkovno pisavo za ~166 pt).
     checkpoints = manifest.get("model_checkpoints", {})
     for key, algo, package, cls in ROWS:
         version = versions.get(package.lower(), "?")
-        if checkpoints.get(key):
-            version += f", uteži \\texttt{{{_checkpoint_label(checkpoints[key])}}}"
         lines.append(f"{algo} & {package} & \\texttt{{{cls.replace('_', '_')}}} & {version} \\\\")
+        if checkpoints.get(key):
+            lines.append(f" & \\multicolumn{{3}}{{l}}{{uteži \\texttt{{{_checkpoint_label(checkpoints[key])}}}}} \\\\")
     lines += ["\\hline"]
     lines.append(f"Python & -- & -- & {manifest.get('python', '?')} \\\\")
     torch_v = manifest.get("torch") or versions.get("torch", "?")

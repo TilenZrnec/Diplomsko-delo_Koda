@@ -1,8 +1,9 @@
 % Samodejno iz subset_v3_local/manifest.json (git 2797d14, 2026-10-06T09:18:44+02:00). Ne urejaj na roko.
 \begin{table}[htbp]
 \centering
-\caption{Uporabljeni algoritmi, implementacije in pripete različice knjižnic.}
+\caption{Uporabljeni algoritmi, implementacije in pripete različice knjižnic. Pri temeljnih modelih je pod paketom navedena še datoteka z utežmi, saj različica paketa modela ne določa.}
 \label{tab:razlicice}
+\small
 \begin{tabular}{llll}
 \hline
 Algoritem & Knjižnica & Razred & Različica \\
@@ -11,8 +12,10 @@ Naključni gozd & scikit-learn & \texttt{RandomForestClassifier} & 1.9.1 \\
 XGBoost & xgboost & \texttt{XGBClassifier} & 3.4.1 \\
 LightGBM & lightgbm & \texttt{LGBMClassifier} & 4.7.0 \\
 CatBoost & catboost & \texttt{CatBoostClassifier} & 1.2.10 \\
-TabPFN & tabpfn & \texttt{TabPFNClassifier} & 9.1.0, uteži \texttt{tabpfn-v3.5-20260909} \\
-TabICL & tabicl & \texttt{TabICLClassifier} & 2.2.0, uteži \texttt{tabicl-classifier-v2-20260212} \\
+TabPFN & tabpfn & \texttt{TabPFNClassifier} & 9.1.0 \\
+ & \multicolumn{3}{l}{uteži \texttt{tabpfn-v3.5-20260909}} \\
+TabICL & tabicl & \texttt{TabICLClassifier} & 2.2.0 \\
+ & \multicolumn{3}{l}{uteži \texttt{tabicl-classifier-v2-20260212}} \\
 \hline
 Python & -- & -- & 3.12.13 \\
 PyTorch & torch & -- & 2.14.1+cu130 \\
