@@ -262,6 +262,22 @@ while its predictions are on the machine.
   independent part also runs in `tabularOriginal`), `medic3.json` /
   `medic3_160.json` (Medic3 specs, raw and capped at 160 classes),
   `subset_ids.json`, `cc18_ids.json`.
+  **Thesis-text analyses (added 2026-10-28 for the first draft; they only read
+  results and write summaries, nothing trains):** `analyze_tuning.py` (tuning
+  experiment: checks, tuned vs default, 7-algorithm table with Wilcoxon + Holm,
+  winners, grid edges, cost → `cc18_xgb_tuned/summary/tuning_*`; reproduces every
+  number of its PROVENANCE.md, which came from scratch scripts),
+  `explore_leakage.py` (post hoc, NOT the pre-registered test: lead over CatBoost
+  per arm, Spearman, accuracy/log-loss deltas → `cc18_leakage/summary/
+  leakage_exploratory*`), `describe_datasets.py --dataset-set X` (dataset
+  properties through `load_dataset` → `results/datasets/<set>.csv`; Medic3 only
+  as aggregates; median class size there is the usual median, 180, while
+  `profile_medic3.py` prints the upper median, 182), `analyze_properties.py`
+  (FM advantage vs dataset properties, Spearman + Holm → `cc18_v4/combined/
+  summary/properties_*`), `analyze_logloss.py <run>` (log loss split into rows
+  with p(true) < eps and the rest, from predictions, checked against
+  `metrics.csv` → `summary/log_loss/logloss_split*`; run on `cc18_v4/combined`
+  and `medic3_160_v2/combined`).
 - `results/` — see `results/README.md`. `results/runs/<run_id>/` per run
   (`manifest.json`, `per_dataset/`, `predictions/` [gitignored],
   `results.csv`, `summary/`, `diagnostics/` [checks made by a script after the

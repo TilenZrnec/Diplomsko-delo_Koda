@@ -78,6 +78,15 @@ Starejši zagoni (`check_refactor_oldenv`, `subset_v2_local`, `subset_v2`) in ar
 | `summary/` | tabele (CSV + LaTeX), diagram kritične razdalje, `friedman.csv` (chi2_F in Iman-Davenportova F_F), `razlicice.tex`; pri zagonu z enim naborom namesto testov čez nabore `corrected_ttest_holm.csv/.tex` — iz `src/summary.py`, `src/stats.py`, `scripts/gen_version_table.py` | da |
 | `metrics.csv`, `metrics_info.json` | dodatni metriki (točnost, logaritemska izguba) vsakega učenja, izračunani iz `predictions/` brez ponovnega zagona, s kontrolo ROC-AUC iz datotek — iz `scripts/compute_metrics.py`; pri sestavljenem naboru v `combined/` | da |
 | `summary/<metrika>/` | iste tabele in testi za dodatno metriko (`accuracy`, `log_loss`) — `src/summary.py` in `src/stats.py` z `--metric`; nasičenost vedno po ROC-AUC | da |
+| `summary/tuning_*`, `summary/leakage_exploratory*`, `summary/properties_*`, `summary/log_loss/logloss_split*` | analize za besedilo diplome (2026-10-28): poskus uglaševanja (`scripts/analyze_tuning.py`, v `cc18_xgb_tuned`), raziskovalni del testa uhajanja (`scripts/explore_leakage.py`, post hoc, v `cc18_leakage`), prednost temeljnih modelov proti lastnostim naborov (`scripts/analyze_properties.py`, v `cc18_v4/combined`), razčlenitev logaritemske izgube (`scripts/analyze_logloss.py`, v `cc18_v4/combined` in `medic3_160_v2/combined`) | da |
+
+## `datasets/` — lastnosti podatkovnih množic
+
+`datasets/<nabor>.csv` (`cc18`, `medic3`, `medic3_160`) iz
+`scripts/describe_datasets.py`: ena vrstica na nabor (primeri, atributi,
+kategorični atributi, razredi in njihove velikosti, neuravnoteženost, delež
+manjkajočih vrednosti), izračunano iz podatkov, kot jih naloži benchmark. Pri
+zaupnem Medic3 le zbirne številke, ki jih objavi tudi diploma.
 | `diagnostics/` | dodatne preverbe posameznega zagona, ki jih naredi skript (ne zagon sam), npr. `lightgbm_<različica>_*.csv/.json` iz `scripts/diagnose_lightgbm_medic3.py` — le metrike, nobenih podatkov | da |
 | `PROVENANCE.md`, `sacct.txt` | ročni zapis tega, česar skript ne ve: SLURM opravila, ponovne oddaje, težave | da |
 

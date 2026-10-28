@@ -430,6 +430,11 @@ participant "scripts/combine_runs.py" as COMB
 participant "scripts/compute_metrics.py" as MET
 participant "src/metrics.py" as METF
 participant "scripts/analyze_leakage.py" as LEAK
+participant "scripts/explore_leakage.py" as LEAKX
+participant "scripts/analyze_tuning.py" as TUNE
+participant "scripts/describe_datasets.py" as DESC
+participant "scripts/analyze_properties.py" as PROP
+participant "scripts/analyze_logloss.py" as LLS
 collections "results/runs/<run_id>/\nresults.csv, manifest.json" as RES
 collections "results/runs/<run_id>/summary/\n*.csv, *.tex, cd_diagram.png" as SUMOUT
 collections "data/medic3/Medic3.csv\n(zaupno, NI v gitu)" as M3
@@ -511,6 +516,52 @@ LEAK -> LEAK : enostranski Wilcoxon čez nabore (H1: delta > 0);\npravilo: delta
 LEAK -> SUMOUT : summary/leakage_per_dataset, leakage_tests (.csv, .tex),\nleakage_reference, leakage_report.txt
 LEAK --> U : p, p_Holm, odločitev po vnaprej določenem pravilu, preverbe
 deactivate LEAK
+
+U -> LEAKX : python scripts/explore_leakage.py cc18_leakage\n~--reference medic3_160_leakage
+activate LEAKX
+LEAKX -> LEAK : load_run, complete_datasets (isto branje kot test)
+LEAKX -> RES : results.csv + metrics.csv obeh zagonov
+LEAKX -> LEAKX : prednost pred CatBoostom po različicah, delež, ki ostane;\nSpearman delta : prvotna prednost / velikost; delta za točnost in log. izgubo
+LEAKX -> SUMOUT : summary/leakage_exploratory*.csv, leakage_exploratory_report.txt
+deactivate LEAKX
+note right of LEAKX
+  Post hoc, NI del vnaprej določenega testa:
+  analyze_leakage.py ostane nespremenjen.
+end note
+
+== Poskus uglaševanja: analiza ==
+
+U -> TUNE : python scripts/analyze_tuning.py\n[~--run cc18_xgb_tuned ~--reference cc18_v4/combined]
+activate TUNE
+TUNE -> RES : results.csv + metrics.csv obeh; hyperparameters (JSON);\ntuning/<id>/xgboost_tuned_r<r>_f<f>.csv (128 notranjih rezultatov)
+TUNE -> TUNE : preverba: privzeti XGBoost v zagonu = referenca;\nuglašeni proti privzetemu, 7 algoritmov (rang na nabor), Wilcoxon + holm()
+TUNE -> TUNE : zmagovalne nastavitve, robovi mreže,\nnotranja ocena proti testni, cena
+TUNE -> SUMOUT : summary/tuning_*.csv, tuning_report.txt
+deactivate TUNE
+
+== Lastnosti naborov in odvisnost rezultatov od njih ==
+
+U -> DESC : python scripts/describe_datasets.py ~--dataset-set cc18 | medic3 | medic3_160
+activate DESC
+DESC -> DESC : src/data.py load_dataset (ista pot kot benchmark)
+DESC -> DESC : primeri, atributi, kategorični, razredi,\nneuravnoteženost, delež manjkajočih vrednosti
+DESC --> U : results/datasets/<dataset-set>.csv (le zbirne številke)
+deactivate DESC
+U -> PROP : python scripts/analyze_properties.py
+activate PROP
+PROP -> SUMOUT : bere summary/pivot.csv (cc18_v4/combined) in results/datasets/cc18.csv
+PROP -> PROP : prednost = najboljši temeljni model - najboljši ansambel;\nSpearman z lastnostmi + holm(), vsi in nenasičeni
+PROP -> SUMOUT : summary/properties_*.csv, properties_report.txt
+deactivate PROP
+
+== Razčlenitev logaritemske izgube ==
+
+U -> LLS : python scripts/analyze_logloss.py cc18_v4/combined | medic3_160_v2/combined
+activate LLS
+LLS -> RES : predictions/<nabor>/<algo>_r<r>_f<f>.npz (prediction_path\niz scripts/compute_metrics.py, full_proba iz src/metrics.py)
+LLS -> LLS : izguba = primeri s p(pravi) < eps (vsak 36,04) + ostali;\nkontrola proti metrics.csv
+LLS -> SUMOUT : summary/log_loss/logloss_split*.csv, logloss_split_report.txt
+deactivate LLS
 
 == Različice knjižnic za diplomo ==
 
