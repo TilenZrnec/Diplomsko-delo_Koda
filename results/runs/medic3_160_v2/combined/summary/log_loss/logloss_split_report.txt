@@ -1,0 +1,17 @@
+Razčlenitev logaritemske izgube: results/runs/medic3_160_v2/combined/results.csv
+  učenj 90, testnih primerov skupaj 2120850; -log(eps) = 36.04
+  kontrola proti metrics.csv: največja razlika 7.11e-15
+
+algoritem        izguba  od p=0  delež  ostalo vrstic p=0 naborov točnost p prav.
+CatBoost         1.9135  0.0000   0.0%  1.9135     0.000%   0/1    0.4991  0.6031
+TabPFN-3.5       1.9281  0.0000   0.0%  1.9281     0.000%   0/1    0.4961  0.5687
+TabICL           2.0216  0.0000   0.0%  2.0216     0.000%   0/1    0.4806  0.6156
+XGBoost          2.3138  0.0003   0.0%  2.3135     0.001%   1/1    0.4761  0.7477
+Naključni gozd   4.2027  2.4121  57.4%  1.7906     6.692%   1/1    0.4695  0.4422
+LightGBM        34.1245 34.1240 100.0%  0.0006    94.674%   1/1    0.0532  1.0000
+
+izguba = povprečna logaritemska izguba čez nabore; od p=0 = njen del iz primerov, ki jim je
+model dal verjetnost pravega razreda pod eps (vsak prispeva -log eps); delež = od p=0 / izguba;
+ostalo = izguba brez teh primerov; vrstic p=0 = delež takih testnih primerov (vsi skupaj);
+naborov = število naborov z vsaj enim takim primerom; p prav. = povprečna verjetnost pravega
+razreda pri pravilno razvrščenih primerih.

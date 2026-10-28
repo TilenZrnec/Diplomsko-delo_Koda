@@ -1,0 +1,17 @@
+Razčlenitev logaritemske izgube: results/runs/cc18_v4/combined/results.csv
+  učenj 6480, testnih primerov skupaj 15745068; -log(eps) = 36.04
+  kontrola proti metrics.csv: največja razlika 4.44e-16
+
+algoritem        izguba  od p=0  delež  ostalo vrstic p=0 naborov točnost p prav.
+TabPFN-3.5       0.2417  0.0000   0.0%  0.2417     0.000%   0/72   0.8959  0.9042
+TabICL           0.2499  0.0000   0.0%  0.2499     0.000%   0/72   0.8911  0.9132
+CatBoost         0.3123  0.0000   0.0%  0.3123     0.000%   0/72   0.8716  0.8943
+LightGBM         0.3709  0.0000   0.0%  0.3709     0.000%   0/72   0.8652  0.9216
+XGBoost          0.3807  0.0000   0.0%  0.3807     0.000%   0/72   0.8646  0.9303
+Naključni gozd   0.5144  0.1230  23.9%  0.3913     0.089%  47/72   0.8599  0.8214
+
+izguba = povprečna logaritemska izguba čez nabore; od p=0 = njen del iz primerov, ki jim je
+model dal verjetnost pravega razreda pod eps (vsak prispeva -log eps); delež = od p=0 / izguba;
+ostalo = izguba brez teh primerov; vrstic p=0 = delež takih testnih primerov (vsi skupaj);
+naborov = število naborov z vsaj enim takim primerom; p prav. = povprečna verjetnost pravega
+razreda pri pravilno razvrščenih primerih.

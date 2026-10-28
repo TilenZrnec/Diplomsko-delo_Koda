@@ -1,0 +1,2 @@
+dataset_id,dataset,n_rows,n_features,n_categorical,n_classes,min_class_size,median_class_size,max_class_size,majority_share,minority_share,imbalance_ratio,missing_share,rows_with_missing_share,median_observed_per_row,rows_dropped
+medic3,medic3,122093,275,0,220,50,180.0,7462,0.061117344974732375,0.0004095238875283595,0.006700616456714018,0.8219117617494265,1.0,50.0,0

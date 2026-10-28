@@ -1,0 +1,31 @@
+Prednost temeljnih modelov: results/runs/cc18_v4/combined + results/datasets/cc18.csv
+  naborov 72, nenasičenih 37; prednost > 0 na 70
+  vsi: mediana prednosti +0.0061, povprečje +0.0127
+    <= 10000 primerov: 56 naborov, mediana prednosti +0.0077, prednost > 0 na 54, TabPFN-3.5 > CatBoost na 53
+    > 10000 primerov: 16 naborov, mediana prednosti +0.0031, prednost > 0 na 16, TabPFN-3.5 > CatBoost na 16
+  nenasičeni: mediana prednosti +0.0173, povprečje +0.0212
+    <= 10000 primerov: 31 naborov, mediana prednosti +0.0174, prednost > 0 na 31, TabPFN-3.5 > CatBoost na 30
+    > 10000 primerov: 6 naborov, mediana prednosti +0.0119, prednost > 0 na 6, TabPFN-3.5 > CatBoost na 6
+  nasičeni: med binarnimi 10 od 35, med večrazrednimi 25 od 37
+
+Spearmanov koeficient (prednost proti lastnosti), Holm čez lastnosti znotraj podmnožice:
+  vsi        n=72  število primerov               rho=-0.210  p=0.0763  p_Holm=0.229
+  vsi        n=72  število atributov              rho=-0.254  p=0.0312  p_Holm=0.125
+  vsi        n=72  število razredov               rho=-0.385  p=0.000828  p_Holm=0.00414  *
+  vsi        n=72  delež kategoričnih atributov   rho=+0.004  p=0.976  p_Holm=0.976
+  vsi        n=72  delež manjkajočih vrednosti    rho=+0.085  p=0.479  p_Holm=0.959
+  nenasičeni n=37  število primerov               rho=-0.163  p=0.335  p_Holm=1
+  nenasičeni n=37  število atributov              rho=-0.056  p=0.741  p_Holm=1
+  nenasičeni n=37  število razredov               rho=+0.070  p=0.678  p_Holm=1
+  nenasičeni n=37  delež kategoričnih atributov   rho=+0.006  p=0.974  p_Holm=1
+  nenasičeni n=37  delež manjkajočih vrednosti    rho=+0.084  p=0.62  p_Holm=1
+
+Največja in najmanjša prednost (nenasičeni):
+  spambase                            +0.0036  primerov   4601  atributov    57  razredov   2
+  adult                               +0.0040  primerov  48842  atributov    14  razredov   2
+  credit-approval                     +0.0043  primerov    690  atributov    15  razredov   2
+  jm1                                 +0.0429  primerov  10885  atributov    21  razredov   2
+  cylinder-bands                      +0.0476  primerov    540  atributov    37  razredov   2
+  vehicle                             +0.0478  primerov    846  atributov    18  razredov   4
+  madelon                             +0.0499  primerov   2600  atributov   500  razredov   2
+  GesturePhaseSegmentationProcessed   +0.0767  primerov   9873  atributov    32  razredov   5

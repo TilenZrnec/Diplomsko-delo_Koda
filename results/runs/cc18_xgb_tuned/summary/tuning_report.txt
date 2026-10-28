@@ -1,0 +1,60 @@
+Poskus uglaševanja: results/runs/cc18_xgb_tuned proti results/runs/cc18_v4/combined
+  vrstic 1020, naborov 68, z napako 0
+  isti foldi kot v referenci: True; privzeti XGBoost v zagonu = referenca na 693 od 1020 foldov, največja razlika 1.1e-16
+
+== roc_auc ==
+  vsi (68): uglašeni proti privzetemu XGBoost: boljši na 61, slabši na 7, povprečna razlika +0.0083, mediana +0.0016, Wilcoxon p = 1.6e-10
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.9395 / 1.44, TabICL 0.9370 / 1.96, CatBoost 0.9255 / 3.81, XGBoost (uglašeni) 0.9260 / 3.85, LightGBM 0.9193 / 5.32, XGBoost (privzeti) 0.9177 / 5.63, Naključni gozd 0.9160 / 5.99
+    zaostanek za TabPFN-3.5: privzeti 0.0218, uglašeni 0.0135, zaprto 38 %; uglašeni pred TabPFN-3.5 na 2
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 2:66 p_Holm 8.5e-12; TabICL 6:62 p_Holm 1.3e-09; CatBoost 30:38 p_Holm 0.52; LightGBM 58:10 p_Holm 5.9e-08; XGBoost (privzeti) 61:7 p_Holm 7.9e-10; Naključni gozd 57:11 p_Holm 4.7e-07
+  nenasičeni (36): uglašeni proti privzetemu XGBoost: boljši na 33, slabši na 3, povprečna razlika +0.0141, mediana +0.0066, Wilcoxon p = 1.9e-08
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.8869 / 1.25, TabICL 0.8830 / 2.08, CatBoost 0.8645 / 3.78, XGBoost (uglašeni) 0.8644 / 3.92, LightGBM 0.8541 / 5.33, Naključni gozd 0.8511 / 5.72, XGBoost (privzeti) 0.8503 / 5.92
+    zaostanek za TabPFN-3.5: privzeti 0.0367, uglašeni 0.0225, zaprto 39 %; uglašeni pred TabPFN-3.5 na 0
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 0:36 p_Holm 1.7e-10; TabICL 3:33 p_Holm 1.5e-07; CatBoost 15:21 p_Holm 0.67; LightGBM 31:5 p_Holm 3.9e-06; XGBoost (privzeti) 33:3 p_Holm 9.3e-08; Naključni gozd 29:7 p_Holm 0.00047
+  nasičeni (32): uglašeni proti privzetemu XGBoost: boljši na 28, slabši na 4, povprečna razlika +0.0018, mediana +0.0003, Wilcoxon p = 2e-06
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.9987 / 1.66, TabICL 0.9978 / 1.81, XGBoost (uglašeni) 0.9954 / 3.78, CatBoost 0.9942 / 3.84, LightGBM 0.9925 / 5.31, XGBoost (privzeti) 0.9936 / 5.31, Naključni gozd 0.9889 / 6.28
+    zaostanek za TabPFN-3.5: privzeti 0.0050, uglašeni 0.0033, zaprto 35 %; uglašeni pred TabPFN-3.5 na 2
+
+== accuracy ==
+  vsi (68): uglašeni proti privzetemu XGBoost: boljši na 57, slabši na 10, povprečna razlika +0.0068, mediana +0.0033, Wilcoxon p = 1.7e-08
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.8976 / 1.47, TabICL 0.8930 / 2.14, CatBoost 0.8731 / 4.12, XGBoost (uglašeni) 0.8731 / 4.13, LightGBM 0.8672 / 4.98, Naključni gozd 0.8631 / 5.45, XGBoost (privzeti) 0.8664 / 5.71
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 3:65 p_Holm 1.6e-11; TabICL 9:59 p_Holm 8.2e-09; CatBoost 31:35 p_Holm 0.4; LightGBM 46:21 p_Holm 0.00082; XGBoost (privzeti) 57:10 p_Holm 6.7e-08; Naključni gozd 47:21 p_Holm 0.00051
+  nenasičeni (36): uglašeni proti privzetemu XGBoost: boljši na 30, slabši na 6, povprečna razlika +0.0080, mediana +0.0043, Wilcoxon p = 4.7e-05
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.8221 / 1.31, TabICL 0.8165 / 2.18, CatBoost 0.7923 / 4.19, XGBoost (uglašeni) 0.7920 / 4.22, LightGBM 0.7859 / 5.01, Naključni gozd 0.7813 / 5.21, XGBoost (privzeti) 0.7840 / 5.88
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 1:35 p_Holm 3.5e-10; TabICL 4:32 p_Holm 5.1e-06; CatBoost 17:18 p_Holm 0.77; LightGBM 24:11 p_Holm 0.016; XGBoost (privzeti) 30:6 p_Holm 0.00019; Naključni gozd 23:13 p_Holm 0.015
+  nasičeni (32): uglašeni proti privzetemu XGBoost: boljši na 27, slabši na 4, povprečna razlika +0.0054, mediana +0.0022, Wilcoxon p = 1.3e-05
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.9825 / 1.66, TabICL 0.9789 / 2.09, XGBoost (uglašeni) 0.9644 / 4.03, CatBoost 0.9639 / 4.05, LightGBM 0.9587 / 4.94, XGBoost (privzeti) 0.9591 / 5.52, Naključni gozd 0.9550 / 5.72
+
+== log_loss ==
+  vsi (68): uglašeni proti privzetemu XGBoost: boljši na 65, slabši na 3, povprečna razlika -0.0729, mediana -0.0266, Wilcoxon p = 1.6e-12
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.2326 / 1.35, TabICL 0.2413 / 1.96, XGBoost (uglašeni) 0.3016 / 3.71, CatBoost 0.3036 / 3.74, XGBoost (privzeti) 0.3745 / 5.43, LightGBM 0.3634 / 5.51, Naključni gozd 0.4972 / 6.31
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 2:66 p_Holm 7.5e-12; TabICL 5:63 p_Holm 1.1e-10; CatBoost 27:41 p_Holm 0.15; LightGBM 62:6 p_Holm 3.4e-10; XGBoost (privzeti) 65:3 p_Holm 7.8e-12; Naključni gozd 63:5 p_Holm 1.1e-10
+  nenasičeni (36): uglašeni proti privzetemu XGBoost: boljši na 36, slabši na 0, povprečna razlika -0.1214, mediana -0.0699, Wilcoxon p = 2.9e-11
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.3930 / 1.14, TabICL 0.4059 / 2.11, CatBoost 0.4755 / 3.50, XGBoost (uglašeni) 0.4765 / 3.81, LightGBM 0.5640 / 5.56, XGBoost (privzeti) 0.5979 / 5.92, Naključni gozd 0.7257 / 5.97
+    Wilcoxon + Holm (6 primerjav): TabPFN-3.5 0:36 p_Holm 1.7e-10; TabICL 3:33 p_Holm 4.3e-08; CatBoost 11:25 p_Holm 0.025; LightGBM 33:3 p_Holm 6.7e-08; XGBoost (privzeti) 36:0 p_Holm 1.7e-10; Naključni gozd 32:4 p_Holm 1.6e-06
+  nasičeni (32): uglašeni proti privzetemu XGBoost: boljši na 29, slabši na 3, povprečna razlika -0.0184, mediana -0.0125, Wilcoxon p = 5.1e-08
+    povprečje / povprečni rang (7 algoritmov): TabPFN-3.5 0.0522 / 1.59, TabICL 0.0560 / 1.78, XGBoost (uglašeni) 0.1048 / 3.59, CatBoost 0.1102 / 4.00, XGBoost (privzeti) 0.1232 / 4.88, LightGBM 0.1377 / 5.47, Naključni gozd 0.2402 / 6.69
+
+== zmagovalne nastavitve (fold = ena izbira) ==
+  vsi (1020 foldov): learning_rate 0.01:335/0.03:361/0.1:231/0.3:93; n_estimators 100:197/200:205/500:241/1000:377; min_child_weight 1:791/4:229; colsample_bylevel 0.5:762/1:258; subsample 0.8:781/1:239
+    privzeta nastavitev zmagala 2-krat, mediana njenega notranjega ranga 65 od 128; najmočnejši kot (0,3; 1000) 28-krat
+    najšibkejši kot (0,01; 100) 73-krat; korak z 200 na 100 dreves: mediana notranjega dobička 0.0023, največ 0.0188
+    1000 dreves 377-krat; korak s 500 na 1000: mediana 0.00018, 90. percentil 0.0031
+    najpogostejši (stopnja učenja, drevesa): (0.03; 1000) 158, (0.01; 1000) 106, (0.03; 500) 95
+  nenasičeni (540 foldov): learning_rate 0.01:284/0.03:169/0.1:75/0.3:12; n_estimators 100:150/200:135/500:131/1000:124; min_child_weight 1:360/4:180; colsample_bylevel 0.5:395/1:145; subsample 0.8:398/1:142
+    privzeta nastavitev zmagala 1-krat, mediana njenega notranjega ranga 77 od 128; najmočnejši kot (0,3; 1000) 3-krat
+    najšibkejši kot (0,01; 100) 73-krat; korak z 200 na 100 dreves: mediana notranjega dobička 0.0023, največ 0.0188
+    1000 dreves 124-krat; korak s 500 na 1000: mediana 0.00234, 90. percentil 0.0053
+    najpogostejši (stopnja učenja, drevesa): (0.01; 100) 73, (0.01; 200) 71, (0.01; 500) 70
+  nasičeni (480 foldov): learning_rate 0.01:51/0.03:192/0.1:156/0.3:81; n_estimators 100:47/200:70/500:110/1000:253; min_child_weight 1:431/4:49; colsample_bylevel 0.5:367/1:113; subsample 0.8:383/1:97
+    privzeta nastavitev zmagala 1-krat, mediana njenega notranjega ranga 52 od 128; najmočnejši kot (0,3; 1000) 25-krat
+    1000 dreves 253-krat; korak s 500 na 1000: mediana 0.00007, 90. percentil 0.0006
+    najpogostejši (stopnja učenja, drevesa): (0.03; 1000) 130, (0.1; 1000) 62, (0.1; 500) 42
+
+== notranja ocena proti testni, cena ==
+  nenasičeni: notranje preverjanje obeta +0.0198 proti privzetemu, test da +0.0141; cena = mediana 654-kratnika privzetega učenja (razpon 439-1571)
+  nasičeni: notranje preverjanje obeta +0.0022 proti privzetemu, test da +0.0018; cena = mediana 714-kratnika privzetega učenja (razpon 426-2434)
+  ilpd: razlika -0.0088; notranji dobiček > 0 na 15 od 15 foldov, testni < 0 na 11
+  Internet-Advertisements: razlika -0.0007; notranji dobiček > 0 na 15 od 15 foldov, testni < 0 na 7
+  največji dobički: kc2 +0.0535, blood-transfusion-service-center +0.0493, diabetes +0.0414, cmc +0.0392, dresses-sales +0.0340
+  čas uglaševanja skupaj (train_time_s): 197.1 h na 8 jedrih

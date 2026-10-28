@@ -1,0 +1,26 @@
+Raziskovalna analiza po zagonu (post hoc) - ni del vnaprej določenega testa.
+
+Prednost pred kontrolo (CatBoost), ROC-AUC, 34 naborov:
+  TabPFN-3.5  original        povprečna prednost +0.0222 (100 % izvirne), boljši na 33/34, p = 2.3e-10; Medic3 +0.0016
+  TabPFN-3.5  monotone        povprečna prednost +0.0185 (84 % izvirne), boljši na 33/34, p = 1.6e-08; Medic3 +0.0018
+  TabPFN-3.5  monotone_noise  povprečna prednost +0.0163 (74 % izvirne), boljši na 32/34, p = 1.7e-07; Medic3 +0.0020
+  TabICL      original        povprečna prednost +0.0187 (100 % izvirne), boljši na 32/34, p = 2.4e-08; Medic3 -0.0054
+  TabICL      monotone        povprečna prednost +0.0155 (83 % izvirne), boljši na 30/34, p = 5.8e-07; Medic3 -0.0043
+  TabICL      monotone_noise  povprečna prednost +0.0140 (75 % izvirne), boljši na 32/34, p = 7.5e-08; Medic3 -0.0113
+
+Spearman: delta (ROC-AUC) proti prvotni prednosti pred kontrolo in proti velikosti učne množice:
+  TabPFN-3.5  monotone        rho(prednost) = +0.42 (p = 0.013), rho(velikost) = -0.02 (p = 0.92)
+  TabPFN-3.5  monotone_noise  rho(prednost) = +0.48 (p = 0.0038), rho(velikost) = +0.01 (p = 0.97)
+  TabICL      monotone        rho(prednost) = +0.41 (p = 0.017), rho(velikost) = -0.10 (p = 0.59)
+  TabICL      monotone_noise  rho(prednost) = +0.56 (p = 0.00062), rho(velikost) = -0.15 (p = 0.4)
+  največja delta (TabPFN-3.5, monotona): kc1 0.011, GesturePhaseSegmentationProcessed 0.010, kc2 0.010, madelon 0.009, climate-model-simulation-crashes 0.009, pc4 0.009, vehicle 0.009, cylinder-bands 0.008
+
+Delta za dodatni metriki (enostranski Wilcoxon, H1: delta > 0, Holm znotraj modela):
+  accuracy  TabPFN-3.5  monotone        mediana delta +0.0024, > 0 na 21/34, p_Holm = 0.0098; Medic3 -0.0005
+  accuracy  TabPFN-3.5  monotone_noise  mediana delta +0.0056, > 0 na 22/34, p_Holm = 0.029; Medic3 +0.0005
+  accuracy  TabICL      monotone        mediana delta +0.0021, > 0 na 23/34, p_Holm = 0.0013; Medic3 -0.0035
+  accuracy  TabICL      monotone_noise  mediana delta +0.0043, > 0 na 22/34, p_Holm = 0.017; Medic3 +0.0169
+  log_loss  TabPFN-3.5  monotone        mediana delta +0.0039, > 0 na 30/34, p_Holm = 3.6e-06; Medic3 -0.0017
+  log_loss  TabPFN-3.5  monotone_noise  mediana delta +0.0053, > 0 na 21/34, p_Holm = 0.02; Medic3 +0.0050
+  log_loss  TabICL      monotone        mediana delta +0.0037, > 0 na 30/34, p_Holm = 2.9e-08; Medic3 -0.0209
+  log_loss  TabICL      monotone_noise  mediana delta +0.0050, > 0 na 22/34, p_Holm = 0.012; Medic3 +0.1010
